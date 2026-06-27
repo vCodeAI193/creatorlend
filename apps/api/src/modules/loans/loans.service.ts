@@ -10,6 +10,8 @@ import type { Loan } from "@prisma/client";
 import { DEFAULT_LOAN_DURATION_DAYS } from "@creatorlend/shared";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MediaService } from "../media/media.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { NotificationType } from "../notifications/notification-types";
 
 /**
  * Kern-Logik des Leihmodells:
@@ -24,6 +26,7 @@ export class LoansService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private expiryFromNow(now: Date): Date {
@@ -91,7 +94,21 @@ export class LoansService {
         data: { loansUsedThisPeriod: { increment: 1 } },
       });
 
+      await tx.work.update({
+        where: { id: workId },
+        data: { borrowCount: { increment: 1 } },
+      });
+
       return created;
+    });
+
+    // Künstler:in über die neue Ausleihe informieren (F-084).
+    await this.notifications.create({
+      userId: work.artistId,
+      type: NotificationType.LOAN_CREATED,
+      title: "Neue Ausleihe",
+      body: `Dein Werk wurde geliehen (+${work.loanPriceCents} Cent).`,
+      data: { loanId: loan.id, workId },
     });
 
     return this.withAccess(loan);
@@ -176,5 +193,84 @@ export class LoansService {
       previousLoan: { id: loan.id, status: "EXCHANGED" },
       newLoan,
     };
+  }
+
+  /**
+   * Hintergrund-Sweep: setzt alle fälligen ACTIVE-Leihen auf EXPIRED und
+   * benachrichtigt die Hörer:innen (F-060, F-082). Gibt die Anzahl zurück.
+   */
+  async runExpirySweep(): Promise<{ expired: number }> {
+    const now = new Date();
+    const due = await this.prisma.loan.findMany({
+      where: { status: "ACTIVE", expiresAt: { lte: now } },
+      select: { id: true, userId: true, workId: true },
+    });
+    if (due.length === 0) return { expired: 0 };
+
+    await this.prisma.loan.updateMany({
+      where: { id: { in: due.map((l) => l.id) } },
+      data: { status: "EXPIRED" },
+    });
+
+    await this.notifications.createMany(
+      due.map((l) => ({
+        userId: l.userId,
+        type: NotificationType.LOAN_EXPIRED,
+        title: "Leihe abgelaufen",
+        body: "Deine Leihe ist abgelaufen. Du kannst sie verlängern oder neu leihen.",
+        data: { loanId: l.id, workId: l.workId },
+      })),
+    );
+
+    return { expired: due.length };
+  }
+
+  /**
+   * Erinnerung kurz vor Ablauf (F-082): aktive Leihen, die in <24h ablaufen
+   * und für die noch keine Erinnerung erzeugt wurde. Dedup über die bereits
+   * vorhandene LOAN_EXPIRING-Benachrichtigung (per data.loanId).
+   */
+  async runExpiringSoonReminders(): Promise<{ reminded: number }> {
+    const now = new Date();
+    const soon = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const candidates = await this.prisma.loan.findMany({
+      where: { status: "ACTIVE", expiresAt: { gt: now, lte: soon } },
+      select: { id: true, userId: true, workId: true, expiresAt: true },
+    });
+
+    let reminded = 0;
+    for (const l of candidates) {
+      const already = await this.prisma.notification.findFirst({
+        where: {
+          userId: l.userId,
+          type: NotificationType.LOAN_EXPIRING,
+          data: { path: ["loanId"], equals: l.id },
+        },
+      });
+      if (already) continue;
+      await this.notifications.create({
+        userId: l.userId,
+        type: NotificationType.LOAN_EXPIRING,
+        title: "Leihe läuft bald ab",
+        body: "Deine Leihe läuft in weniger als 24 Stunden ab.",
+        data: { loanId: l.id, workId: l.workId },
+      });
+      reminded += 1;
+    }
+    return { reminded };
+  }
+
+  /**
+   * Setzt das Leih-Kontingent für Abos zurück, deren Periode abgelaufen ist,
+   * und verlängert die Periode um 30 Tage (F-052).
+   */
+  async resetExpiredQuotas(): Promise<{ reset: number }> {
+    const now = new Date();
+    const nextPeriodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const result = await this.prisma.subscription.updateMany({
+      where: { status: "ACTIVE", currentPeriodEnd: { lte: now } },
+      data: { loansUsedThisPeriod: 0, currentPeriodEnd: nextPeriodEnd },
+    });
+    return { reset: result.count };
   }
 }

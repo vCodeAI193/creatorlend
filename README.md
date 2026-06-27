@@ -116,9 +116,25 @@ e2e-Tests abgesichert:
 5. `POST /api/v1/loans/:id/renew` / `/exchange` → verlängern / tauschen
 6. `GET /api/v1/payouts/summary` → aufgelaufene Künstlervergütung
 
-Echte Stripe-Integration und der Ablauf-Worker sind für Phase 2 (Beta)
-vorgesehen; im MVP wird das Abo per Dev-Endpoint aktiviert und der
-Leih-Ablauf „lazy" beim Lesen ausgewertet.
+Echte Stripe-Integration ist für Phase 2/3 vorgesehen; im MVP wird das
+Abo per Dev-Endpoint aktiviert.
+
+### Phase 2 (Beta) – umgesetzt
+Aufbauend auf dem Kern-Loop, mit Unit- und e2e-Tests abgesichert:
+
+- **Hintergrund-Scheduler** (`@nestjs/schedule`, stündlich): Ablauf von
+  Leihen + Erinnerung kurz vor Ablauf + Kontingent-Reset (F-052, F-060, F-082)
+- **In-App-Benachrichtigungen** (F-082–F-084): `GET /notifications`,
+  `GET /notifications/unread-count`, `POST /notifications/:id/read`,
+  `POST /notifications/read-all`
+- **Discovery-Ausbau** (F-027, F-041, F-042): `GET /works` mit
+  `type`, `q`, `language`, `category`, `sort=new|popular`
+- **Engagement**: Favoriten (F-016) `POST/DELETE/GET /favorites` und
+  Folgen (F-017) `POST/DELETE/GET /follows`
+
+Noch offen für Phase 2/3: echte Stripe-Integration (Checkout + Connect),
+Umstellung des Schedulers auf BullMQ/Redis für verteilte Skalierung,
+E-Mail-Benachrichtigungen und die Web-UI.
 
 ---
 

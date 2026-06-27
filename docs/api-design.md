@@ -289,3 +289,19 @@ Auth: Stripe-Signatur (kein JWT)
 | Abo anzeigen | GET | `/subscriptions/me` |
 | Abo ändern/kündigen | PATCH/DELETE | `/subscriptions/me` |
 | Stripe-Webhook | POST | `/webhooks/stripe` |
+
+### Phase 2 (Beta) – zusätzliche Endpunkte
+
+| Bereich | Methode | Pfad |
+| --- | --- | --- |
+| Discovery (Filter/Sort) | GET | `/works?type=&q=&language=&category=&sort=new\|popular` |
+| Benachrichtigungen | GET | `/notifications?unread=true` |
+| Ungelesen-Zähler | GET | `/notifications/unread-count` |
+| Als gelesen markieren | POST | `/notifications/:id/read` |
+| Alle gelesen | POST | `/notifications/read-all` |
+| Favorit hinzufügen | POST | `/favorites` |
+| Favorit entfernen | DELETE | `/favorites/:workId` |
+| Favoriten anzeigen | GET | `/favorites` |
+| Künstler:in folgen | POST | `/follows` |
+| Entfolgen | DELETE | `/follows/:artistId` |
+| Gefolgte anzeigen | GET | `/follows` |

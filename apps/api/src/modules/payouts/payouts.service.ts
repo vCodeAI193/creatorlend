@@ -1,11 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { NotificationType } from "../notifications/notification-types";
 
 const PAGE_SIZE = 20;
 
 @Injectable()
 export class PayoutsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /** Aggregierte Vergütung: ausstehend, ausgezahlt, Gesamtzahl Ausleihen. */
   async summary(artistId: string) {
@@ -53,10 +58,29 @@ export class PayoutsService {
    * Posten auf PAID gesetzt. Hier als transaktionaler Platzhalter.
    */
   async withdraw(artistId: string) {
+    const pending = await this.prisma.payoutItem.aggregate({
+      where: { artistId, status: "PENDING" },
+      _sum: { amountCents: true },
+      _count: true,
+    });
+    const amountCents = pending._sum.amountCents ?? 0;
+
     const result = await this.prisma.payoutItem.updateMany({
       where: { artistId, status: "PENDING" },
       data: { status: "PAID" },
     });
-    return { transferred: result.count };
+
+    if (result.count > 0) {
+      // Künstler:in über die Auszahlung informieren (F-083).
+      await this.notifications.create({
+        userId: artistId,
+        type: NotificationType.PAYOUT_PAID,
+        title: "Auszahlung erfolgt",
+        body: `${amountCents} Cent aus ${result.count} Ausleihen wurden ausgezahlt.`,
+        data: { amountCents, items: result.count },
+      });
+    }
+
+    return { transferred: result.count, amountCents };
   }
 }

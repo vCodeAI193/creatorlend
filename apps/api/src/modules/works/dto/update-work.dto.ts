@@ -39,4 +39,9 @@ export class UpdateWorkDto {
   @IsString()
   @MaxLength(16)
   language?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  category?: string;
 }

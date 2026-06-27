@@ -51,8 +51,14 @@ export class WorksController {
 
   // GET /api/v1/works – Suche / Discovery (öffentlich)
   @Get()
-  search(@Query("type") type?: string, @Query("q") q?: string) {
-    return this.works.search({ type, q });
+  search(
+    @Query("type") type?: string,
+    @Query("q") q?: string,
+    @Query("language") language?: string,
+    @Query("category") category?: string,
+    @Query("sort") sort?: string,
+  ) {
+    return this.works.search({ type, q, language, category, sort });
   }
 
   // GET /api/v1/works/:id – Detailansicht (öffentlich)

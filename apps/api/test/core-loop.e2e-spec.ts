@@ -18,6 +18,7 @@ describe("Kern-Loop (e2e)", () => {
 
   let listenerToken: string;
   let artistToken: string;
+  let artistId: string;
   let workId: string;
   let secondWorkId: string;
   let loanId: string;
@@ -144,5 +145,92 @@ describe("Kern-Loop (e2e)", () => {
     // 1x leihen (150) + 1x verlängern (150) + 1x tauschen auf Werk B (200) = 500
     expect(res.body.pendingCents).toBe(500);
     expect(res.body.lifetimeLoans).toBe(3);
+  });
+
+  // --- Phase 2 (Beta) ---
+
+  it("benachrichtigt die/den Künstler:in über neue Ausleihen (F-084)", async () => {
+    const res = await api()
+      .get("/api/v1/notifications")
+      .set("Authorization", `Bearer ${artistToken}`)
+      .expect(200);
+    const created = res.body.filter((n: { type: string }) => n.type === "LOAN_CREATED");
+    // 1x leihen + 1x tauschen (neuer Loan) = 2 LOAN_CREATED
+    expect(created.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("Discovery: Filter nach Typ und Sortierung (F-041/F-042)", async () => {
+    const popular = await api().get("/api/v1/works?sort=popular").expect(200);
+    expect(Array.isArray(popular.body)).toBe(true);
+    expect(popular.body.every((w: { status: string }) => w.status === "PUBLISHED")).toBe(true);
+
+    const music = await api().get("/api/v1/works?type=MUSIC").expect(200);
+    expect(music.body.every((w: { type: string }) => w.type === "MUSIC")).toBe(true);
+  });
+
+  it("Favoriten: hinzufügen, auflisten, Duplikat ablehnen, entfernen (F-016)", async () => {
+    await api()
+      .post("/api/v1/favorites")
+      .set("Authorization", `Bearer ${listenerToken}`)
+      .send({ workId: secondWorkId })
+      .expect(201);
+
+    await api()
+      .post("/api/v1/favorites")
+      .set("Authorization", `Bearer ${listenerToken}`)
+      .send({ workId: secondWorkId })
+      .expect(409);
+
+    const list = await api()
+      .get("/api/v1/favorites")
+      .set("Authorization", `Bearer ${listenerToken}`)
+      .expect(200);
+    expect(list.body.some((w: { id: string }) => w.id === secondWorkId)).toBe(true);
+
+    await api()
+      .delete(`/api/v1/favorites/${secondWorkId}`)
+      .set("Authorization", `Bearer ${listenerToken}`)
+      .expect(200);
+  });
+
+  it("Folgen: Künstler:in folgen und auflisten (F-017)", async () => {
+    const me = await api()
+      .get("/api/v1/users/me")
+      .set("Authorization", `Bearer ${artistToken}`)
+      .expect(200);
+    artistId = me.body.id;
+
+    await api()
+      .post("/api/v1/follows")
+      .set("Authorization", `Bearer ${listenerToken}`)
+      .send({ artistId })
+      .expect(201);
+
+    await api()
+      .post("/api/v1/follows")
+      .set("Authorization", `Bearer ${listenerToken}`)
+      .send({ artistId })
+      .expect(409);
+
+    const follows = await api()
+      .get("/api/v1/follows")
+      .set("Authorization", `Bearer ${listenerToken}`)
+      .expect(200);
+    expect(follows.body.some((a: { id: string }) => a.id === artistId)).toBe(true);
+  });
+
+  it("Auszahlung erzeugt eine PAYOUT_PAID-Benachrichtigung (F-083)", async () => {
+    const withdraw = await api()
+      .post("/api/v1/payouts/withdraw")
+      .set("Authorization", `Bearer ${artistToken}`)
+      .expect(201);
+    expect(withdraw.body.transferred).toBeGreaterThan(0);
+    expect(withdraw.body.amountCents).toBe(500);
+
+    const notifs = await api()
+      .get("/api/v1/notifications?unread=true")
+      .set("Authorization", `Bearer ${artistToken}`)
+      .expect(200);
+    expect(notifs.body.some((n: { type: string }) => n.type === "PAYOUT_PAID")).toBe(true);
   });
 });

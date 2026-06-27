@@ -53,10 +53,14 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  works        Work[]        @relation("ArtistWorks")
-  loans        Loan[]
-  subscription Subscription?
-  payoutItems  PayoutItem[]  @relation("ArtistPayouts")
+  works         Work[]         @relation("ArtistWorks")
+  loans         Loan[]
+  subscription  Subscription?
+  payoutItems   PayoutItem[]   @relation("ArtistPayouts")
+  favorites     Favorite[]
+  following      Follow[]       @relation("Following")
+  followers      Follow[]       @relation("Followers")
+  notifications Notification[]
 }
 
 model Work {
@@ -69,15 +73,19 @@ model Work {
   loanPriceCents  Int
   durationSeconds Int?
   language        String?
+  category        String?
+  borrowCount     Int        @default(0)
   mediaKey        String? // Schlüssel im Object Storage
   status          WorkStatus @default(DRAFT)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  loans Loan[]
+  loans     Loan[]
+  favorites Favorite[]
 
   @@index([artistId])
   @@index([type, status])
+  @@index([status, borrowCount])
 }
 
 model Subscription {
@@ -126,4 +134,45 @@ model PayoutItem {
   createdAt   DateTime         @default(now())
 
   @@index([artistId, status])
+}
+
+// Merkliste / Favoriten der Hörer:innen (F-016)
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  workId    String
+  work      Work     @relation(fields: [workId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, workId])
+  @@index([userId])
+}
+
+// Folgen von Künstler:innen (F-017)
+model Follow {
+  id         String   @id @default(uuid())
+  followerId String
+  follower   User     @relation("Following", fields: [followerId], references: [id])
+  artistId   String
+  artist     User     @relation("Followers", fields: [artistId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([followerId, artistId])
+  @@index([artistId])
+}
+
+// In-App-Benachrichtigungen (F-082..F-084)
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  type      String
+  title     String
+  body      String?
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
 }

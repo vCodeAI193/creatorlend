@@ -33,6 +33,7 @@ describe("LoansService (Kern-Loop)", () => {
       },
       payoutItem: { create: jest.fn() },
       subscription: { update: jest.fn() },
+      work: { update: jest.fn() },
     };
     return {
       _tx: tx,
@@ -57,10 +58,14 @@ describe("LoansService (Kern-Loop)", () => {
   }
 
   const media = new MediaService();
+  const notifications = {
+    create: jest.fn().mockResolvedValue(undefined),
+    createMany: jest.fn().mockResolvedValue({ count: 0 }),
+  } as never;
 
   it("legt bei erfolgreicher Leihe Loan + PENDING-Verguetung an und verbraucht Kontingent", async () => {
     const prisma = buildPrisma();
-    const service = new LoansService(prisma, media);
+    const service = new LoansService(prisma, media, notifications);
 
     const result = await service.borrow("user-1", "work-1");
 
@@ -86,7 +91,7 @@ describe("LoansService (Kern-Loop)", () => {
     const prisma = buildPrisma({
       subscription: { findUnique: jest.fn().mockResolvedValue(null) },
     });
-    const service = new LoansService(prisma, media);
+    const service = new LoansService(prisma, media, notifications);
 
     await expect(service.borrow("user-1", "work-1")).rejects.toBeInstanceOf(HttpException);
   });
@@ -101,7 +106,7 @@ describe("LoansService (Kern-Loop)", () => {
         }),
       },
     });
-    const service = new LoansService(prisma, media);
+    const service = new LoansService(prisma, media, notifications);
 
     await expect(service.borrow("user-1", "work-1")).rejects.toBeInstanceOf(ConflictException);
   });
@@ -118,7 +123,7 @@ describe("LoansService (Kern-Loop)", () => {
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
     });
-    const service = new LoansService(prisma, media);
+    const service = new LoansService(prisma, media, notifications);
 
     const result = await service.renew("user-1", "loan-1");
 

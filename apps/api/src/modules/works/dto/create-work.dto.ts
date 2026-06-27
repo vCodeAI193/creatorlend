@@ -36,4 +36,9 @@ export class CreateWorkDto {
   @IsString()
   @MaxLength(16)
   language?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  category?: string;
 }
