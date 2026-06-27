@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { PrismaModule } from "./prisma/prisma.module";
+import { MediaModule } from "./modules/media/media.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { UsersModule } from "./modules/users/users.module";
 import { WorksModule } from "./modules/works/works.module";
@@ -12,6 +13,7 @@ import { PayoutsModule } from "./modules/payouts/payouts.module";
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    MediaModule,
     AuthModule,
     UsersModule,
     WorksModule,

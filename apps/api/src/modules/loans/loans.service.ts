@@ -6,22 +6,38 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import type { Loan } from "@prisma/client";
 import { DEFAULT_LOAN_DURATION_DAYS } from "@creatorlend/shared";
 import { PrismaService } from "../../prisma/prisma.service";
+import { MediaService } from "../media/media.service";
 
 /**
  * Kern-Logik des Leihmodells:
  * Ein Werk = eine Woche = eine faire Vergütung. Jede Ausleihe (und jede
  * Verlängerung) erzeugt ein PayoutItem für die/den Künstler:in.
+ *
+ * Ablauf wird "lazy" beim Lesen ausgewertet: aktive Leihen, deren
+ * expiresAt überschritten ist, werden auf EXPIRED gesetzt (kein Worker im MVP).
  */
 @Injectable()
 export class LoansService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly media: MediaService,
+  ) {}
 
   private expiryFromNow(now: Date): Date {
     const expires = new Date(now);
     expires.setDate(expires.getDate() + DEFAULT_LOAN_DURATION_DAYS);
     return expires;
+  }
+
+  /** Hängt – falls die Leihe aktiv & gültig ist – die Zugriffs-URL an. */
+  private withAccess(loan: Loan) {
+    if (loan.status !== "ACTIVE" || loan.expiresAt.getTime() <= Date.now()) {
+      return { ...loan, access: null };
+    }
+    return { ...loan, access: this.media.getStreamUrl(loan.workId, loan.expiresAt) };
   }
 
   /** Werk leihen: prüft Abo + Kontingent, legt Loan und Vergütung an. */
@@ -41,18 +57,17 @@ export class LoansService {
       throw new ConflictException("quota_exceeded");
     }
 
+    const now = new Date();
     const existing = await this.prisma.loan.findFirst({
-      where: { userId, workId, status: "ACTIVE" },
+      where: { userId, workId, status: "ACTIVE", expiresAt: { gt: now } },
     });
     if (existing) {
       throw new ConflictException("already_borrowed");
     }
 
-    const now = new Date();
-
     // Transaktional: Loan + Vergütung + Kontingent-Verbrauch.
-    return this.prisma.$transaction(async (tx) => {
-      const loan = await tx.loan.create({
+    const loan = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.loan.create({
         data: {
           userId,
           workId,
@@ -65,7 +80,7 @@ export class LoansService {
       await tx.payoutItem.create({
         data: {
           artistId: work.artistId,
-          loanId: loan.id,
+          loanId: created.id,
           amountCents: work.loanPriceCents,
           status: "PENDING",
         },
@@ -76,26 +91,40 @@ export class LoansService {
         data: { loansUsedThisPeriod: { increment: 1 } },
       });
 
-      return loan;
+      return created;
+    });
+
+    return this.withAccess(loan);
+  }
+
+  /** Markiert abgelaufene aktive Leihen der/des Nutzer:in als EXPIRED. */
+  private async expireStale(userId: string): Promise<void> {
+    await this.prisma.loan.updateMany({
+      where: { userId, status: "ACTIVE", expiresAt: { lte: new Date() } },
+      data: { status: "EXPIRED" },
     });
   }
 
-  listForUser(userId: string, status?: string) {
-    return this.prisma.loan.findMany({
+  async listForUser(userId: string, status?: string) {
+    await this.expireStale(userId);
+    const loans = await this.prisma.loan.findMany({
       where: { userId, ...(status ? { status: status as never } : {}) },
       orderBy: { startedAt: "desc" },
     });
+    return loans.map((loan) => this.withAccess(loan));
   }
 
   async getForUser(userId: string, id: string) {
+    await this.expireStale(userId);
     const loan = await this.prisma.loan.findFirst({ where: { id, userId } });
     if (!loan) throw new NotFoundException("loan_not_found");
-    return loan;
+    return this.withAccess(loan);
   }
 
   /** Verlängern: +1 Woche und erneute Vergütung. */
   async renew(userId: string, id: string) {
-    const loan = await this.getForUser(userId, id);
+    const loan = await this.prisma.loan.findFirst({ where: { id, userId } });
+    if (!loan) throw new NotFoundException("loan_not_found");
     if (loan.status === "EXCHANGED") {
       throw new BadRequestException("loan_not_renewable");
     }
@@ -104,8 +133,8 @@ export class LoansService {
     });
     const now = new Date();
 
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.loan.update({
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.loan.update({
         where: { id: loan.id },
         data: {
           status: "ACTIVE",
@@ -123,13 +152,16 @@ export class LoansService {
         },
       });
 
-      return updated;
+      return result;
     });
+
+    return this.withAccess(updated);
   }
 
   /** Tauschen: aktuelle Ausleihe beenden, neues Werk leihen. */
   async exchange(userId: string, id: string, newWorkId: string) {
-    const loan = await this.getForUser(userId, id);
+    const loan = await this.prisma.loan.findFirst({ where: { id, userId } });
+    if (!loan) throw new NotFoundException("loan_not_found");
     if (loan.status !== "ACTIVE") {
       throw new BadRequestException("loan_not_exchangeable");
     }

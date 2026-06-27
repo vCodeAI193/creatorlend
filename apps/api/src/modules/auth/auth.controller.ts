@@ -1,17 +1,7 @@
 import { Body, Controller, Post } from "@nestjs/common";
 import { AuthService } from "./auth.service";
-
-interface RegisterDto {
-  email: string;
-  password: string;
-  displayName: string;
-  role?: "LISTENER" | "ARTIST";
-}
-
-interface LoginDto {
-  email: string;
-  password: string;
-}
+import { RegisterDto } from "./dto/register.dto";
+import { LoginDto } from "./dto/login.dto";
 
 @Controller("auth")
 export class AuthController {

@@ -81,10 +81,14 @@ cp .env.example .env
 # 3. Infrastruktur lokal starten (Postgres, Redis)
 docker compose up -d
 
-# 4. Datenbank-Migrationen ausführen
+# 4. Prisma-Client generieren + Datenbank-Migrationen ausführen
+pnpm --filter @creatorlend/api prisma generate
 pnpm --filter @creatorlend/api prisma migrate dev
 
-# 5. Entwicklung starten (Web + API parallel via Turborepo)
+# 5. (Optional) Seed-Daten einspielen (1 Artist, 1 Listener, 3 Werke)
+pnpm --filter @creatorlend/api db:seed
+
+# 6. Entwicklung starten (Web + API parallel via Turborepo)
 pnpm dev
 ```
 
@@ -93,8 +97,28 @@ pnpm dev
 pnpm dev        # Alle Apps im Watch-Modus
 pnpm build      # Alles bauen
 pnpm lint       # Linting
-pnpm test       # Tests
+pnpm test       # Unit-Tests
+
+# API-spezifisch
+pnpm --filter @creatorlend/api test       # Unit-Tests (Prisma gemockt)
+pnpm --filter @creatorlend/api test:e2e   # e2e-Test des Kern-Loops (benötigt DB)
+pnpm --filter @creatorlend/api db:seed     # Seed-Daten
 ```
+
+### Kern-Loop (MVP)
+Der zentrale Ablauf ist end-to-end implementiert und durch Unit- und
+e2e-Tests abgesichert:
+
+1. `POST /api/v1/auth/register` → Token (LISTENER bzw. ARTIST)
+2. `POST /api/v1/subscriptions/activate` → Abo aktivieren (Dev, ohne Stripe)
+3. `POST /api/v1/works` + `POST /api/v1/works/:id/publish` → Werk veröffentlichen
+4. `POST /api/v1/loans` → Werk für 7 Tage leihen (signierte Stream-URL)
+5. `POST /api/v1/loans/:id/renew` / `/exchange` → verlängern / tauschen
+6. `GET /api/v1/payouts/summary` → aufgelaufene Künstlervergütung
+
+Echte Stripe-Integration und der Ablauf-Worker sind für Phase 2 (Beta)
+vorgesehen; im MVP wird das Abo per Dev-Endpoint aktiviert und der
+Leih-Ablauf „lazy" beim Lesen ausgewertet.
 
 ---
 

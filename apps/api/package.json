@@ -8,8 +8,13 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "jest",
-    "prisma": "prisma"
+    "test": "jest --config jest.config.js",
+    "test:e2e": "jest --config jest-e2e.config.js --runInBand",
+    "prisma": "prisma",
+    "db:seed": "ts-node prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@creatorlend/shared": "workspace:*",
@@ -20,6 +25,8 @@
     "@nestjs/platform-express": "^10.3.0",
     "@prisma/client": "^5.12.0",
     "bullmq": "^5.7.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
     "stripe": "^15.0.0",
@@ -27,8 +34,15 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^10.3.0",
+    "@nestjs/testing": "^10.3.0",
+    "@types/jest": "^29.5.0",
     "@types/node": "^20.12.0",
+    "@types/supertest": "^6.0.0",
+    "jest": "^29.7.0",
     "prisma": "^5.12.0",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.0",
     "typescript": "^5.4.0"
   }
 }

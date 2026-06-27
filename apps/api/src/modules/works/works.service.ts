@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { MediaService } from "../media/media.service";
 
 interface CreateWorkInput {
   title: string;
@@ -12,7 +13,10 @@ interface CreateWorkInput {
 
 @Injectable()
 export class WorksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly media: MediaService,
+  ) {}
 
   /**
    * Legt ein Werk im Status DRAFT an. Der eigentliche Datei-Upload erfolgt
@@ -34,12 +38,7 @@ export class WorksService {
 
     return {
       ...work,
-      upload: {
-        // Platzhalter: signierte PUT-URL aus dem Object Storage.
-        url: `https://storage.example.com/${work.id}?X-Signature=PLACEHOLDER`,
-        method: "PUT",
-        expiresIn: 900,
-      },
+      upload: this.media.getUploadUrl(work.id),
     };
   }
 

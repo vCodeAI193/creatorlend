@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 
 /** Kontingent je Plan – steuert, wie viele Ausleihen pro Periode möglich sind. */
@@ -22,6 +22,41 @@ export class SubscriptionsService {
       checkoutUrl: `https://checkout.stripe.com/c/pay/PLACEHOLDER?plan=${plan}`,
       plan,
     };
+  }
+
+  /**
+   * Dev-/Test-Aktivierung eines Abos OHNE Stripe. Macht den Kern-Loop sofort
+   * lauffähig. In Produktion deaktiviert – dort läuft der Weg über Checkout +
+   * Webhook (createCheckout). Setzt Kontingent gemäß Plan und startet eine
+   * 30-Tage-Periode.
+   */
+  async activateDev(userId: string, plan: string) {
+    if (process.env.NODE_ENV === "production") {
+      throw new ForbiddenException("dev_activation_disabled");
+    }
+    const quota = PLAN_QUOTA[plan] ?? PLAN_QUOTA.STANDARD;
+    const periodEnd = new Date();
+    periodEnd.setDate(periodEnd.getDate() + 30);
+
+    return this.prisma.subscription.upsert({
+      where: { userId },
+      create: {
+        userId,
+        plan,
+        status: "ACTIVE",
+        loanQuotaPerPeriod: quota,
+        loansUsedThisPeriod: 0,
+        currentPeriodEnd: periodEnd,
+      },
+      update: {
+        plan,
+        status: "ACTIVE",
+        loanQuotaPerPeriod: quota,
+        loansUsedThisPeriod: 0,
+        currentPeriodEnd: periodEnd,
+        cancelAtPeriodEnd: false,
+      },
+    });
   }
 
   async getForUser(userId: string) {
