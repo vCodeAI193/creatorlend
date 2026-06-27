@@ -29,6 +29,12 @@ export class PayoutsController {
     return this.payouts.items(userId, status, Number(page));
   }
 
+  // POST /api/v1/payouts/connect/onboard – Stripe-Connect-Onboarding starten
+  @Post("connect/onboard")
+  onboard(@CurrentUser() userId: string) {
+    return this.payouts.startOnboarding(userId);
+  }
+
   // POST /api/v1/payouts/withdraw – Auszahlung via Stripe Connect anstoßen
   @Post("withdraw")
   withdraw(@CurrentUser() userId: string) {

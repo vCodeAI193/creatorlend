@@ -1,5 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import type Stripe from "stripe";
+import type { SubscriptionStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { StripeService } from "../stripe/stripe.service";
 
 /** Kontingent je Plan – steuert, wie viele Ausleihen pro Periode möglich sind. */
 const PLAN_QUOTA: Record<string, number> = {
@@ -7,28 +10,54 @@ const PLAN_QUOTA: Record<string, number> = {
   PREMIUM: 30,
 };
 
+/** Stripe-Price-ID je Plan – wird zur Laufzeit aus der Umgebung gelesen. */
+function priceIdFor(plan: string): string | undefined {
+  if (plan === "PREMIUM") return process.env.STRIPE_PRICE_PREMIUM;
+  return process.env.STRIPE_PRICE_STANDARD;
+}
+
 @Injectable()
 export class SubscriptionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(SubscriptionsService.name);
+  private readonly webBaseUrl = process.env.WEB_BASE_URL ?? "http://localhost:3000";
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stripe: StripeService,
+  ) {}
 
   /**
-   * Startet ein Stripe-Checkout für ein Abo. In der Implementierung wird hier
-   * eine Stripe-Checkout-Session erstellt; das eigentliche Anlegen des
-   * Subscription-Datensatzes erfolgt über den Stripe-Webhook. Platzhalter:
+   * Startet ein Abo. Mit konfiguriertem Stripe wird eine echte Checkout-
+   * Session erstellt; der Subscription-Datensatz wird dann über den Webhook
+   * (checkout.session.completed) aktiviert. Ohne Stripe greift der Dev-Pfad.
    */
   async createCheckout(userId: string, plan: string) {
-    void userId;
-    return {
-      checkoutUrl: `https://checkout.stripe.com/c/pay/PLACEHOLDER?plan=${plan}`,
+    if (!this.stripe.isEnabled()) {
+      return {
+        checkoutUrl: `https://checkout.stripe.com/c/pay/DEV_PLACEHOLDER?plan=${plan}`,
+        plan,
+        mode: "dev",
+      };
+    }
+
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const priceId = priceIdFor(plan);
+    if (!priceId) throw new NotFoundException("unknown_plan_price");
+
+    const session = await this.stripe.createCheckoutSession({
+      userId,
       plan,
-    };
+      priceId,
+      customerEmail: user.email,
+      successUrl: `${this.webBaseUrl}/account?checkout=success`,
+      cancelUrl: `${this.webBaseUrl}/account?checkout=cancelled`,
+    });
+    return { checkoutUrl: session.url, plan, mode: "stripe" };
   }
 
   /**
    * Dev-/Test-Aktivierung eines Abos OHNE Stripe. Macht den Kern-Loop sofort
-   * lauffähig. In Produktion deaktiviert – dort läuft der Weg über Checkout +
-   * Webhook (createCheckout). Setzt Kontingent gemäß Plan und startet eine
-   * 30-Tage-Periode.
+   * lauffähig. In Produktion deaktiviert.
    */
   async activateDev(userId: string, plan: string) {
     if (process.env.NODE_ENV === "production") {
@@ -77,5 +106,97 @@ export class SubscriptionsService {
       where: { userId },
       data: { cancelAtPeriodEnd: true },
     });
+  }
+
+  /** Stripe-Abo-Status auf das interne Enum abbilden. */
+  private mapStatus(stripeStatus: string): SubscriptionStatus {
+    switch (stripeStatus) {
+      case "active":
+      case "trialing":
+        return "ACTIVE";
+      case "past_due":
+      case "unpaid":
+        return "PAST_DUE";
+      default:
+        return "CANCELED";
+    }
+  }
+
+  /**
+   * Verarbeitet verifizierte Stripe-Webhook-Events für den Abo-Lebenszyklus.
+   */
+  async handleStripeEvent(event: Stripe.Event): Promise<void> {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const userId = session.metadata?.userId ?? session.client_reference_id ?? undefined;
+        const plan = session.metadata?.plan ?? "STANDARD";
+        if (!userId) break;
+        const quota = PLAN_QUOTA[plan] ?? PLAN_QUOTA.STANDARD;
+        const periodEnd = new Date();
+        periodEnd.setDate(periodEnd.getDate() + 30);
+        await this.prisma.subscription.upsert({
+          where: { userId },
+          create: {
+            userId,
+            plan,
+            status: "ACTIVE",
+            loanQuotaPerPeriod: quota,
+            loansUsedThisPeriod: 0,
+            stripeCustomerId: typeof session.customer === "string" ? session.customer : undefined,
+            stripeSubscriptionId:
+              typeof session.subscription === "string" ? session.subscription : undefined,
+            currentPeriodEnd: periodEnd,
+          },
+          update: {
+            plan,
+            status: "ACTIVE",
+            loanQuotaPerPeriod: quota,
+            loansUsedThisPeriod: 0,
+            stripeCustomerId: typeof session.customer === "string" ? session.customer : undefined,
+            stripeSubscriptionId:
+              typeof session.subscription === "string" ? session.subscription : undefined,
+            currentPeriodEnd: periodEnd,
+            cancelAtPeriodEnd: false,
+          },
+        });
+        break;
+      }
+
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted": {
+        const sub = event.data.object as Stripe.Subscription;
+        const status =
+          event.type === "customer.subscription.deleted"
+            ? "CANCELED"
+            : this.mapStatus(sub.status);
+        await this.prisma.subscription.updateMany({
+          where: { stripeSubscriptionId: sub.id },
+          data: {
+            status,
+            cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+            currentPeriodEnd: sub.current_period_end
+              ? new Date(sub.current_period_end * 1000)
+              : undefined,
+          },
+        });
+        break;
+      }
+
+      case "invoice.paid": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subId = typeof invoice.subscription === "string" ? invoice.subscription : undefined;
+        if (!subId) break;
+        // Neue Abrechnungsperiode: Kontingent zurücksetzen, Abo aktiv halten.
+        await this.prisma.subscription.updateMany({
+          where: { stripeSubscriptionId: subId },
+          data: { status: "ACTIVE", loansUsedThisPeriod: 0 },
+        });
+        break;
+      }
+
+      default:
+        this.logger.debug(`Unbehandeltes Stripe-Event: ${event.type}`);
+    }
   }
 }

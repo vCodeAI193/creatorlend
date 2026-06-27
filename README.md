@@ -116,8 +116,8 @@ e2e-Tests abgesichert:
 5. `POST /api/v1/loans/:id/renew` / `/exchange` → verlängern / tauschen
 6. `GET /api/v1/payouts/summary` → aufgelaufene Künstlervergütung
 
-Echte Stripe-Integration ist für Phase 2/3 vorgesehen; im MVP wird das
-Abo per Dev-Endpoint aktiviert.
+Das Abo kann im MVP per Dev-Endpoint aktiviert werden; mit konfiguriertem
+Stripe (siehe unten) läuft der echte Checkout-/Webhook-Pfad.
 
 ### Phase 2 (Beta) – umgesetzt
 Aufbauend auf dem Kern-Loop, mit Unit- und e2e-Tests abgesichert:
@@ -132,9 +132,24 @@ Aufbauend auf dem Kern-Loop, mit Unit- und e2e-Tests abgesichert:
 - **Engagement**: Favoriten (F-016) `POST/DELETE/GET /favorites` und
   Folgen (F-017) `POST/DELETE/GET /follows`
 
-Noch offen für Phase 2/3: echte Stripe-Integration (Checkout + Connect),
-Umstellung des Schedulers auf BullMQ/Redis für verteilte Skalierung,
-E-Mail-Benachrichtigungen und die Web-UI.
+### Stripe-Integration (Phase 2) – umgesetzt
+Konfigurierbar über `STRIPE_SECRET_KEY`. Ist der Key nicht gesetzt, bleibt
+der Dev-Fallback aktiv (Abo per `/subscriptions/activate`), sodass der Loop
+ohne Stripe-Keys testbar ist.
+
+- **Billing (Abos)**: `POST /subscriptions` erzeugt eine echte Checkout-
+  Session; `POST /webhooks/stripe` (signaturgeprüft, Raw-Body) verarbeitet
+  `checkout.session.completed`, `customer.subscription.updated|deleted`
+  und `invoice.paid` und hält den Abo-Status synchron (F-077–F-079).
+- **Connect (Auszahlungen)**: `POST /payouts/connect/onboard` startet das
+  Künstler-Onboarding; `POST /payouts/withdraw` überweist die ausstehende
+  Summe an das Connect-Konto und markiert die Posten als ausgezahlt (F-074).
+
+Benötigte Variablen: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
+`STRIPE_PRICE_STANDARD`, `STRIPE_PRICE_PREMIUM`, `WEB_BASE_URL`.
+
+Noch offen für Phase 2/3: Umstellung des Schedulers auf BullMQ/Redis für
+verteilte Skalierung, E-Mail-Benachrichtigungen und die Web-UI.
 
 ---
 

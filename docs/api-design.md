@@ -305,3 +305,11 @@ Auth: Stripe-Signatur (kein JWT)
 | Künstler:in folgen | POST | `/follows` |
 | Entfolgen | DELETE | `/follows/:artistId` |
 | Gefolgte anzeigen | GET | `/follows` |
+| Abo (Dev-Aktivierung) | POST | `/subscriptions/activate` |
+| Connect-Onboarding | POST | `/payouts/connect/onboard` |
+
+**Stripe:** `POST /subscriptions` liefert mit konfiguriertem Stripe eine
+echte Checkout-URL; ohne Stripe einen Dev-Platzhalter (`mode: "dev"`).
+`POST /webhooks/stripe` verifiziert die `stripe-signature` gegen das
+Webhook-Secret und synchronisiert den Abo-Status. `POST /payouts/withdraw`
+überweist bei aktivem Stripe via Connect-Transfer.

@@ -1,16 +1,43 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { NotificationType } from "../notifications/notification-types";
+import { StripeService } from "../stripe/stripe.service";
 
 const PAGE_SIZE = 20;
+const PAYOUT_CURRENCY = "eur";
 
 @Injectable()
 export class PayoutsService {
+  private readonly webBaseUrl = process.env.WEB_BASE_URL ?? "http://localhost:3000";
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly stripe: StripeService,
   ) {}
+
+  /**
+   * Startet das Stripe-Connect-Onboarding und liefert den Onboarding-Link.
+   * Legt bei Bedarf ein Connect-Konto an und merkt sich die Account-ID.
+   */
+  async startOnboarding(artistId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: artistId } });
+    let accountId = user.stripeConnectAccountId;
+    if (!accountId) {
+      accountId = await this.stripe.createConnectAccount(user.email);
+      await this.prisma.user.update({
+        where: { id: artistId },
+        data: { stripeConnectAccountId: accountId },
+      });
+    }
+    const onboardingUrl = await this.stripe.createAccountLink(
+      accountId,
+      `${this.webBaseUrl}/artist/payouts?onboarding=refresh`,
+      `${this.webBaseUrl}/artist/payouts?onboarding=done`,
+    );
+    return { onboardingUrl };
+  }
 
   /** Aggregierte Vergütung: ausstehend, ausgezahlt, Gesamtzahl Ausleihen. */
   async summary(artistId: string) {
@@ -64,6 +91,15 @@ export class PayoutsService {
       _count: true,
     });
     const amountCents = pending._sum.amountCents ?? 0;
+
+    // Mit aktivem Stripe: echte Überweisung an das Connect-Konto.
+    if (this.stripe.isEnabled() && amountCents > 0) {
+      const user = await this.prisma.user.findUniqueOrThrow({ where: { id: artistId } });
+      if (!user.stripeConnectAccountId) {
+        throw new BadRequestException("connect_account_required");
+      }
+      await this.stripe.createTransfer(amountCents, PAYOUT_CURRENCY, user.stripeConnectAccountId);
+    }
 
     const result = await this.prisma.payoutItem.updateMany({
       where: { artistId, status: "PENDING" },
