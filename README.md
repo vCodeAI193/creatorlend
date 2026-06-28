@@ -119,6 +119,27 @@ e2e-Tests abgesichert:
 Das Abo kann im MVP per Dev-Endpoint aktiviert werden; mit konfiguriertem
 Stripe (siehe unten) läuft der echte Checkout-/Webhook-Pfad.
 
+### Phase 4 (Beta-Increment) – umgesetzt
+Aufbauend auf Phase 3:
+
+- **Admin-Rolle & Backoffice** (B-151, B-152, B-154): Neues `AdminModule`.
+  `GET /admin/stats` – Plattform-Übersicht; `GET /admin/users` – Nutzerliste
+  mit Paginierung; `POST /admin/users/:id/suspend|unsuspend` – Nutzer sperren/
+  reaktivieren; `POST /admin/works/:id/moderate` – Inhalte (de)publizieren.
+  `ADMIN`-Rolle hat Zugang zu allen geschützten Routen.
+- **Profil bearbeitbar** (B-023): `PATCH /users/me { displayName, language }`.
+  User-Schema um `language`-Feld erweitert.
+- **Hör-/Leih-Verlauf** (B-025): `GET /users/history?limit=50` – alle
+  Leihen inkl. Werkdaten, neueste zuerst.
+- **Wunschliste** (B-031): `POST/DELETE/GET /wishlist` – Werke zur
+  „Später leihen"-Liste hinzufügen. `Wishlist`-Modell (unique userId×workId).
+- **Werk depublizieren** (B-041): `POST /works/:id/unpublish` – setzt
+  Status zurück auf DRAFT; aktive Leihen laufen aus.
+- **Dritte Abo-Stufe** (B-085): `LITE` (5 Leihen/Monat) neben STANDARD (10)
+  und PREMIUM (30). `SubscriptionPlan.LITE` im shared-Paket.
+- **Schema-Migration** `admin_role_wishlist_profile`: `ADMIN` in UserRole-Enum,
+  `User.language`, `Wishlist`-Modell.
+
 ### Phase 3 (Beta-Increment) – umgesetzt
 Aufbauend auf Phase 2, mit Unit- und e2e-Tests abgesichert:
 

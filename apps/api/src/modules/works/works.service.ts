@@ -84,6 +84,15 @@ export class WorksService {
     });
   }
 
+  /** Werk depublizieren / archivieren (B-041). Aktive Leihen laufen aus. */
+  async unpublish(artistId: string, id: string) {
+    await this.ownedWork(artistId, id);
+    return this.prisma.work.update({
+      where: { id },
+      data: { status: "DRAFT" },
+    });
+  }
+
   /**
    * Discovery: Filter nach Typ/Sprache/Kategorie + Volltext über Titel,
    * Sortierung nach "new" (Standard) oder "popular" (meistgeliehen).

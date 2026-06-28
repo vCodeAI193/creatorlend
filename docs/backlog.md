@@ -48,15 +48,15 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 3 – Hörer-Profile & Personalisierung
 
-- **B-023** Bearbeitbares Hörer-Profil (Name, Sprache, Avatar) — _(P2, Beta)_
+- **B-023** ✅ Bearbeitbares Hörer-Profil (Name, Sprache) — _(P2, Beta)_
 - **B-024** Persönliche Startseite mit Empfehlungen — _(P2, Launch)_
-- **B-025** Hörverlauf / zuletzt geliehen — _(P2, Beta)_
+- **B-025** ✅ Hörverlauf / zuletzt geliehen — _(P2, Beta)_
 - **B-026** Personalisierte „Weiterhören"-Sektion — _(P3, Launch)_
 - **B-027** Interessen/Genres beim Onboarding wählen — _(P2, Launch)_
 - **B-028** ✅ Benachrichtigungs-Präferenzen pro Kanal — _(P1, Beta)_
 - **B-029** Privatsphäre-Einstellungen (öffentliches Profil ja/nein) — _(P3, Launch)_
 - **B-030** Mehrere Profile pro Konto (Familienprofile) — _(P3, Post-Launch)_
-- **B-031** Wunschliste / „später leihen" — _(P2, Beta)_
+- **B-031** ✅ Wunschliste / „später leihen" — _(P2, Beta)_
 - **B-032** Aktivitäts-Feed gefolgter Künstler:innen — _(P2, Launch)_
 
 ## Epic 4 – Werke & Inhalte
@@ -69,7 +69,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-038** Explicit-Content-Kennzeichnung — _(P2, Launch)_
 - **B-039** Werk-Entwürfe mit Versionierung — _(P3, Launch)_
 - **B-040** Geplante Veröffentlichung (Scheduling) — _(P2, Launch)_
-- **B-041** Werk depublizieren / archivieren — _(P2, Beta)_
+- **B-041** ✅ Werk depublizieren / archivieren — _(P2, Beta)_
 - **B-042** Serien/Sammlungen mehrerer Werke — _(P2, Launch)_
 - **B-043** Vorschau-/Trailer-Snippet (frei hörbar) — _(P1, Launch)_
 - **B-044** Credits (Sprecher:in, Produktion, Lizenzen) — _(P3, Launch)_
@@ -125,7 +125,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 8 – Abos & Billing
 
-- **B-085** Mehrere Abo-Stufen mit unterschiedlichem Kontingent — _(P1, Beta)_
+- **B-085** ✅ Mehrere Abo-Stufen mit unterschiedlichem Kontingent (LITE/STANDARD/PREMIUM) — _(P1, Beta)_
 - **B-086** Kostenlose Testphase (Trial) — _(P2, Launch)_
 - **B-087** Gutscheine / Promo-Codes — _(P2, Launch)_
 - **B-088** Plan-Upgrade/Downgrade mit Proration — _(P2, Launch)_
@@ -209,10 +209,10 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 14 – Admin & Moderation
 
-- **B-151** Admin-Rolle und Backoffice-Bereich — _(P1, Beta)_
-- **B-152** Inhalts-Moderation (prüfen/sperren) — _(P1, Launch)_
+- **B-151** ✅ Admin-Rolle und Backoffice-Bereich — _(P1, Beta)_
+- **B-152** ✅ Inhalts-Moderation (prüfen/sperren) — _(P1, Launch)_
 - **B-153** Melde-Workflow für unangemessene Inhalte — _(P2, Launch)_
-- **B-154** Nutzerverwaltung (sperren/entsperren) — _(P2, Launch)_
+- **B-154** ✅ Nutzerverwaltung (sperren/entsperren) — _(P2, Launch)_
 - **B-155** Audit-Log aller Admin-Aktionen — _(P2, Launch)_
 - **B-156** Feature-Flags / Remote-Konfiguration — _(P2, Launch)_
 - **B-157** Manuelle Auszahlungs-Freigabe / Review — _(P2, Launch)_

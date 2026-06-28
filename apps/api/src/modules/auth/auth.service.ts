@@ -12,7 +12,7 @@ interface RegisterInput {
   email: string;
   password: string;
   displayName: string;
-  role?: "LISTENER" | "ARTIST";
+  role?: "LISTENER" | "ARTIST" | "ADMIN";
 }
 
 const REFRESH_TTL_DAYS = 30;

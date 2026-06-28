@@ -8,6 +8,7 @@ export const DEFAULT_LOAN_DURATION_DAYS = 7;
 export enum UserRole {
   LISTENER = "LISTENER",
   ARTIST = "ARTIST",
+  ADMIN = "ADMIN",
 }
 
 export enum WorkType {
@@ -40,8 +41,9 @@ export enum PayoutItemStatus {
 }
 
 export enum SubscriptionPlan {
-  STANDARD = "STANDARD",
-  PREMIUM = "PREMIUM",
+  LITE = "LITE",       // 5 Leihen/Monat
+  STANDARD = "STANDARD", // 10 Leihen/Monat
+  PREMIUM = "PREMIUM",   // 30 Leihen/Monat
 }
 
 export interface Work {

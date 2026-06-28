@@ -49,6 +49,14 @@ export class WorksController {
     return this.works.publish(userId, id);
   }
 
+  // POST /api/v1/works/:id/unpublish – depublizieren/archivieren (ARTIST, B-041)
+  @Post(":id/unpublish")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  unpublish(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.works.unpublish(userId, id);
+  }
+
   // GET /api/v1/works – Suche / Discovery (öffentlich)
   @Get()
   search(

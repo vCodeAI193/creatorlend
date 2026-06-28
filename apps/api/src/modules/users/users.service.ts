@@ -8,10 +8,32 @@ export class UsersService {
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, displayName: true, role: true, emailVerified: true, createdAt: true },
+      select: { id: true, email: true, displayName: true, language: true, role: true, emailVerified: true, createdAt: true },
     });
     if (!user) throw new NotFoundException("user_not_found");
     return user;
+  }
+
+  /** Profil aktualisieren (B-023): Name und/oder Sprache ändern. */
+  async updateProfile(userId: string, update: { displayName?: string; language?: string }) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(update.displayName ? { displayName: update.displayName } : {}),
+        ...(update.language !== undefined ? { language: update.language } : {}),
+      },
+      select: { id: true, email: true, displayName: true, language: true, role: true, createdAt: true },
+    });
+  }
+
+  /** Hör-/Leih-Verlauf der letzten N Einträge inkl. Werkdaten (B-025). */
+  async loanHistory(userId: string, limit = 50) {
+    return this.prisma.loan.findMany({
+      where: { userId },
+      orderBy: { startedAt: "desc" },
+      take: limit,
+      include: { work: { select: { id: true, title: true, type: true, language: true, artistId: true } } },
+    });
   }
 
   /**

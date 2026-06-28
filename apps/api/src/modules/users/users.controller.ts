@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Patch, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { UsersService } from "./users.service";
@@ -12,6 +12,21 @@ export class UsersController {
   @Get("me")
   me(@CurrentUser() userId: string) {
     return this.users.getProfile(userId);
+  }
+
+  // PATCH /api/v1/users/me – Profil bearbeiten (B-023)
+  @Patch("me")
+  updateMe(
+    @CurrentUser() userId: string,
+    @Body() body: { displayName?: string; language?: string },
+  ) {
+    return this.users.updateProfile(userId, body);
+  }
+
+  // GET /api/v1/users/history – Hör-/Leih-Verlauf (B-025)
+  @Get("history")
+  history(@CurrentUser() userId: string, @Query("limit") limit?: string) {
+    return this.users.loanHistory(userId, limit ? Number(limit) : 50);
   }
 
   // DELETE /api/v1/users/me – Konto löschen (B-010)

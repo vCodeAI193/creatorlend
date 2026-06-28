@@ -14,6 +14,7 @@ import { Roles } from "../auth/roles.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { FavoritesService } from "./favorites.service";
 import { FollowsService } from "./follows.service";
+import { WishlistService } from "./wishlist.service";
 import { FavoriteDto } from "./dto/favorite.dto";
 import { FollowDto } from "./dto/follow.dto";
 
@@ -25,6 +26,7 @@ export class EngagementController {
   constructor(
     private readonly favorites: FavoritesService,
     private readonly follows: FollowsService,
+    private readonly wishlist: WishlistService,
   ) {}
 
   // POST /api/v1/favorites
@@ -61,5 +63,23 @@ export class EngagementController {
   @Get("follows")
   listFollows(@CurrentUser() userId: string) {
     return this.follows.list(userId);
+  }
+
+  // POST /api/v1/wishlist – Werk zur Wunschliste hinzufügen (B-031)
+  @Post("wishlist")
+  addToWishlist(@CurrentUser() userId: string, @Body("workId") workId: string) {
+    return this.wishlist.add(userId, workId);
+  }
+
+  // DELETE /api/v1/wishlist/:workId – aus Wunschliste entfernen (B-031)
+  @Delete("wishlist/:workId")
+  removeFromWishlist(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.wishlist.remove(userId, workId);
+  }
+
+  // GET /api/v1/wishlist – eigene Wunschliste (B-031)
+  @Get("wishlist")
+  getWishlist(@CurrentUser() userId: string) {
+    return this.wishlist.list(userId);
   }
 }

@@ -6,6 +6,7 @@ import { StripeService } from "../stripe/stripe.service";
 
 /** Kontingent je Plan – steuert, wie viele Ausleihen pro Periode möglich sind. */
 const PLAN_QUOTA: Record<string, number> = {
+  LITE: 5,
   STANDARD: 10,
   PREMIUM: 30,
 };

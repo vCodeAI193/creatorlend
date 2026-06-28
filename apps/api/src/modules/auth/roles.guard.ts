@@ -27,6 +27,8 @@ export class RolesGuard implements CanActivate {
     }
 
     const req = context.switchToHttp().getRequest<AuthedRequest>();
+    // ADMIN-Rolle hat Zugriff auf alle geschützten Routen
+    if (req.userRole === "ADMIN") return true;
     if (!required.includes(req.userRole as UserRole)) {
       throw new ForbiddenException("insufficient_role");
     }
