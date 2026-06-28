@@ -66,4 +66,12 @@ export class WorksController {
   get(@Param("id") id: string) {
     return this.works.get(id);
   }
+
+  // GET /api/v1/works/:id/metrics – Werk-Metriken (ARTIST, Eigentümer, B-142)
+  @Get(":id/metrics")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  metrics(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.works.metrics(userId, id);
+  }
 }

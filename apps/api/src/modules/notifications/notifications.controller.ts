@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { NotificationsService } from "./notifications.service";
@@ -31,5 +31,21 @@ export class NotificationsController {
   @Post("read-all")
   markAllRead(@CurrentUser() userId: string) {
     return this.notifications.markAllRead(userId);
+  }
+
+  // GET /api/v1/notifications/preferences – eigene Präferenzen (B-028)
+  @Get("preferences")
+  getPreferences(@CurrentUser() userId: string) {
+    return this.notifications.getPreferences(userId);
+  }
+
+  // PUT /api/v1/notifications/preferences – Präferenzen setzen (B-028)
+  // Body: { "LOAN_EXPIRING": false, "LOAN_EXPIRED": true }
+  @Put("preferences")
+  updatePreferences(
+    @CurrentUser() userId: string,
+    @Body() updates: Record<string, boolean>,
+  ) {
+    return this.notifications.updatePreferences(userId, updates);
   }
 }

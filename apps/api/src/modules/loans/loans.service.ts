@@ -273,4 +273,28 @@ export class LoansService {
     });
     return { reset: result.count };
   }
+
+  /** Abspielposition speichern (B-073). Nur für aktive, nicht abgelaufene Leihen. */
+  async saveProgress(userId: string, id: string, positionSeconds: number) {
+    const loan = await this.prisma.loan.findFirst({ where: { id, userId } });
+    if (!loan) throw new NotFoundException("loan_not_found");
+    if (loan.status !== "ACTIVE" || loan.expiresAt.getTime() <= Date.now()) {
+      throw new BadRequestException("loan_not_active");
+    }
+    return this.prisma.playbackProgress.upsert({
+      where: { loanId: id },
+      create: { loanId: id, positionSeconds },
+      update: { positionSeconds },
+    });
+  }
+
+  /** Gespeicherte Abspielposition abrufen (B-073). */
+  async getProgress(userId: string, id: string) {
+    const loan = await this.prisma.loan.findFirst({ where: { id, userId } });
+    if (!loan) throw new NotFoundException("loan_not_found");
+    const progress = await this.prisma.playbackProgress.findUnique({
+      where: { loanId: id },
+    });
+    return { loanId: id, positionSeconds: progress?.positionSeconds ?? 0 };
+  }
 }

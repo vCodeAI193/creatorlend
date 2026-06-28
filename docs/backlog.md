@@ -29,7 +29,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-007** Zwei-Faktor-Authentifizierung (TOTP) — _(P2, Launch)_
 - **B-008** Aktive-Sessions-Übersicht und Remote-Logout — _(P2, Launch)_
 - **B-009** ✅ Rate-Limiting und Brute-Force-Schutz für Login — _(P1, Beta)_
-- **B-010** Konto-Löschung (Self-Service) mit Datenbereinigung — _(P1, Launch)_
+- **B-010** ✅ Konto-Löschung (Self-Service) mit Datenbereinigung — _(P1, Launch)_
 - **B-011** DSGVO-Datenexport des eigenen Kontos — _(P2, Launch)_
 - **B-012** Magic-Link-/Passwordless-Login — _(P3, Post-Launch)_
 
@@ -53,7 +53,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-025** Hörverlauf / zuletzt geliehen — _(P2, Beta)_
 - **B-026** Personalisierte „Weiterhören"-Sektion — _(P3, Launch)_
 - **B-027** Interessen/Genres beim Onboarding wählen — _(P2, Launch)_
-- **B-028** Benachrichtigungs-Präferenzen pro Kanal — _(P1, Beta)_
+- **B-028** ✅ Benachrichtigungs-Präferenzen pro Kanal — _(P1, Beta)_
 - **B-029** Privatsphäre-Einstellungen (öffentliches Profil ja/nein) — _(P3, Launch)_
 - **B-030** Mehrere Profile pro Konto (Familienprofile) — _(P3, Post-Launch)_
 - **B-031** Wunschliste / „später leihen" — _(P2, Beta)_
@@ -110,14 +110,14 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 7 – Leihen & Lebenszyklus
 
-- **B-073** Wiedergabe-Fortschritt pro Leihe speichern — _(P1, Beta)_
+- **B-073** ✅ Wiedergabe-Fortschritt pro Leihe speichern — _(P1, Beta)_
 - **B-074** Geräteübergreifende Synchronisierung des Fortschritts — _(P2, Launch)_
 - **B-075** Werk verschenken (Gift-Leihe) — _(P3, Post-Launch)_
 - **B-076** Wartelisten für limitierte Inhalte — _(P3, Post-Launch)_
 - **B-077** Konfigurierbare Leihdauer pro Werk — _(P3, Launch)_
 - **B-078** Tausch-Regeln: Kontingent-Anrechnung konfigurierbar — _(P2, Beta)_
 - **B-079** Automatische Verlängerung (opt-in) — _(P3, Launch)_
-- **B-080** Leih-Limit-Hinweise und Restkontingent-Anzeige — _(P2, Beta)_
+- **B-080** ✅ Leih-Limit-Hinweise und Restkontingent-Anzeige — _(P2, Beta)_
 - **B-081** Stornierung einer Leihe innerhalb Kulanzfrist — _(P3, Launch)_
 - **B-082** Ablauf-Worker auf BullMQ/Redis umstellen — _(P2, Launch)_
 - **B-083** Leih-Historie mit erneutem Leihen aus dem Verlauf — _(P3, Launch)_
@@ -152,7 +152,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-106** Auszahlungs-Historie mit Statusverfolgung — _(P2, Launch)_
 - **B-107** Anpassbarer Vergütungssatz pro Aktion (Leihe/Verlängerung) — _(P3, Launch)_
 - **B-108** Rückbuchungen / Korrekturen bei Erstattungen — _(P2, Launch)_
-- **B-109** CSV-Export der Vergütungsdaten — _(P2, Beta)_
+- **B-109** ✅ CSV-Export der Vergütungsdaten — _(P2, Beta)_
 - **B-110** Bonus-/Förderpool für neue Künstler:innen — _(P3, Post-Launch)_
 
 ## Epic 10 – Payments-Härtung (Stripe)
@@ -196,8 +196,8 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 13 – Künstler-Dashboard & Analytics
 
-- **B-141** Dashboard-Verlauf der Ausleihen über die Zeit — _(P2, Beta)_
-- **B-142** Kennzahlen pro Werk (Leihen, Verlängerungen, Umsatz) — _(P2, Beta)_
+- **B-141** ✅ Dashboard-Verlauf der Ausleihen über die Zeit — _(P2, Beta)_
+- **B-142** ✅ Kennzahlen pro Werk (Leihen, Verlängerungen, Umsatz) — _(P2, Beta)_
 - **B-143** Geografische Verteilung der Hörer:innen — _(P3, Launch)_
 - **B-144** Conversion-Funnel (Detailseite → Leihe) — _(P3, Launch)_
 - **B-145** Vergleich von Werken / Zeiträumen — _(P3, Launch)_

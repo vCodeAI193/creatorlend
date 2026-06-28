@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Query, Res, UseGuards } from "@nestjs/common";
 import { UserRole } from "@creatorlend/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -39,5 +39,28 @@ export class PayoutsController {
   @Post("withdraw")
   withdraw(@CurrentUser() userId: string) {
     return this.payouts.withdraw(userId);
+  }
+
+  // GET /api/v1/payouts/export.csv – CSV-Export aller Posten (B-109)
+  @Get("export.csv")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async exportCsv(@CurrentUser() userId: string, @Res() res: any) {
+    const csv = await this.payouts.exportCsv(userId);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="payouts.csv"');
+    res.send(csv);
+  }
+
+  // GET /api/v1/payouts/history – Ausleihen-Verlauf aggregiert (B-141)
+  @Get("history")
+  history(
+    @CurrentUser() userId: string,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
+    @Query("groupBy") groupBy: "day" | "week" | "month" = "day",
+  ) {
+    const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const toDate = to ? new Date(to) : new Date();
+    return this.payouts.history(userId, fromDate, toDate, groupBy);
   }
 }

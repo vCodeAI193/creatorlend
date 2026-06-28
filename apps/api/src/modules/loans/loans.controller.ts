@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
 import { UserRole } from "@creatorlend/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -47,5 +47,21 @@ export class LoansController {
     @Body() body: ExchangeDto,
   ) {
     return this.loans.exchange(userId, id, body.newWorkId);
+  }
+
+  // PUT /api/v1/loans/:id/progress – Abspielposition speichern (B-073)
+  @Put(":id/progress")
+  saveProgress(
+    @CurrentUser() userId: string,
+    @Param("id") id: string,
+    @Body("positionSeconds") positionSeconds: number,
+  ) {
+    return this.loans.saveProgress(userId, id, positionSeconds);
+  }
+
+  // GET /api/v1/loans/:id/progress – gespeicherte Position abrufen (B-073)
+  @Get(":id/progress")
+  getProgress(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.loans.getProgress(userId, id);
   }
 }

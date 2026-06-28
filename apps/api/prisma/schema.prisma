@@ -63,8 +63,9 @@ model User {
   following      Follow[]       @relation("Following")
   followers      Follow[]       @relation("Followers")
   notifications Notification[]
-  refreshTokens RefreshToken[]
-  authTokens    AuthToken[]
+  refreshTokens           RefreshToken[]
+  authTokens              AuthToken[]
+  notificationPreferences NotificationPreference[]
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -150,7 +151,8 @@ model Loan {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  payoutItems PayoutItem[]
+  payoutItems      PayoutItem[]
+  playbackProgress PlaybackProgress?
 
   @@index([userId, status])
   @@index([status, expiresAt])
@@ -208,4 +210,28 @@ model Notification {
   createdAt DateTime  @default(now())
 
   @@index([userId, readAt])
+}
+
+// Benachrichtigungspräferenzen je Typ (B-028)
+model NotificationPreference {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, type])
+  @@index([userId])
+}
+
+// Abspielposition je Leihe – Fortschritt speichern/fortsetzen (B-073)
+model PlaybackProgress {
+  id              String   @id @default(uuid())
+  loanId          String   @unique
+  loan            Loan     @relation(fields: [loanId], references: [id])
+  positionSeconds Int      @default(0)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
 }

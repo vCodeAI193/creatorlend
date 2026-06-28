@@ -119,6 +119,27 @@ e2e-Tests abgesichert:
 Das Abo kann im MVP per Dev-Endpoint aktiviert werden; mit konfiguriertem
 Stripe (siehe unten) läuft der echte Checkout-/Webhook-Pfad.
 
+### Phase 3 (Beta-Increment) – umgesetzt
+Aufbauend auf Phase 2, mit Unit- und e2e-Tests abgesichert:
+
+- **Wiedergabe-Fortschritt** (B-073): `PUT /loans/:id/progress { positionSeconds }` speichert Position;
+  `GET /loans/:id/progress` liefert sie zurück. Nur für aktive Leihen.
+- **Restkontingent-Anzeige** (B-080): `GET /subscriptions/me` enthält jetzt
+  `loansRemaining = loanQuotaPerPeriod - loansUsedThisPeriod`.
+- **Konto-Löschung** (B-010): `DELETE /users/me` – alle persönlichen Daten
+  werden gelöscht, Finanzdaten bleiben anonymisiert erhalten.
+- **Benachrichtigungs-Präferenzen** (B-028): `GET/PUT /notifications/preferences`
+  – Opt-out pro Typ (z. B. `{ "LOAN_EXPIRING": false }`). `createIfEnabled()`
+  prüft die Präferenz vor dem Anlegen einer Benachrichtigung.
+- **CSV-Export** (B-109): `GET /payouts/export.csv` – alle Vergütungsposten
+  als herunterladbares CSV.
+- **Ausleihen-Verlauf** (B-141): `GET /payouts/history?from=&to=&groupBy=day|week|month`
+  – aggregierte Tages-/Wochen-/Monats-Buckets via PostgreSQL `DATE_TRUNC`.
+- **Werk-Metriken** (B-142): `GET /works/:id/metrics` – Gesamtleihen,
+  Verlängerungen und Einnahmen (ausstehend/ausgezahlt) je Werk.
+- **Schema-Migration** `playback_notif_prefs`: neue Modelle `PlaybackProgress`
+  (1:1 zu Loan) und `NotificationPreference` (unique per userId×type).
+
 ### Phase 2 (Beta) – umgesetzt
 Aufbauend auf dem Kern-Loop, mit Unit- und e2e-Tests abgesichert:
 

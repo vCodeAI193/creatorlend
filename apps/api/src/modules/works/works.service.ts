@@ -110,4 +110,37 @@ export class WorksService {
     if (!work) throw new NotFoundException("work_not_found");
     return work;
   }
+
+  /**
+   * Detaillierte Metriken je Werk für das Künstler-Dashboard (B-142).
+   * Nur der Eigentümer darf seine eigenen Werke einsehen.
+   */
+  async metrics(artistId: string, id: string) {
+    await this.ownedWork(artistId, id);
+
+    const [loans, renewals, pending, paid] = await Promise.all([
+      this.prisma.loan.count({ where: { workId: id } }),
+      this.prisma.loan.aggregate({
+        where: { workId: id },
+        _sum: { renewalCount: true },
+      }),
+      this.prisma.payoutItem.aggregate({
+        where: { loan: { workId: id }, status: "PENDING" },
+        _sum: { amountCents: true },
+      }),
+      this.prisma.payoutItem.aggregate({
+        where: { loan: { workId: id }, status: "PAID" },
+        _sum: { amountCents: true },
+      }),
+    ]);
+
+    return {
+      workId: id,
+      totalLoans: loans,
+      totalRenewals: renewals._sum.renewalCount ?? 0,
+      pendingCents: pending._sum.amountCents ?? 0,
+      paidCents: paid._sum.amountCents ?? 0,
+      totalRevenueCents: (pending._sum.amountCents ?? 0) + (paid._sum.amountCents ?? 0),
+    };
+  }
 }

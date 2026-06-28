@@ -70,4 +70,52 @@ export class NotificationsService {
     });
     return { updated: result.count };
   }
+
+  // B-028: Benachrichtigungspräferenzen ─────────────────────────────────────
+
+  /** Liefert alle Präferenzen eines Nutzers (Typen ohne Eintrag = aktiviert). */
+  async getPreferences(userId: string) {
+    const prefs = await this.prisma.notificationPreference.findMany({
+      where: { userId },
+    });
+    return prefs;
+  }
+
+  /**
+   * Setzt mehrere Präferenzen auf einmal.
+   * Eingabe: Record<type, boolean>, z. B. { LOAN_EXPIRING: false }
+   */
+  async updatePreferences(userId: string, updates: Record<string, boolean>) {
+    const results = await Promise.all(
+      Object.entries(updates).map(([type, enabled]) =>
+        this.prisma.notificationPreference.upsert({
+          where: { userId_type: { userId, type } },
+          create: { userId, type, enabled },
+          update: { enabled },
+        }),
+      ),
+    );
+    return results;
+  }
+
+  /**
+   * Prüft, ob ein bestimmter Benachrichtigungstyp für einen Nutzer aktiviert
+   * ist. Unbekannte Typen (kein Eintrag) gelten als aktiviert.
+   */
+  async isEnabled(userId: string, type: string): Promise<boolean> {
+    const pref = await this.prisma.notificationPreference.findUnique({
+      where: { userId_type: { userId, type } },
+    });
+    return pref?.enabled ?? true;
+  }
+
+  /**
+   * Benachrichtigung nur senden, wenn der Typ für den Nutzer nicht deaktiviert
+   * wurde (B-028). Ersetzt direkten Aufruf von create() in anderen Services.
+   */
+  async createIfEnabled(input: CreateNotificationInput) {
+    const enabled = await this.isEnabled(input.userId, input.type);
+    if (!enabled) return null;
+    return this.create(input);
+  }
 }

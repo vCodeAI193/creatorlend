@@ -80,6 +80,59 @@ export class PayoutsService {
   }
 
   /**
+   * CSV-Export aller Vergütungsposten (B-109). Gibt einen CSV-String zurück,
+   * den der Controller mit Content-Type text/csv ausliefert.
+   */
+  async exportCsv(artistId: string): Promise<string> {
+    const all = await this.prisma.payoutItem.findMany({
+      where: { artistId },
+      orderBy: { createdAt: "desc" },
+      include: { loan: { select: { workId: true } } },
+    });
+
+    const header = "id,loanId,workId,amountCents,status,createdAt";
+    const rows = all.map((item) =>
+      [item.id, item.loanId, item.loan.workId, item.amountCents, item.status, item.createdAt.toISOString()].join(","),
+    );
+    return [header, ...rows].join("\n");
+  }
+
+  /**
+   * Ausleihen-Verlauf aggregiert nach Zeitraum (B-141).
+   * Gibt Tages-/Wochen-/Monatsbuckets mit Summen zurück.
+   */
+  async history(
+    artistId: string,
+    from: Date,
+    to: Date,
+    groupBy: "day" | "week" | "month",
+  ) {
+    const truncFn = groupBy === "month" ? "month" : groupBy === "week" ? "week" : "day";
+
+    // Raw-Query für DATE_TRUNC (Prisma unterstützt das nicht nativ)
+    const rows = await this.prisma.$queryRaw<
+      Array<{ period: Date; loans: bigint; amountCents: bigint }>
+    >`
+      SELECT
+        DATE_TRUNC(${truncFn}, pi."createdAt") AS period,
+        COUNT(*)                               AS loans,
+        SUM(pi."amountCents")                  AS "amountCents"
+      FROM "PayoutItem" pi
+      WHERE pi."artistId" = ${artistId}
+        AND pi."createdAt" >= ${from}
+        AND pi."createdAt" <= ${to}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `;
+
+    return rows.map((r) => ({
+      period: r.period,
+      loans: Number(r.loans),
+      amountCents: Number(r.amountCents),
+    }));
+  }
+
+  /**
    * Stößt eine Auszahlung der ausstehenden Posten an. In der Implementierung
    * erfolgt der eigentliche Transfer über Stripe Connect; danach werden die
    * Posten auf PAID gesetzt. Hier als transaktionaler Platzhalter.

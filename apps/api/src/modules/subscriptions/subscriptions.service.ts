@@ -91,7 +91,11 @@ export class SubscriptionsService {
   async getForUser(userId: string) {
     const sub = await this.prisma.subscription.findUnique({ where: { userId } });
     if (!sub) throw new NotFoundException("no_subscription");
-    return sub;
+    // B-080: verbleibende Ausleihen direkt zurückgeben
+    return {
+      ...sub,
+      loansRemaining: Math.max(0, sub.loanQuotaPerPeriod - sub.loansUsedThisPeriod),
+    };
   }
 
   async changePlan(userId: string, plan: string) {
