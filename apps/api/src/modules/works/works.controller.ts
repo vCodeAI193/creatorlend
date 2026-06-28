@@ -15,6 +15,7 @@ import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { WorksService } from "./works.service";
+import { ChapterMarksService } from "./chapter-marks.service";
 import { RatingsService } from "../engagement/ratings.service";
 import { ReviewsService } from "../engagement/reviews.service";
 import { CreateWorkDto } from "./dto/create-work.dto";
@@ -24,6 +25,7 @@ import { UpdateWorkDto } from "./dto/update-work.dto";
 export class WorksController {
   constructor(
     private readonly works: WorksService,
+    private readonly chapters: ChapterMarksService,
     private readonly ratings: RatingsService,
     private readonly reviews: ReviewsService,
   ) {}
@@ -160,5 +162,35 @@ export class WorksController {
   @Get(":id/reviews")
   getReviews(@Param("id") id: string) {
     return this.reviews.list(id);
+  }
+
+  // GET /api/v1/works/:id/chapters – Kapitelmarken (B-034)
+  @Get(":id/chapters")
+  listChapters(@Param("id") id: string) {
+    return this.chapters.list(id);
+  }
+
+  // POST /api/v1/works/:id/chapters – Kapitelmarke anlegen (ARTIST, B-034)
+  @Post(":id/chapters")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  addChapter(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body() body: { title: string; positionSeconds: number; episodeId?: string },
+  ) {
+    return this.chapters.create(userId, workId, body);
+  }
+
+  // DELETE /api/v1/works/:id/chapters/:markId – Kapitelmarke löschen (ARTIST, B-034)
+  @Delete(":id/chapters/:markId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  removeChapter(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Param("markId") markId: string,
+  ) {
+    return this.chapters.remove(userId, workId, markId);
   }
 }

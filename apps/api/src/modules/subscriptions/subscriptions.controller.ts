@@ -34,6 +34,12 @@ export class SubscriptionsController {
     return this.subscriptions.activateDev(userId, body.plan);
   }
 
+  // POST /api/v1/subscriptions/trial – kostenlose Testphase starten (B-086)
+  @Post("trial")
+  trial(@CurrentUser() userId: string, @Body() body: PlanDto) {
+    return this.subscriptions.startTrial(userId, body.plan);
+  }
+
   // GET /api/v1/subscriptions/me – aktuelles Abo
   @Get("me")
   me(@CurrentUser() userId: string) {

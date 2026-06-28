@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { UserRole } from "@creatorlend/shared";
@@ -67,6 +68,12 @@ export class EngagementController {
   @Get("follows")
   listFollows(@CurrentUser() userId: string) {
     return this.follows.list(userId);
+  }
+
+  // GET /api/v1/follows/feed – Aktivitäts-Feed gefolgter Künstler:innen (B-032)
+  @Get("follows/feed")
+  activityFeed(@CurrentUser() userId: string, @Query("limit") limit?: string) {
+    return this.follows.activityFeed(userId, limit ? Number(limit) : 30);
   }
 
   // POST /api/v1/wishlist – Werk zur Wunschliste hinzufügen (B-031)

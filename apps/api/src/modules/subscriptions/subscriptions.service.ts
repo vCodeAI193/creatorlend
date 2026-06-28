@@ -99,10 +99,28 @@ export class SubscriptionsService {
     };
   }
 
+  /**
+   * Kostenlose Testphase starten (B-086). Dev-Endpoint; in Prod via Stripe.
+   */
+  async startTrial(userId: string, plan: string, trialDays = 14) {
+    if (process.env.NODE_ENV === "production") {
+      throw new ForbiddenException("trial_via_stripe_in_production");
+    }
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
+    const quota = PLAN_QUOTA[plan] ?? PLAN_QUOTA.STANDARD;
+    return this.prisma.subscription.upsert({
+      where: { userId },
+      create: { userId, plan, status: "ACTIVE", loanQuotaPerPeriod: quota, loansUsedThisPeriod: 0, currentPeriodEnd: trialEndsAt, trialEndsAt },
+      update: { plan, status: "ACTIVE", loanQuotaPerPeriod: quota, loansUsedThisPeriod: 0, currentPeriodEnd: trialEndsAt, trialEndsAt, cancelAtPeriodEnd: false },
+    });
+  }
+
   async changePlan(userId: string, plan: string) {
+    const quota = PLAN_QUOTA[plan] ?? PLAN_QUOTA.STANDARD;
     return this.prisma.subscription.update({
       where: { userId },
-      data: { plan, loanQuotaPerPeriod: PLAN_QUOTA[plan] ?? PLAN_QUOTA.STANDARD },
+      data: { plan, loanQuotaPerPeriod: quota },
     });
   }
 

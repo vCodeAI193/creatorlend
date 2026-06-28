@@ -63,4 +63,19 @@ export class PayoutsController {
     const toDate = to ? new Date(to) : new Date();
     return this.payouts.history(userId, fromDate, toDate, groupBy);
   }
+
+  // GET /api/v1/payouts/statement?year=2026&month=1 – Monatsabrechnung (B-103)
+  @Get("statement")
+  statement(
+    @CurrentUser() userId: string,
+    @Query("year") year?: string,
+    @Query("month") month?: string,
+  ) {
+    const now = new Date();
+    return this.payouts.monthlyStatement(
+      userId,
+      year ? Number(year) : now.getFullYear(),
+      month ? Number(month) : now.getMonth() + 1,
+    );
+  }
 }

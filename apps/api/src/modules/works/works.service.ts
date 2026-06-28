@@ -14,6 +14,7 @@ interface CreateWorkInput {
   category?: string;
   tags?: string[];
   explicit?: boolean;
+  publishAt?: string; // ISO-Datetime für geplante Veröffentlichung (B-040)
 }
 
 export interface SearchFilter {
@@ -55,6 +56,7 @@ export class WorksService {
         category: input.category,
         tags: input.tags ?? [],
         explicit: input.explicit ?? false,
+        publishAt: input.publishAt ? new Date(input.publishAt) : null,
         status: "DRAFT",
       },
     });
@@ -85,6 +87,7 @@ export class WorksService {
         category: input.category,
         ...(input.tags !== undefined ? { tags: input.tags } : {}),
         ...(input.explicit !== undefined ? { explicit: input.explicit } : {}),
+        ...(input.publishAt !== undefined ? { publishAt: input.publishAt ? new Date(input.publishAt) : null } : {}),
         ...(input.type ? { type: input.type as never } : {}),
       },
     });

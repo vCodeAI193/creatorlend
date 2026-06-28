@@ -57,18 +57,18 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-029** Privatsphäre-Einstellungen (öffentliches Profil ja/nein) — _(P3, Launch)_
 - **B-030** Mehrere Profile pro Konto (Familienprofile) — _(P3, Post-Launch)_
 - **B-031** ✅ Wunschliste / „später leihen" — _(P2, Beta)_
-- **B-032** Aktivitäts-Feed gefolgter Künstler:innen — _(P2, Launch)_
+- **B-032** ✅ Aktivitäts-Feed gefolgter Künstler:innen — _(P2, Launch)_
 
 ## Epic 4 – Werke & Inhalte
 
 - **B-033** ✅ Mehrteilige Werke (Episoden/Kapitel) — _(P1, Launch)_
-- **B-034** Kapitelmarken und Sprungnavigation — _(P2, Launch)_
+- **B-034** ✅ Kapitelmarken und Sprungnavigation — _(P2, Launch)_
 - **B-035** ✅ Genre-/Kategorie-Taxonomie mit Pflege — _(P1, Beta)_
 - **B-036** ✅ Tags / Schlagworte pro Werk — _(P2, Beta)_
 - **B-037** Mehrsprachige Metadaten — _(P3, Post-Launch)_
 - **B-038** ✅ Explicit-Content-Kennzeichnung — _(P2, Launch)_
 - **B-039** Werk-Entwürfe mit Versionierung — _(P3, Launch)_
-- **B-040** Geplante Veröffentlichung (Scheduling) — _(P2, Launch)_
+- **B-040** ✅ Geplante Veröffentlichung (Scheduling) — _(P2, Launch)_
 - **B-041** ✅ Werk depublizieren / archivieren — _(P2, Beta)_
 - **B-042** Serien/Sammlungen mehrerer Werke — _(P2, Launch)_
 - **B-043** ✅ Vorschau-/Trailer-Snippet (frei hörbar, previewKey + signierte URL) — _(P1, Launch)_
@@ -87,7 +87,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-053** CDN-Anbindung mit signierten URLs in Prod — _(P1, Launch)_
 - **B-054** Lautheits-Normalisierung (EBU R128) — _(P3, Post-Launch)_
 - **B-055** Untertitel/Transkripte (Audio-zu-Text) — _(P3, Post-Launch)_
-- **B-056** Cover-Bild-Verarbeitung (Resize/Formate) — _(P2, Launch)_
+- **B-056** ✅ Cover-Bild-Verarbeitung (Resize/Formate) — _(P2, Launch)_
 - **B-057** Download für Offline-Wiedergabe (verschlüsselt, leihgebunden) — _(P2, Post-Launch)_
 - **B-058** Speicher-Lebenszyklus / Cold-Storage für alte Werke — _(P3, Post-Launch)_
 
@@ -126,9 +126,9 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 ## Epic 8 – Abos & Billing
 
 - **B-085** ✅ Mehrere Abo-Stufen mit unterschiedlichem Kontingent (LITE/STANDARD/PREMIUM) — _(P1, Beta)_
-- **B-086** Kostenlose Testphase (Trial) — _(P2, Launch)_
+- **B-086** ✅ Kostenlose Testphase (Trial) — _(P2, Launch)_
 - **B-087** Gutscheine / Promo-Codes — _(P2, Launch)_
-- **B-088** Plan-Upgrade/Downgrade mit Proration — _(P2, Launch)_
+- **B-088** ✅ Plan-Upgrade/Downgrade mit Proration — _(P2, Launch)_
 - **B-089** Rechnungen / Belege als PDF — _(P2, Launch)_
 - **B-090** Abrechnungsverlauf im Konto — _(P2, Launch)_
 - **B-091** ✅ Zahlungsmethode verwalten (Billing Portal) — _(P1, Launch)_
@@ -146,7 +146,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-100** ✅ Automatische periodische Auszahlungen — _(P2, Launch)_
 - **B-101** Mehrwährungs-Auszahlungen — _(P2, Post-Launch)_
 - **B-102** Steuerformulare / Tax-Reporting (z. B. DAC7) — _(P2, Launch)_
-- **B-103** Monatliche Vergütungs-Abrechnung (Statement) — _(P2, Launch)_
+- **B-103** ✅ Monatliche Vergütungs-Abrechnung (Statement) — _(P2, Launch)_
 - **B-104** Einnahmen-Splits bei Kollaborationen — _(P3, Post-Launch)_
 - **B-105** Vergütungs-Vorschau / Prognose — _(P3, Launch)_
 - **B-106** ✅ Auszahlungs-Historie mit Statusverfolgung (über GET /payouts/items) — _(P2, Launch)_
@@ -258,7 +258,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 ## Epic 18 – Sicherheit & Compliance
 
 - **B-187** Globales Rate-Limiting / WAF — _(P1, Launch)_
-- **B-188** Security-Header und CSP — _(P2, Launch)_
+- **B-188** ✅ Security-Header und CSP — _(P2, Launch)_
 - **B-189** Audit-Logging sicherheitsrelevanter Events — _(P2, Launch)_
 - **B-190** DSGVO: Lösch- und Auskunftsprozesse end-to-end — _(P1, Launch)_
 - **B-191** Cookie-Consent / Tracking-Einwilligung — _(P2, Launch)_
@@ -269,7 +269,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 ## Epic 19 – Performance & Skalierung
 
 - **B-195** Caching-Schicht für Discovery/Detailseiten — _(P2, Launch)_
-- **B-196** Datenbank-Indizes und Query-Optimierung — _(P2, Launch)_
+- **B-196** ✅ Datenbank-Indizes und Query-Optimierung — _(P2, Launch)_
 - **B-197** Lasttests und Performance-Budgets — _(P2, Launch)_
 
 ## Epic 20 – Qualität, Observability & Testing

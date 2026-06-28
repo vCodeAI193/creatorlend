@@ -119,6 +119,29 @@ e2e-Tests abgesichert:
 Das Abo kann im MVP per Dev-Endpoint aktiviert werden; mit konfiguriertem
 Stripe (siehe unten) läuft der echte Checkout-/Webhook-Pfad.
 
+### Phase 8 (Beta-Increment) – umgesetzt
+Aufbauend auf Phase 7:
+
+- **Aktivitäts-Feed** (B-032): `GET /follows/feed` – neueste veröffentlichte Werke
+  von gefolgten Künstler:innen, sortiert nach Aktualität.
+- **Kapitelmarken** (B-034): `POST/GET/DELETE /works/:id/chapters` – Sprungziele
+  mit Zeitstempel und optionalem Episoden-Bezug.
+- **Geplante Veröffentlichung** (B-040): `publishAt` auf Work-Ebene; cron-basierter
+  `WorksScheduler` publiziert automatisch und benachrichtigt Follower:innen.
+- **Cover-Bild-Feld** (B-056): `Work.coverKey` für Cover-Bilder im Object Storage.
+- **Kostenlose Testphase** (B-086): `POST /subscriptions/trial` – 14-Tage-Trial
+  (Dev-Endpoint; Stripe-Trial in Prod).
+- **Plan-Upgrade/Downgrade** (B-088): `PATCH /subscriptions/me` aktualisiert jetzt
+  das Kontingent synchron (Stripe-Proration via Billing Portal).
+- **Monatsabrechnung** (B-103): `GET /payouts/statement?year=&month=` – alle
+  PayoutItems eines Kalendermonats mit Totals.
+- **Security-Header** (B-188): `X-Content-Type-Options`, `X-Frame-Options`,
+  `Strict-Transport-Security`, `Permissions-Policy` auf jede Response.
+- **DB-Indizes** (B-196): `Work(status, publishAt)`, `Work(status, createdAt)`,
+  `Work(status, loanPriceCents)` für schnellere Discovery-Queries.
+- **Schema-Migration** `scheduled_publish_chapters_trial`: `Work.publishAt`,
+  `Work.coverKey`, `Subscription.trialEndsAt`, `ChapterMark`-Modell.
+
 ### Phase 7 (Beta-Increment) – umgesetzt
 Aufbauend auf Phase 6:
 

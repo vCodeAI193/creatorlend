@@ -228,4 +228,47 @@ export class PayoutsService {
 
     return { processed, totalCents };
   }
+
+  /**
+   * Monatliche Vergütungs-Abrechnung (B-103): alle Ausleihen eines Kalendermonats
+   * gruppiert nach Status, inkl. Werkdetails.
+   */
+  async monthlyStatement(artistId: string, year: number, month: number) {
+    const from = new Date(year, month - 1, 1);
+    const to = new Date(year, month, 0, 23, 59, 59, 999);
+
+    const items = await this.prisma.payoutItem.findMany({
+      where: { artistId, createdAt: { gte: from, lte: to } },
+      orderBy: { createdAt: "asc" },
+      include: {
+        loan: {
+          select: {
+            id: true,
+            startedAt: true,
+            renewalCount: true,
+            work: { select: { id: true, title: true, type: true } },
+          },
+        },
+      },
+    });
+
+    const totals = items.reduce(
+      (acc, i) => {
+        acc.totalCents += i.amountCents;
+        if (i.status === "PAID") acc.paidCents += i.amountCents;
+        else acc.pendingCents += i.amountCents;
+        return acc;
+      },
+      { totalCents: 0, paidCents: 0, pendingCents: 0 },
+    );
+
+    return {
+      period: { year, month },
+      from: from.toISOString(),
+      to: to.toISOString(),
+      ...totals,
+      itemCount: items.length,
+      items,
+    };
+  }
 }

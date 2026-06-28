@@ -123,20 +123,26 @@ model Work {
   borrowCount     Int        @default(0)
   mediaKey        String? // Schlüssel im Object Storage
   previewKey      String? // Vorschau-/Trailer-Datei (kostenlos hörbar, B-043)
+  coverKey        String? // Cover-Bild-Schlüssel im Object Storage (B-056)
+  publishAt       DateTime?  // Geplante Veröffentlichung (B-040)
   status          WorkStatus @default(DRAFT)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  loans     Loan[]
-  favorites Favorite[]
-  wishlists Wishlist[]
-  episodes  Episode[] // mehrteilige Werke (B-033)
-  ratings   Rating[]
-  reviews   Review[]
+  loans         Loan[]
+  favorites     Favorite[]
+  wishlists     Wishlist[]
+  episodes      Episode[]      // mehrteilige Werke (B-033)
+  chapterMarks  ChapterMark[]  // Kapitelmarken (B-034)
+  ratings       Rating[]
+  reviews       Review[]
 
   @@index([artistId])
   @@index([type, status])
   @@index([status, borrowCount])
+  @@index([status, publishAt])    // B-040: geplante Veröffentlichung
+  @@index([status, createdAt])    // B-196: Discovery-Sort
+  @@index([status, loanPriceCents]) // B-196: Preis-Facette
 }
 
 // Episoden/Kapitel für mehrteilige Werke (B-033)
@@ -168,6 +174,7 @@ model Subscription {
   stripeSubscriptionId String?
   currentPeriodEnd     DateTime?
   cancelAtPeriodEnd    Boolean            @default(false)
+  trialEndsAt          DateTime?          // Testzeitraum-Ende (B-086)
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 }
@@ -290,6 +297,20 @@ model Wishlist {
 
   @@unique([userId, workId])
   @@index([userId])
+}
+
+// Kapitelmarken und Sprungnavigation (B-034)
+model ChapterMark {
+  id              String    @id @default(uuid())
+  workId          String
+  work            Work      @relation(fields: [workId], references: [id])
+  episodeId       String?   // optional: Kapitelmarke innerhalb einer Episode
+  title           String
+  positionSeconds Int
+  createdAt       DateTime  @default(now())
+
+  @@index([workId])
+  @@index([episodeId])
 }
 
 // Sternebewertungen für Werke (B-129)

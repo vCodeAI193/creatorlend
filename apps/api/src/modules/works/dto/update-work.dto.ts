@@ -1,6 +1,7 @@
 import {
   IsArray,
   IsBoolean,
+  IsDateString,
   IsEnum,
   IsInt,
   IsOptional,
@@ -55,4 +56,8 @@ export class UpdateWorkDto {
   @IsOptional()
   @IsBoolean()
   explicit?: boolean;
+
+  @IsOptional()
+  @IsDateString()
+  publishAt?: string;
 }

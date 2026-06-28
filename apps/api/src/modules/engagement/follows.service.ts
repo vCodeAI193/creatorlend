@@ -40,4 +40,30 @@ export class FollowsService {
     });
     return follows.map((f) => f.artist);
   }
+
+  /**
+   * Aktivitäts-Feed gefolgter Künstler:innen (B-032): neueste veröffentlichte
+   * Werke von Künstler:innen, denen der:die Nutzer:in folgt.
+   */
+  async activityFeed(followerId: string, limit = 30) {
+    const following = await this.prisma.follow.findMany({
+      where: { followerId },
+      select: { artistId: true },
+    });
+    if (following.length === 0) return [];
+    const artistIds = following.map((f) => f.artistId);
+    return this.prisma.work.findMany({
+      where: { artistId: { in: artistIds }, status: "PUBLISHED" },
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        loanPriceCents: true,
+        updatedAt: true,
+        artist: { select: { id: true, displayName: true, avatarUrl: true } },
+      },
+    });
+  }
 }
