@@ -76,6 +76,10 @@ model User {
   ratingsGiven  Rating[]       @relation("RaterRatings")
   reviews       Review[]       @relation("ReviewerReviews")
   auditLogs     AuditLog[]
+  playlists         Playlist[]
+  reports           Report[]           @relation("UserReports")
+  subscriptionEvents SubscriptionEvent[]
+  unsubscribeTokens UnsubscribeToken[]
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -115,6 +119,7 @@ model Work {
   type            WorkType
   description     String?
   loanPriceCents  Int
+  loanDays        Int        @default(7)  // Konfigurierbare Leihdauer (B-077)
   durationSeconds Int?
   language        String?
   category        String?
@@ -136,6 +141,7 @@ model Work {
   chapterMarks  ChapterMark[]  // Kapitelmarken (B-034)
   ratings       Rating[]
   reviews       Review[]
+  playlistItems PlaylistItem[]
 
   @@index([artistId])
   @@index([type, status])
@@ -358,4 +364,107 @@ model AuditLog {
   @@index([actorId])
   @@index([targetType, targetId])
   @@index([createdAt])
+}
+
+// Promo-Codes / Gutscheine (B-087)
+model PromoCode {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  discountPercent Int?
+  discountCents   Int?
+  plan            String?
+  maxUses         Int?
+  usesCount       Int      @default(0)
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+
+  redemptions PromoRedemption[]
+}
+
+model PromoRedemption {
+  id          String    @id @default(uuid())
+  promoCodeId String
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
+  userId      String
+  redeemedAt  DateTime  @default(now())
+
+  @@unique([promoCodeId, userId])
+  @@index([promoCodeId])
+  @@index([userId])
+}
+
+// Öffentliche Playlisten / Sammlungen (B-133)
+model Playlist {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  title       String
+  description String?
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items PlaylistItem[]
+
+  @@index([userId])
+  @@index([isPublic])
+}
+
+model PlaylistItem {
+  id         String   @id @default(uuid())
+  playlistId String
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  workId     String
+  work       Work     @relation(fields: [workId], references: [id])
+  position   Int      @default(0)
+  addedAt    DateTime @default(now())
+
+  @@unique([playlistId, workId])
+  @@index([playlistId])
+}
+
+// Inhaltsmeldungen (B-139, B-153)
+model Report {
+  id          String   @id @default(uuid())
+  reporterId  String
+  reporter    User     @relation("UserReports", fields: [reporterId], references: [id])
+  targetType  String
+  targetId    String
+  reason      String
+  description String?
+  status      String   @default("OPEN")
+  reviewedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([reporterId])
+  @@index([targetType, targetId])
+  @@index([status])
+}
+
+// Abo-Ereignis-Log / Abrechnungshistorie (B-090)
+model SubscriptionEvent {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  event       String
+  plan        String?
+  amountCents Int?
+  meta        Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Abmelde-Token für E-Mail-Benachrichtigungen (B-125)
+model UnsubscribeToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique @default(uuid())
+  type      String?
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
