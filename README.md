@@ -119,6 +119,24 @@ e2e-Tests abgesichert:
 Das Abo kann im MVP per Dev-Endpoint aktiviert werden; mit konfiguriertem
 Stripe (siehe unten) läuft der echte Checkout-/Webhook-Pfad.
 
+### Phase 6 (Beta-Increment) – umgesetzt
+Aufbauend auf Phase 5:
+
+- **Episoden/Kapitel** (B-033): `POST/GET/DELETE /works/:id/episodes` –
+  mehrteilige Werke mit sortierten Episoden (unique workId×number). `Episode`-
+  Modell in Prisma.
+- **Vorschau-URL** (B-043): `Work.previewKey`-Feld; `GET /works/:id` enthält
+  jetzt `preview: { streamUrl, expiresAt }` (30-Minuten-Token, kostenfrei).
+- **Erweiterte Suche** (B-059): `?q=...` durchsucht jetzt Titel UND Beschreibung.
+- **Tausch-Quoten** (B-078): `POST /loans/:id/exchange { countsAgainstQuota }` –
+  Standardmäßig kein Kontingentverbrauch beim Tausch; opt-in steuerbar.
+- **Idempotenz-Keys** (B-111): Stripe Checkout + Transfer nutzen jetzt
+  Idempotency-Keys, um Doppel-Operationen bei Retries zu verhindern.
+- **Webhook-Dedup** (B-112): `POST /webhooks/stripe` prüft `StripeWebhookEvent`-
+  Tabelle vor Verarbeitung; jedes `evt_...` wird nur einmal verarbeitet.
+- **Schema-Migration** `episodes_preview_webhook_dedup`: `Episode`-Modell,
+  `Work.previewKey`, `StripeWebhookEvent`-Tabelle.
+
 ### Phase 5 (Beta-Increment) – umgesetzt
 Aufbauend auf Phase 4:
 

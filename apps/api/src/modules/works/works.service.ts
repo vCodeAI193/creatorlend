@@ -115,8 +115,8 @@ export class WorksService {
   }
 
   /**
-   * Discovery: Filter nach Typ/Sprache/Kategorie + Volltext über Titel,
-   * Sortierung nach "new" (Standard) oder "popular" (meistgeliehen).
+   * Discovery: Filter nach Typ/Sprache/Kategorie + Volltext über Titel und
+   * Beschreibung (B-059), Sortierung nach "new" (Standard) oder "popular".
    */
   search(filter: SearchFilter) {
     const where: Prisma.WorkWhereInput = {
@@ -124,7 +124,14 @@ export class WorksService {
       ...(filter.type ? { type: filter.type as never } : {}),
       ...(filter.language ? { language: filter.language } : {}),
       ...(filter.category ? { category: filter.category } : {}),
-      ...(filter.q ? { title: { contains: filter.q, mode: "insensitive" } } : {}),
+      ...(filter.q
+        ? {
+            OR: [
+              { title: { contains: filter.q, mode: "insensitive" } },
+              { description: { contains: filter.q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
     };
 
     const orderBy: Prisma.WorkOrderByWithRelationInput =
@@ -139,6 +146,47 @@ export class WorksService {
     const work = await this.prisma.work.findUnique({ where: { id } });
     if (!work) throw new NotFoundException("work_not_found");
     return work;
+  }
+
+  // ─── Episodes (B-033) ─────────────────────────────────────────────────────
+
+  async addEpisode(
+    artistId: string,
+    workId: string,
+    input: { title: string; number: number; description?: string; durationSeconds?: number },
+  ) {
+    await this.ownedWork(artistId, workId);
+    return this.prisma.episode.create({
+      data: { workId, ...input },
+    });
+  }
+
+  async listEpisodes(workId: string) {
+    return this.prisma.episode.findMany({
+      where: { workId },
+      orderBy: { number: "asc" },
+    });
+  }
+
+  async deleteEpisode(artistId: string, workId: string, episodeId: string) {
+    await this.ownedWork(artistId, workId);
+    await this.prisma.episode.deleteMany({ where: { id: episodeId, workId } });
+    return { deleted: true };
+  }
+
+  // ─── Preview URL (B-043) ──────────────────────────────────────────────────
+
+  /** Liefert eine zeitlich begrenzte Vorschau-URL für das Werk (kostenlos). */
+  getPreviewUrl(work: { id: string; previewKey: string | null }) {
+    if (!work.previewKey) return null;
+    const expires = new Date(Date.now() + 30 * 60 * 1000); // 30 Minuten
+    return this.media.getStreamUrl(work.previewKey, expires);
+  }
+
+  async getWithPreview(id: string) {
+    const work = await this.prisma.work.findUnique({ where: { id } });
+    if (!work) throw new NotFoundException("work_not_found");
+    return { ...work, preview: this.getPreviewUrl(work) };
   }
 
   /**

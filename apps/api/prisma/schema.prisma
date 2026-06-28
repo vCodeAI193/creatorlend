@@ -113,6 +113,7 @@ model Work {
   category        String?
   borrowCount     Int        @default(0)
   mediaKey        String? // Schlüssel im Object Storage
+  previewKey      String? // Vorschau-/Trailer-Datei (kostenlos hörbar, B-043)
   status          WorkStatus @default(DRAFT)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
@@ -120,10 +121,28 @@ model Work {
   loans     Loan[]
   favorites Favorite[]
   wishlists Wishlist[]
+  episodes  Episode[] // mehrteilige Werke (B-033)
 
   @@index([artistId])
   @@index([type, status])
   @@index([status, borrowCount])
+}
+
+// Episoden/Kapitel für mehrteilige Werke (B-033)
+model Episode {
+  id              String   @id @default(uuid())
+  workId          String
+  work            Work     @relation(fields: [workId], references: [id])
+  number          Int      // Reihenfolge innerhalb des Werks (1-basiert)
+  title           String
+  description     String?
+  durationSeconds Int?
+  mediaKey        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([workId, number])
+  @@index([workId])
 }
 
 model Subscription {
@@ -238,6 +257,15 @@ model PlaybackProgress {
   positionSeconds Int      @default(0)
   updatedAt       DateTime @updatedAt
   createdAt       DateTime @default(now())
+}
+
+// Stripe-Webhook-Events zur Deduplizierung (B-112)
+model StripeWebhookEvent {
+  id          String   @id // Stripe Event-ID (evt_...)
+  type        String
+  processedAt DateTime @default(now())
+
+  @@index([processedAt])
 }
 
 // Wunschliste / „Später leihen" (B-031)

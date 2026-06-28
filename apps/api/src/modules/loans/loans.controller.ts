@@ -39,14 +39,14 @@ export class LoansController {
     return this.loans.renew(userId, id);
   }
 
-  // POST /api/v1/loans/:id/exchange – Tauschen gegen anderes Werk
+  // POST /api/v1/loans/:id/exchange – Tauschen gegen anderes Werk (B-078)
   @Post(":id/exchange")
   exchange(
     @CurrentUser() userId: string,
     @Param("id") id: string,
     @Body() body: ExchangeDto,
   ) {
-    return this.loans.exchange(userId, id, body.newWorkId);
+    return this.loans.exchange(userId, id, body.newWorkId, body.countsAgainstQuota ?? false);
   }
 
   // PUT /api/v1/loans/:id/progress – Abspielposition speichern (B-073)

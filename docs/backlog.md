@@ -61,7 +61,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 4 – Werke & Inhalte
 
-- **B-033** Mehrteilige Werke (Episoden/Kapitel) — _(P1, Launch)_
+- **B-033** ✅ Mehrteilige Werke (Episoden/Kapitel) — _(P1, Launch)_
 - **B-034** Kapitelmarken und Sprungnavigation — _(P2, Launch)_
 - **B-035** Genre-/Kategorie-Taxonomie mit Pflege — _(P1, Beta)_
 - **B-036** Tags / Schlagworte pro Werk — _(P2, Beta)_
@@ -71,7 +71,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-040** Geplante Veröffentlichung (Scheduling) — _(P2, Launch)_
 - **B-041** ✅ Werk depublizieren / archivieren — _(P2, Beta)_
 - **B-042** Serien/Sammlungen mehrerer Werke — _(P2, Launch)_
-- **B-043** Vorschau-/Trailer-Snippet (frei hörbar) — _(P1, Launch)_
+- **B-043** ✅ Vorschau-/Trailer-Snippet (frei hörbar, previewKey + signierte URL) — _(P1, Launch)_
 - **B-044** Credits (Sprecher:in, Produktion, Lizenzen) — _(P3, Launch)_
 - **B-045** Werk-Duplikat-Erkennung beim Upload — _(P3, Post-Launch)_
 - **B-046** Bulk-Import von Werken (CSV/API) — _(P3, Post-Launch)_
@@ -93,7 +93,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 6 – Discovery & Suche
 
-- **B-059** Volltextsuche über Titel, Beschreibung, Tags — _(P1, Launch)_
+- **B-059** ✅ Volltextsuche über Titel und Beschreibung — _(P1, Launch)_
 - **B-060** Such-Infrastruktur (OpenSearch/Meilisearch) — _(P2, Launch)_
 - **B-061** Facetten-Filter (Genre, Sprache, Dauer, Preis) — _(P2, Launch)_
 - **B-062** Autovervollständigung / Suchvorschläge — _(P3, Launch)_
@@ -115,7 +115,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-075** Werk verschenken (Gift-Leihe) — _(P3, Post-Launch)_
 - **B-076** Wartelisten für limitierte Inhalte — _(P3, Post-Launch)_
 - **B-077** Konfigurierbare Leihdauer pro Werk — _(P3, Launch)_
-- **B-078** Tausch-Regeln: Kontingent-Anrechnung konfigurierbar — _(P2, Beta)_
+- **B-078** ✅ Tausch-Regeln: Kontingent-Anrechnung konfigurierbar (countsAgainstQuota) — _(P2, Beta)_
 - **B-079** Automatische Verlängerung (opt-in) — _(P3, Launch)_
 - **B-080** ✅ Leih-Limit-Hinweise und Restkontingent-Anzeige — _(P2, Beta)_
 - **B-081** Stornierung einer Leihe innerhalb Kulanzfrist — _(P3, Launch)_
@@ -157,8 +157,8 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 10 – Payments-Härtung (Stripe)
 
-- **B-111** Idempotenz-Keys für alle Stripe-Mutationen — _(P1, Launch)_
-- **B-112** Webhook-Event-Deduplizierung und Persistenz — _(P1, Launch)_
+- **B-111** ✅ Idempotenz-Keys für alle Stripe-Mutationen — _(P1, Launch)_
+- **B-112** ✅ Webhook-Event-Deduplizierung und Persistenz — _(P1, Launch)_
 - **B-113** Retry-/Dead-Letter-Handling für Webhooks — _(P2, Launch)_
 - **B-114** Strong Customer Authentication (SCA/3DS) — _(P1, Launch)_
 - **B-115** Reconciliation-Job (Stripe ↔ DB) — _(P2, Launch)_

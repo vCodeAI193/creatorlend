@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -69,10 +70,40 @@ export class WorksController {
     return this.works.search({ type, q, language, category, sort });
   }
 
-  // GET /api/v1/works/:id – Detailansicht (öffentlich)
+  // GET /api/v1/works/:id – Detailansicht inkl. Vorschau-URL (öffentlich)
   @Get(":id")
   get(@Param("id") id: string) {
-    return this.works.get(id);
+    return this.works.getWithPreview(id);
+  }
+
+  // GET /api/v1/works/:id/episodes – Episodenliste (öffentlich, B-033)
+  @Get(":id/episodes")
+  listEpisodes(@Param("id") id: string) {
+    return this.works.listEpisodes(id);
+  }
+
+  // POST /api/v1/works/:id/episodes – Episode hinzufügen (ARTIST, B-033)
+  @Post(":id/episodes")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  addEpisode(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body() body: { title: string; number: number; description?: string; durationSeconds?: number },
+  ) {
+    return this.works.addEpisode(userId, workId, body);
+  }
+
+  // DELETE /api/v1/works/:id/episodes/:episodeId – Episode löschen (ARTIST, B-033)
+  @Delete(":id/episodes/:episodeId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  deleteEpisode(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Param("episodeId") episodeId: string,
+  ) {
+    return this.works.deleteEpisode(userId, workId, episodeId);
   }
 
   // GET /api/v1/works/:id/metrics – Werk-Metriken (ARTIST, Eigentümer, B-142)

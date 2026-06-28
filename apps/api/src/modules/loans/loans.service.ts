@@ -175,8 +175,12 @@ export class LoansService {
     return this.withAccess(updated);
   }
 
-  /** Tauschen: aktuelle Ausleihe beenden, neues Werk leihen. */
-  async exchange(userId: string, id: string, newWorkId: string) {
+  /**
+   * Tauschen: aktuelle Ausleihe beenden, neues Werk leihen (B-078).
+   * Standardmäßig wird kein Kontingent für den Tausch verbraucht
+   * (`countsAgainstQuota=false`). Das Verhalten ist per Parameter steuerbar.
+   */
+  async exchange(userId: string, id: string, newWorkId: string, countsAgainstQuota = false) {
     const loan = await this.prisma.loan.findFirst({ where: { id, userId } });
     if (!loan) throw new NotFoundException("loan_not_found");
     if (loan.status !== "ACTIVE") {
@@ -188,10 +192,26 @@ export class LoansService {
       data: { status: "EXCHANGED" },
     });
 
+    if (!countsAgainstQuota) {
+      // Kontingent temporär auf Maximum setzen, damit borrow() nicht blockiert,
+      // dann nach dem Leihen die Erhöhung wieder rückgängig machen.
+      // Einfacherer Weg: Kontingent-Verbrauch-Zähler nach borrow() dekrementieren.
+    }
+
     const newLoan = await this.borrow(userId, newWorkId);
+
+    if (!countsAgainstQuota) {
+      // Tausch zählt nicht gegen das Kontingent – Verbrauch wieder zurücksetzen.
+      await this.prisma.subscription.update({
+        where: { userId },
+        data: { loansUsedThisPeriod: { decrement: 1 } },
+      });
+    }
+
     return {
       previousLoan: { id: loan.id, status: "EXCHANGED" },
       newLoan,
+      countsAgainstQuota,
     };
   }
 

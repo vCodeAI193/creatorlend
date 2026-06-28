@@ -33,7 +33,10 @@ export class StripeService {
     return this.stripe;
   }
 
-  /** Erstellt eine Checkout-Session für ein Abo und liefert die URL. */
+  /**
+   * Erstellt eine Checkout-Session für ein Abo und liefert die URL.
+   * Nutzt Idempotency-Key (B-111) um Doppel-Sessions zu verhindern.
+   */
   async createCheckoutSession(params: {
     userId: string;
     plan: string;
@@ -42,16 +45,20 @@ export class StripeService {
     successUrl: string;
     cancelUrl: string;
   }): Promise<{ id: string; url: string | null }> {
-    const session = await this.client().checkout.sessions.create({
-      mode: "subscription",
-      customer_email: params.customerEmail,
-      line_items: [{ price: params.priceId, quantity: 1 }],
-      success_url: params.successUrl,
-      cancel_url: params.cancelUrl,
-      client_reference_id: params.userId,
-      metadata: { userId: params.userId, plan: params.plan },
-      subscription_data: { metadata: { userId: params.userId, plan: params.plan } },
-    });
+    const idempotencyKey = `checkout-${params.userId}-${params.plan}`;
+    const session = await this.client().checkout.sessions.create(
+      {
+        mode: "subscription",
+        customer_email: params.customerEmail,
+        line_items: [{ price: params.priceId, quantity: 1 }],
+        success_url: params.successUrl,
+        cancel_url: params.cancelUrl,
+        client_reference_id: params.userId,
+        metadata: { userId: params.userId, plan: params.plan },
+        subscription_data: { metadata: { userId: params.userId, plan: params.plan } },
+      },
+      { idempotencyKey },
+    );
     return { id: session.id, url: session.url };
   }
 
@@ -81,13 +88,18 @@ export class StripeService {
     return link.url;
   }
 
-  /** Überweisung an ein Connect-Konto (Auszahlung), liefert die Transfer-ID. */
+  /**
+   * Überweisung an ein Connect-Konto (Auszahlung), liefert die Transfer-ID.
+   * Idempotency-Key (B-111): Kombination aus Empfänger + Betrag + Datum verhindert
+   * Doppelüberweisungen bei Retry.
+   */
   async createTransfer(amountCents: number, currency: string, destination: string): Promise<string> {
-    const transfer = await this.client().transfers.create({
-      amount: amountCents,
-      currency,
-      destination,
-    });
+    const dateKey = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const idempotencyKey = `transfer-${destination}-${amountCents}-${dateKey}`;
+    const transfer = await this.client().transfers.create(
+      { amount: amountCents, currency, destination },
+      { idempotencyKey },
+    );
     return transfer.id;
   }
 
