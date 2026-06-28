@@ -7,7 +7,6 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import type { Loan } from "@prisma/client";
-import { DEFAULT_LOAN_DURATION_DAYS } from "@creatorlend/shared";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MediaService } from "../media/media.service";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -29,9 +28,9 @@ export class LoansService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  private expiryFromNow(now: Date): Date {
+  private expiryFromNow(now: Date, days = 7): Date {
     const expires = new Date(now);
-    expires.setDate(expires.getDate() + DEFAULT_LOAN_DURATION_DAYS);
+    expires.setDate(expires.getDate() + days);
     return expires;
   }
 
@@ -76,7 +75,7 @@ export class LoansService {
           workId,
           status: "ACTIVE",
           startedAt: now,
-          expiresAt: this.expiryFromNow(now),
+          expiresAt: this.expiryFromNow(now, work.loanDays),
         },
       });
 
@@ -155,7 +154,7 @@ export class LoansService {
         where: { id: loan.id },
         data: {
           status: "ACTIVE",
-          expiresAt: this.expiryFromNow(now),
+          expiresAt: this.expiryFromNow(now, work.loanDays),
           renewalCount: { increment: 1 },
         },
       });
@@ -306,6 +305,21 @@ export class LoansService {
       create: { loanId: id, positionSeconds },
       update: { positionSeconds },
     });
+  }
+
+  /** Ausleihe innerhalb der 1-Stunden-Kulanzfrist stornieren (B-081). */
+  async cancel(userId: string, id: string) {
+    const loan = await this.prisma.loan.findFirst({ where: { id, userId } });
+    if (!loan) throw new NotFoundException("loan_not_found");
+    if (loan.status !== "ACTIVE") throw new BadRequestException("loan_not_active");
+    const graceEnd = new Date(loan.startedAt.getTime() + 60 * 60 * 1000);
+    if (new Date() > graceEnd) throw new BadRequestException("grace_period_expired");
+    await this.prisma.$transaction([
+      this.prisma.loan.update({ where: { id }, data: { status: "EXPIRED" } }),
+      this.prisma.subscription.update({ where: { userId }, data: { loansUsedThisPeriod: { decrement: 1 } } }),
+      this.prisma.payoutItem.deleteMany({ where: { loanId: id } }),
+    ]);
+    return { cancelled: true, loanId: id };
   }
 
   /** Gespeicherte Abspielposition abrufen (B-073). */

@@ -1,12 +1,18 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PromoCodesService } from "../promo-codes/promo-codes.service";
+import { ReportsService } from "../reports/reports.service";
 
 const PAGE_SIZE = 50;
 
 /** Backoffice-Dienst für Admins (B-151, B-152, B-154, B-155). */
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly promoCodes: PromoCodesService,
+    private readonly reports: ReportsService,
+  ) {}
 
   /** Nutzer:innen auflisten mit Paginierung. */
   async listUsers(page: number, role?: string) {
@@ -89,6 +95,26 @@ export class AdminService {
     const updated = await this.prisma.review.update({ where: { id: reviewId }, data: { hidden: true } });
     await this.writeAuditLog(actorId, "HIDE_REVIEW", "Review", reviewId);
     return updated;
+  }
+
+  /** Admin: Promo-Code anlegen (B-087). */
+  createPromoCode(input: { code: string; discountPercent?: number; discountCents?: number; plan?: string; maxUses?: number; expiresAt?: string }) {
+    return this.promoCodes.create(input);
+  }
+
+  /** Admin: alle Promo-Codes auflisten (B-087). */
+  listPromoCodes() {
+    return this.promoCodes.list();
+  }
+
+  /** Admin: Meldungen auflisten (B-139, B-153). */
+  listReports(page = 1, status?: string) {
+    return this.reports.list(page, status);
+  }
+
+  /** Admin: Meldung bearbeiten (B-153). */
+  reviewReport(adminId: string, reportId: string, action: "REVIEWED" | "DISMISSED") {
+    return this.reports.review(adminId, reportId, action);
   }
 
   /** Globale Plattform-Statistiken für das Dashboard (B-151). */

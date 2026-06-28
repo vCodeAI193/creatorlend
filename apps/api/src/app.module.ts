@@ -16,6 +16,10 @@ import { PayoutsModule } from "./modules/payouts/payouts.module";
 import { EngagementModule } from "./modules/engagement/engagement.module";
 import { WebhooksModule } from "./modules/webhooks/webhooks.module";
 import { AdminModule } from "./modules/admin/admin.module";
+import { PromoCodesModule } from "./modules/promo-codes/promo-codes.module";
+import { PlaylistsModule } from "./modules/playlists/playlists.module";
+import { ReportsModule } from "./modules/reports/reports.module";
+import { HealthModule } from "./modules/health/health.module";
 
 @Module({
   imports: [
@@ -36,6 +40,10 @@ import { AdminModule } from "./modules/admin/admin.module";
     EngagementModule,
     WebhooksModule,
     AdminModule,
+    PromoCodesModule,
+    PlaylistsModule,
+    ReportsModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

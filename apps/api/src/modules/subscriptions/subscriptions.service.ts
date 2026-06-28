@@ -9,11 +9,13 @@ const PLAN_QUOTA: Record<string, number> = {
   LITE: 5,
   STANDARD: 10,
   PREMIUM: 30,
+  ANNUAL: 120, // B-093
 };
 
 /** Stripe-Price-ID je Plan – wird zur Laufzeit aus der Umgebung gelesen. */
 function priceIdFor(plan: string): string | undefined {
   if (plan === "PREMIUM") return process.env.STRIPE_PRICE_PREMIUM;
+  if (plan === "ANNUAL") return process.env.STRIPE_PRICE_ANNUAL; // B-093
   return process.env.STRIPE_PRICE_STANDARD;
 }
 
@@ -68,7 +70,7 @@ export class SubscriptionsService {
     const periodEnd = new Date();
     periodEnd.setDate(periodEnd.getDate() + 30);
 
-    return this.prisma.subscription.upsert({
+    const sub = await this.prisma.subscription.upsert({
       where: { userId },
       create: {
         userId,
@@ -87,6 +89,8 @@ export class SubscriptionsService {
         cancelAtPeriodEnd: false,
       },
     });
+    await this.recordEvent(userId, "CREATED", plan);
+    return sub;
   }
 
   async getForUser(userId: string) {
@@ -118,17 +122,21 @@ export class SubscriptionsService {
 
   async changePlan(userId: string, plan: string) {
     const quota = PLAN_QUOTA[plan] ?? PLAN_QUOTA.STANDARD;
-    return this.prisma.subscription.update({
+    const sub = await this.prisma.subscription.update({
       where: { userId },
       data: { plan, loanQuotaPerPeriod: quota },
     });
+    await this.recordEvent(userId, "CHANGED", plan);
+    return sub;
   }
 
   async cancel(userId: string) {
-    return this.prisma.subscription.update({
+    const sub = await this.prisma.subscription.update({
       where: { userId },
       data: { cancelAtPeriodEnd: true },
     });
+    await this.recordEvent(userId, "CANCELED", sub.plan);
+    return sub;
   }
 
   /**
@@ -146,6 +154,28 @@ export class SubscriptionsService {
     const returnUrl = `${this.webBaseUrl}/account`;
     const url = await this.stripe.createBillingPortalSession(sub.stripeCustomerId, returnUrl);
     return { portalUrl: url, mode: "stripe" };
+  }
+
+  /** Abo-Ereignis in der Historie aufzeichnen (B-090). */
+  private async recordEvent(userId: string, event: string, plan?: string, amountCents?: number, meta?: object) {
+    await this.prisma.subscriptionEvent.create({
+      data: { userId, event, plan, amountCents, meta },
+    });
+  }
+
+  /** Abrechnungshistorie für den Nutzer (B-090). */
+  async getBillingHistory(userId: string, page = 1) {
+    const PAGE_SIZE = 20;
+    const [events, total] = await Promise.all([
+      this.prisma.subscriptionEvent.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        skip: (Math.max(page, 1) - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
+      this.prisma.subscriptionEvent.count({ where: { userId } }),
+    ]);
+    return { events, meta: { page, pageSize: PAGE_SIZE, total } };
   }
 
   /** Stripe-Abo-Status auf das interne Enum abbilden. */

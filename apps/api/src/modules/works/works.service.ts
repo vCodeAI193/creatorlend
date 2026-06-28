@@ -9,6 +9,7 @@ interface CreateWorkInput {
   type: string;
   description?: string;
   loanPriceCents: number;
+  loanDays?: number; // Konfigurierbare Leihdauer (B-077)
   durationSeconds?: number;
   language?: string;
   category?: string;
@@ -51,6 +52,7 @@ export class WorksService {
         type: input.type as never,
         description: input.description,
         loanPriceCents: input.loanPriceCents,
+        loanDays: input.loanDays ?? 7,
         durationSeconds: input.durationSeconds,
         language: input.language,
         category: input.category,

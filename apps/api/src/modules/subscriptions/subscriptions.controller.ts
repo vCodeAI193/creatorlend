@@ -5,6 +5,7 @@ import {
   Get,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { UserRole } from "@creatorlend/shared";
@@ -62,5 +63,11 @@ export class SubscriptionsController {
   @Post("billing-portal")
   billingPortal(@CurrentUser() userId: string) {
     return this.subscriptions.getBillingPortalUrl(userId);
+  }
+
+  // GET /api/v1/subscriptions/billing-history – Abrechnungshistorie (B-090)
+  @Get("billing-history")
+  billingHistory(@CurrentUser() userId: string, @Query("page") page = "1") {
+    return this.subscriptions.getBillingHistory(userId, Number(page));
   }
 }

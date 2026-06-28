@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
@@ -40,9 +40,9 @@ export class NotificationsService {
     });
   }
 
-  list(userId: string, onlyUnread = false) {
+  list(userId: string, onlyUnread = false, type?: string) {
     return this.prisma.notification.findMany({
-      where: { userId, ...(onlyUnread ? { readAt: null } : {}) },
+      where: { userId, ...(onlyUnread ? { readAt: null } : {}), ...(type ? { type } : {}) },
       orderBy: { createdAt: "desc" },
       take: 100,
     });
@@ -117,5 +117,35 @@ export class NotificationsService {
     const enabled = await this.isEnabled(input.userId, input.type);
     if (!enabled) return null;
     return this.create(input);
+  }
+
+  /** Generiert einen Abmelde-Token (B-125). */
+  async generateUnsubscribeToken(userId: string, type?: string) {
+    return this.prisma.unsubscribeToken.create({
+      data: { userId, type },
+    });
+  }
+
+  /** Verarbeitet einen Abmelde-Token und deaktiviert die Benachrichtigung (B-125). */
+  async processUnsubscribeToken(token: string) {
+    const record = await this.prisma.unsubscribeToken.findUnique({ where: { token } });
+    if (!record) throw new NotFoundException("invalid_token");
+    if (record.usedAt) throw new BadRequestException("token_already_used");
+    await this.prisma.unsubscribeToken.update({ where: { token }, data: { usedAt: new Date() } });
+    if (record.type) {
+      await this.updatePreferences(record.userId, { [record.type]: false });
+    } else {
+      // Alle Benachrichtigungstypen deaktivieren
+      const allTypes = await this.prisma.notificationPreference.findMany({
+        where: { userId: record.userId },
+        select: { type: true },
+      });
+      const updates: Record<string, boolean> = {};
+      for (const p of allTypes) updates[p.type] = false;
+      if (Object.keys(updates).length > 0) {
+        await this.updatePreferences(record.userId, updates);
+      }
+    }
+    return { unsubscribed: true, type: record.type ?? "all" };
   }
 }

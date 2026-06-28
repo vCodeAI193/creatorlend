@@ -44,6 +44,7 @@ export enum SubscriptionPlan {
   LITE = "LITE",       // 5 Leihen/Monat
   STANDARD = "STANDARD", // 10 Leihen/Monat
   PREMIUM = "PREMIUM",   // 30 Leihen/Monat
+  ANNUAL = "ANNUAL",   // 120 Leihen/Jahr (B-093)
 }
 
 export interface Work {

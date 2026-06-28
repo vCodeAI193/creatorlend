@@ -3,16 +3,32 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { NotificationsService } from "./notifications.service";
 
+/** Öffentlicher Endpunkt: Abmelden via Token-Link aus E-Mail (B-125). */
+@Controller("notifications")
+export class NotificationsPublicController {
+  constructor(private readonly notifications: NotificationsService) {}
+
+  // GET /api/v1/notifications/unsubscribe?token=xxx – kein Auth erforderlich
+  @Get("unsubscribe")
+  unsubscribe(@Query("token") token: string) {
+    return this.notifications.processUnsubscribeToken(token);
+  }
+}
+
 /** In-App-Benachrichtigungen (für alle eingeloggten Nutzer:innen). */
 @Controller("notifications")
 @UseGuards(JwtAuthGuard)
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
-  // GET /api/v1/notifications?unread=true
+  // GET /api/v1/notifications?unread=true&type=LOAN_EXPIRED
   @Get()
-  list(@CurrentUser() userId: string, @Query("unread") unread?: string) {
-    return this.notifications.list(userId, unread === "true");
+  list(
+    @CurrentUser() userId: string,
+    @Query("unread") unread?: string,
+    @Query("type") type?: string,
+  ) {
+    return this.notifications.list(userId, unread === "true", type);
   }
 
   // GET /api/v1/notifications/unread-count
@@ -40,7 +56,6 @@ export class NotificationsController {
   }
 
   // PUT /api/v1/notifications/preferences – Präferenzen setzen (B-028)
-  // Body: { "LOAN_EXPIRING": false, "LOAN_EXPIRED": true }
   @Put("preferences")
   updatePreferences(
     @CurrentUser() userId: string,

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
 import { UserRole } from "@creatorlend/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -31,6 +31,12 @@ export class LoansController {
   @Get(":id")
   get(@CurrentUser() userId: string, @Param("id") id: string) {
     return this.loans.getForUser(userId, id);
+  }
+
+  // DELETE /api/v1/loans/:id – Stornieren innerhalb Kulanzfrist (B-081)
+  @Delete(":id")
+  cancel(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.loans.cancel(userId, id);
   }
 
   // POST /api/v1/loans/:id/renew – Verlängern (erneute Vergütung)

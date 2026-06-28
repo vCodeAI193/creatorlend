@@ -111,4 +111,13 @@ export class StripeService {
     });
     return session.url;
   }
+
+  /** Rückerstattung eines Payments (B-116). */
+  async createRefund(paymentIntentId: string, amountCents?: number): Promise<string> {
+    const refund = await this.client().refunds.create({
+      payment_intent: paymentIntentId,
+      ...(amountCents !== undefined ? { amount: amountCents } : {}),
+    });
+    return refund.id;
+  }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { UserRole } from "@creatorlend/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -57,5 +57,35 @@ export class AdminController {
   @Post("reviews/:id/hide")
   hideReview(@CurrentUser() actorId: string, @Param("id") reviewId: string) {
     return this.admin.hideReview(actorId, reviewId);
+  }
+
+  // POST /api/v1/admin/promo-codes – Promo-Code erstellen (B-087)
+  @Post("promo-codes")
+  createPromoCode(
+    @Body() body: { code: string; discountPercent?: number; discountCents?: number; plan?: string; maxUses?: number; expiresAt?: string },
+  ) {
+    return this.admin.createPromoCode(body);
+  }
+
+  // GET /api/v1/admin/promo-codes – Promo-Codes auflisten (B-087)
+  @Get("promo-codes")
+  listPromoCodes() {
+    return this.admin.listPromoCodes();
+  }
+
+  // GET /api/v1/admin/reports – Meldungen auflisten (B-139, B-153)
+  @Get("reports")
+  listReports(@Query("page") page = "1", @Query("status") status?: string) {
+    return this.admin.listReports(Number(page), status);
+  }
+
+  // PATCH /api/v1/admin/reports/:id – Meldung bearbeiten (B-153)
+  @Patch("reports/:id")
+  reviewReport(
+    @CurrentUser() actorId: string,
+    @Param("id") id: string,
+    @Body("action") action: "REVIEWED" | "DISMISSED",
+  ) {
+    return this.admin.reviewReport(actorId, id, action);
   }
 }
