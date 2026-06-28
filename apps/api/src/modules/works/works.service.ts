@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MediaService } from "../media/media.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 interface CreateWorkInput {
   title: string;
@@ -26,6 +27,7 @@ export class WorksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /**
@@ -77,11 +79,30 @@ export class WorksService {
   }
 
   async publish(artistId: string, id: string) {
-    await this.ownedWork(artistId, id);
-    return this.prisma.work.update({
+    const work = await this.ownedWork(artistId, id);
+    const updated = await this.prisma.work.update({
       where: { id },
       data: { status: "PUBLISHED" },
     });
+
+    // Follower:innen der Künstler:in benachrichtigen (B-126)
+    const followers = await this.prisma.follow.findMany({
+      where: { artistId },
+      select: { followerId: true },
+    });
+    if (followers.length > 0) {
+      await this.notifications.createMany(
+        followers.map((f) => ({
+          userId: f.followerId,
+          type: "NEW_WORK",
+          title: "Neues Werk verfügbar",
+          body: `„${work.title}" ist jetzt ausleihbar.`,
+          data: { workId: id, artistId },
+        })),
+      );
+    }
+
+    return updated;
   }
 
   /** Werk depublizieren / archivieren (B-041). Aktive Leihen laufen aus. */

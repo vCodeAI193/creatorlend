@@ -37,6 +37,47 @@ export class UsersService {
   }
 
   /**
+   * DSGVO-Datenexport (B-011): alle personenbezogenen Daten des Nutzers
+   * als strukturiertes JSON-Objekt. Passwort-Hash und Token-Hashes werden
+   * NICHT exportiert.
+   */
+  async exportData(userId: string) {
+    const [user, loans, favorites, follows, notifications] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { id: true, email: true, displayName: true, language: true, role: true, emailVerified: true, createdAt: true, updatedAt: true },
+      }),
+      this.prisma.loan.findMany({
+        where: { userId },
+        include: { work: { select: { id: true, title: true, type: true } } },
+        orderBy: { startedAt: "desc" },
+      }),
+      this.prisma.favorite.findMany({
+        where: { userId },
+        include: { work: { select: { id: true, title: true } } },
+      }),
+      this.prisma.follow.findMany({
+        where: { followerId: userId },
+        select: { artistId: true, createdAt: true },
+      }),
+      this.prisma.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      }),
+    ]);
+
+    return {
+      exportedAt: new Date().toISOString(),
+      profile: user,
+      loans,
+      favorites: favorites.map((f) => ({ workId: f.workId, work: f.work, addedAt: f.createdAt })),
+      follows,
+      notifications,
+    };
+  }
+
+  /**
    * Kontolöschung (B-010): Alle personenbezogenen Daten werden entfernt.
    * Finanzdaten (PayoutItems) werden anonymisiert, damit Abrechnungshistorie
    * erhalten bleibt. Tokens werden widerrufen, Benachrichtigungen gelöscht.

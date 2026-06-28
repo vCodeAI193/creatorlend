@@ -119,6 +119,23 @@ e2e-Tests abgesichert:
 Das Abo kann im MVP per Dev-Endpoint aktiviert werden; mit konfiguriertem
 Stripe (siehe unten) läuft der echte Checkout-/Webhook-Pfad.
 
+### Phase 5 (Beta-Increment) – umgesetzt
+Aufbauend auf Phase 4:
+
+- **DSGVO-Export** (B-011): `GET /users/me/export` – alle personenbezogenen
+  Daten des Nutzers als JSON (Profil, Leihen, Favoriten, Follows,
+  Benachrichtigungen). Passwort-Hashes werden nicht exportiert.
+- **Billing-Portal** (B-091): `POST /subscriptions/billing-portal` – Stripe
+  Billing Portal URL für Zahlungsmethoden/Rechnungen; Dev-Fallback wenn
+  kein Stripe-Kunde vorhanden.
+- **Payout-Mindestbetrag** (B-099): `PAYOUT_MINIMUM_CENTS`-Umgebungsvariable
+  (Default 500 ct = 5 €). `withdraw()` wirft 400 wenn Betrag darunter liegt.
+- **Automatische Auszahlungen** (B-100): `PayoutsScheduler` läuft täglich
+  Mitternacht, zahlt alle Künstler:innen mit Guthaben ≥ Minimum aus.
+- **Folge-Benachrichtigung** (B-126): Beim Veröffentlichen eines Werks
+  (`publish()`) werden alle Follower:innen via In-App-Notification (Typ
+  `NEW_WORK`) informiert.
+
 ### Phase 4 (Beta-Increment) – umgesetzt
 Aufbauend auf Phase 3:
 

@@ -29,6 +29,12 @@ export class UsersController {
     return this.users.loanHistory(userId, limit ? Number(limit) : 50);
   }
 
+  // GET /api/v1/users/me/export – DSGVO-Datenexport (B-011)
+  @Get("me/export")
+  exportData(@CurrentUser() userId: string) {
+    return this.users.exportData(userId);
+  }
+
   // DELETE /api/v1/users/me – Konto löschen (B-010)
   @Delete("me")
   @HttpCode(HttpStatus.NO_CONTENT)

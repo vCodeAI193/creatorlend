@@ -30,7 +30,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-008** Aktive-Sessions-Übersicht und Remote-Logout — _(P2, Launch)_
 - **B-009** ✅ Rate-Limiting und Brute-Force-Schutz für Login — _(P1, Beta)_
 - **B-010** ✅ Konto-Löschung (Self-Service) mit Datenbereinigung — _(P1, Launch)_
-- **B-011** DSGVO-Datenexport des eigenen Kontos — _(P2, Launch)_
+- **B-011** ✅ DSGVO-Datenexport des eigenen Kontos — _(P2, Launch)_
 - **B-012** Magic-Link-/Passwordless-Login — _(P3, Post-Launch)_
 
 ## Epic 2 – Künstler-Profile & Verifizierung
@@ -131,7 +131,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-088** Plan-Upgrade/Downgrade mit Proration — _(P2, Launch)_
 - **B-089** Rechnungen / Belege als PDF — _(P2, Launch)_
 - **B-090** Abrechnungsverlauf im Konto — _(P2, Launch)_
-- **B-091** Zahlungsmethode verwalten (Billing Portal) — _(P1, Launch)_
+- **B-091** ✅ Zahlungsmethode verwalten (Billing Portal) — _(P1, Launch)_
 - **B-092** Geschenk-Abos — _(P3, Post-Launch)_
 - **B-093** Jahresabo mit Rabatt — _(P3, Launch)_
 - **B-094** Pausieren des Abos — _(P3, Post-Launch)_
@@ -142,14 +142,14 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 9 – Künstlervergütung & Auszahlungen
 
-- **B-099** Konfigurierbarer Auszahlungs-Mindestbetrag — _(P2, Launch)_
-- **B-100** Automatische periodische Auszahlungen — _(P2, Launch)_
+- **B-099** ✅ Konfigurierbarer Auszahlungs-Mindestbetrag — _(P2, Launch)_
+- **B-100** ✅ Automatische periodische Auszahlungen — _(P2, Launch)_
 - **B-101** Mehrwährungs-Auszahlungen — _(P2, Post-Launch)_
 - **B-102** Steuerformulare / Tax-Reporting (z. B. DAC7) — _(P2, Launch)_
 - **B-103** Monatliche Vergütungs-Abrechnung (Statement) — _(P2, Launch)_
 - **B-104** Einnahmen-Splits bei Kollaborationen — _(P3, Post-Launch)_
 - **B-105** Vergütungs-Vorschau / Prognose — _(P3, Launch)_
-- **B-106** Auszahlungs-Historie mit Statusverfolgung — _(P2, Launch)_
+- **B-106** ✅ Auszahlungs-Historie mit Statusverfolgung (über GET /payouts/items) — _(P2, Launch)_
 - **B-107** Anpassbarer Vergütungssatz pro Aktion (Leihe/Verlängerung) — _(P3, Launch)_
 - **B-108** Rückbuchungen / Korrekturen bei Erstattungen — _(P2, Launch)_
 - **B-109** ✅ CSV-Export der Vergütungsdaten — _(P2, Beta)_
@@ -173,9 +173,9 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-121** Web-Push-Benachrichtigungen — _(P2, Launch)_
 - **B-122** Mobile Push (APNs/FCM) — _(P2, Launch)_
 - **B-123** Tägliche/wöchentliche Digest-Mails — _(P3, Launch)_
-- **B-124** Granulare Benachrichtigungs-Einstellungen — _(P1, Beta)_
+- **B-124** ✅ Granulare Benachrichtigungs-Einstellungen (abgedeckt durch B-028) — _(P1, Beta)_
 - **B-125** Abmelde-Links / Unsubscribe-Management — _(P1, Launch)_
-- **B-126** „Neues Werk von gefolgter Künstler:in"-Alert — _(P2, Launch)_
+- **B-126** ✅ „Neues Werk von gefolgter Künstler:in"-Alert — _(P2, Launch)_
 - **B-127** SMS-Benachrichtigungen (optional) — _(P3, Post-Launch)_
 - **B-128** In-App-Benachrichtigungs-Center mit Filtern — _(P3, Launch)_
 

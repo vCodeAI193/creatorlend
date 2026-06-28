@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { NotificationType } from "../notifications/notification-types";
@@ -6,9 +6,12 @@ import { StripeService } from "../stripe/stripe.service";
 
 const PAGE_SIZE = 20;
 const PAYOUT_CURRENCY = "eur";
+// Mindestauszahlungsbetrag (B-099), konfigurierbar per Umgebungsvariable.
+const MIN_PAYOUT_CENTS = Number(process.env.PAYOUT_MINIMUM_CENTS ?? "500");
 
 @Injectable()
 export class PayoutsService {
+  private readonly logger = new Logger(PayoutsService.name);
   private readonly webBaseUrl = process.env.WEB_BASE_URL ?? "http://localhost:3000";
 
   constructor(
@@ -145,6 +148,13 @@ export class PayoutsService {
     });
     const amountCents = pending._sum.amountCents ?? 0;
 
+    // B-099: Mindestauszahlungsbetrag prüfen
+    if (amountCents < MIN_PAYOUT_CENTS && amountCents > 0) {
+      throw new BadRequestException(
+        `minimum_payout_not_reached:${MIN_PAYOUT_CENTS}`,
+      );
+    }
+
     // Mit aktivem Stripe: echte Überweisung an das Connect-Konto.
     if (this.stripe.isEnabled() && amountCents > 0) {
       const user = await this.prisma.user.findUniqueOrThrow({ where: { id: artistId } });
@@ -171,5 +181,51 @@ export class PayoutsService {
     }
 
     return { transferred: result.count, amountCents };
+  }
+
+  /**
+   * Automatische monatliche Auszahlungen an alle Künstler:innen, die den
+   * Mindestbetrag erreicht haben (B-100). Wird vom Scheduler aufgerufen.
+   */
+  async autoWithdrawAll(): Promise<{ processed: number; totalCents: number }> {
+    // Künstler:innen mit ausstehenden Beträgen >= Minimum ermitteln
+    const groups = await this.prisma.payoutItem.groupBy({
+      by: ["artistId"],
+      where: { status: "PENDING" },
+      _sum: { amountCents: true },
+      having: { amountCents: { _sum: { gte: MIN_PAYOUT_CENTS } } },
+    });
+
+    let processed = 0;
+    let totalCents = 0;
+
+    for (const g of groups) {
+      const amountCents = g._sum.amountCents ?? 0;
+      try {
+        if (this.stripe.isEnabled()) {
+          const user = await this.prisma.user.findUnique({ where: { id: g.artistId } });
+          if (user?.stripeConnectAccountId) {
+            await this.stripe.createTransfer(amountCents, PAYOUT_CURRENCY, user.stripeConnectAccountId);
+          }
+        }
+        await this.prisma.payoutItem.updateMany({
+          where: { artistId: g.artistId, status: "PENDING" },
+          data: { status: "PAID" },
+        });
+        await this.notifications.create({
+          userId: g.artistId,
+          type: NotificationType.PAYOUT_PAID,
+          title: "Automatische Auszahlung",
+          body: `${amountCents} Cent wurden automatisch ausgezahlt.`,
+          data: { amountCents },
+        });
+        processed += 1;
+        totalCents += amountCents;
+      } catch (err) {
+        this.logger.error(`Automatische Auszahlung für ${g.artistId} fehlgeschlagen`, err);
+      }
+    }
+
+    return { processed, totalCents };
   }
 }

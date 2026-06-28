@@ -90,4 +90,13 @@ export class StripeService {
     });
     return transfer.id;
   }
+
+  /** Billing-Portal-Session erstellen (B-091) – für Abo-Verwaltung/Rechnungen. */
+  async createBillingPortalSession(customerId: string, returnUrl: string): Promise<string> {
+    const session = await this.client().billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl,
+    });
+    return session.url;
+  }
 }

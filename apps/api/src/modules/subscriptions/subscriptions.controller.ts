@@ -51,4 +51,10 @@ export class SubscriptionsController {
   cancel(@CurrentUser() userId: string) {
     return this.subscriptions.cancel(userId);
   }
+
+  // POST /api/v1/subscriptions/billing-portal – Stripe Billing Portal (B-091)
+  @Post("billing-portal")
+  billingPortal(@CurrentUser() userId: string) {
+    return this.subscriptions.getBillingPortalUrl(userId);
+  }
 }

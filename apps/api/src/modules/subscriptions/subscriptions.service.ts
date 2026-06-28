@@ -113,6 +113,23 @@ export class SubscriptionsService {
     });
   }
 
+  /**
+   * Stripe-Billing-Portal-URL (B-091): Nutzer:in kann dort Zahlungsmethoden
+   * verwalten, Abo kündigen und Rechnungen einsehen.
+   */
+  async getBillingPortalUrl(userId: string) {
+    if (!this.stripe.isEnabled()) {
+      return { portalUrl: null, mode: "dev" };
+    }
+    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
+    if (!sub?.stripeCustomerId) {
+      return { portalUrl: null, mode: "no_stripe_customer" };
+    }
+    const returnUrl = `${this.webBaseUrl}/account`;
+    const url = await this.stripe.createBillingPortalSession(sub.stripeCustomerId, returnUrl);
+    return { portalUrl: url, mode: "stripe" };
+  }
+
   /** Stripe-Abo-Status auf das interne Enum abbilden. */
   private mapStatus(stripeStatus: string): SubscriptionStatus {
     switch (stripeStatus) {
