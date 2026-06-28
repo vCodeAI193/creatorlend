@@ -15,6 +15,8 @@ import { CurrentUser } from "../../common/current-user.decorator";
 import { FavoritesService } from "./favorites.service";
 import { FollowsService } from "./follows.service";
 import { WishlistService } from "./wishlist.service";
+import { RatingsService } from "./ratings.service";
+import { ReviewsService } from "./reviews.service";
 import { FavoriteDto } from "./dto/favorite.dto";
 import { FollowDto } from "./dto/follow.dto";
 
@@ -27,6 +29,8 @@ export class EngagementController {
     private readonly favorites: FavoritesService,
     private readonly follows: FollowsService,
     private readonly wishlist: WishlistService,
+    private readonly ratings: RatingsService,
+    private readonly reviews: ReviewsService,
   ) {}
 
   // POST /api/v1/favorites
@@ -81,5 +85,37 @@ export class EngagementController {
   @Get("wishlist")
   getWishlist(@CurrentUser() userId: string) {
     return this.wishlist.list(userId);
+  }
+
+  // POST /api/v1/ratings – Werk bewerten (B-129)
+  @Post("ratings")
+  rate(
+    @CurrentUser() userId: string,
+    @Body("workId") workId: string,
+    @Body("value") value: number,
+  ) {
+    return this.ratings.upsert(userId, workId, value);
+  }
+
+  // DELETE /api/v1/ratings/:workId – Bewertung entfernen (B-129)
+  @Delete("ratings/:workId")
+  removeRating(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.ratings.remove(userId, workId);
+  }
+
+  // POST /api/v1/reviews – Rezension schreiben (B-130)
+  @Post("reviews")
+  review(
+    @CurrentUser() userId: string,
+    @Body("workId") workId: string,
+    @Body("body") body: string,
+  ) {
+    return this.reviews.upsert(userId, workId, body);
+  }
+
+  // DELETE /api/v1/reviews/:workId – eigene Rezension löschen (B-130)
+  @Delete("reviews/:workId")
+  removeReview(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.reviews.remove(userId, workId);
   }
 }

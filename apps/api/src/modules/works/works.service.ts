@@ -12,6 +12,8 @@ interface CreateWorkInput {
   durationSeconds?: number;
   language?: string;
   category?: string;
+  tags?: string[];
+  explicit?: boolean;
 }
 
 export interface SearchFilter {
@@ -19,7 +21,13 @@ export interface SearchFilter {
   q?: string;
   language?: string;
   category?: string;
-  sort?: string; // "new" | "popular"
+  sort?: string; // "new" | "popular" | "price_asc" | "price_desc" | "duration_asc" | "duration_desc"
+  minPrice?: number;
+  maxPrice?: number;
+  minDuration?: number;
+  maxDuration?: number;
+  explicit?: boolean; // true = include explicit; false = exclude
+  tags?: string[]; // filter by any of these tags
 }
 
 @Injectable()
@@ -45,6 +53,8 @@ export class WorksService {
         durationSeconds: input.durationSeconds,
         language: input.language,
         category: input.category,
+        tags: input.tags ?? [],
+        explicit: input.explicit ?? false,
         status: "DRAFT",
       },
     });
@@ -73,6 +83,8 @@ export class WorksService {
         durationSeconds: input.durationSeconds,
         language: input.language,
         category: input.category,
+        ...(input.tags !== undefined ? { tags: input.tags } : {}),
+        ...(input.explicit !== undefined ? { explicit: input.explicit } : {}),
         ...(input.type ? { type: input.type as never } : {}),
       },
     });
@@ -124,6 +136,30 @@ export class WorksService {
       ...(filter.type ? { type: filter.type as never } : {}),
       ...(filter.language ? { language: filter.language } : {}),
       ...(filter.category ? { category: filter.category } : {}),
+      // Explicit-Content-Filter (B-038): explicit=false schließt explizite Werke aus
+      ...(filter.explicit === false ? { explicit: false } : {}),
+      // Preis-Facette (B-061)
+      ...(filter.minPrice !== undefined || filter.maxPrice !== undefined
+        ? {
+            loanPriceCents: {
+              ...(filter.minPrice !== undefined ? { gte: filter.minPrice } : {}),
+              ...(filter.maxPrice !== undefined ? { lte: filter.maxPrice } : {}),
+            },
+          }
+        : {}),
+      // Dauer-Facette (B-061)
+      ...(filter.minDuration !== undefined || filter.maxDuration !== undefined
+        ? {
+            durationSeconds: {
+              ...(filter.minDuration !== undefined ? { gte: filter.minDuration } : {}),
+              ...(filter.maxDuration !== undefined ? { lte: filter.maxDuration } : {}),
+            },
+          }
+        : {}),
+      // Tag-Filter (B-036): Werk muss mindestens einen der gesuchten Tags enthalten
+      ...(filter.tags && filter.tags.length > 0
+        ? { tags: { hasSome: filter.tags } }
+        : {}),
       ...(filter.q
         ? {
             OR: [
@@ -134,12 +170,71 @@ export class WorksService {
         : {}),
     };
 
-    const orderBy: Prisma.WorkOrderByWithRelationInput =
-      filter.sort === "popular"
-        ? { borrowCount: "desc" }
-        : { createdAt: "desc" };
+    let orderBy: Prisma.WorkOrderByWithRelationInput;
+    switch (filter.sort) {
+      case "popular":
+        orderBy = { borrowCount: "desc" };
+        break;
+      case "price_asc":
+        orderBy = { loanPriceCents: "asc" };
+        break;
+      case "price_desc":
+        orderBy = { loanPriceCents: "desc" };
+        break;
+      case "duration_asc":
+        orderBy = { durationSeconds: "asc" };
+        break;
+      case "duration_desc":
+        orderBy = { durationSeconds: "desc" };
+        break;
+      default:
+        orderBy = { createdAt: "desc" };
+    }
 
     return this.prisma.work.findMany({ where, orderBy, take: 100 });
+  }
+
+  /**
+   * Trending-Werke (B-063): die 20 meistgeliehenen Werke der letzten 7 Tage.
+   * Nutzt einen Raw-Query auf die Loan-Tabelle für Aktualität.
+   */
+  async trending(limit = 20) {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const rows = await this.prisma.$queryRaw<{ workId: string; cnt: bigint }[]>`
+      SELECT "workId", COUNT(*) AS cnt
+      FROM "Loan"
+      WHERE "createdAt" >= ${since}
+      GROUP BY "workId"
+      ORDER BY cnt DESC
+      LIMIT ${limit}
+    `;
+    if (rows.length === 0) return [];
+    const ids = rows.map((r) => r.workId);
+    const works = await this.prisma.work.findMany({
+      where: { id: { in: ids }, status: "PUBLISHED" },
+    });
+    // Reihenfolge gemäß Trending-Rang beibehalten
+    const order = new Map(ids.map((id, i) => [id, i]));
+    return works.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  }
+
+  /**
+   * Ähnliche Werke (B-065): selber Typ + Kategorie, höchste Ausleihen,
+   * außer dem angegebenen Werk selbst.
+   */
+  async similar(id: string, limit = 8) {
+    const work = await this.prisma.work.findUnique({ where: { id } });
+    if (!work) throw new NotFoundException("work_not_found");
+    return this.prisma.work.findMany({
+      where: {
+        id: { not: id },
+        status: "PUBLISHED",
+        type: work.type,
+        ...(work.category ? { category: work.category } : {}),
+      },
+      orderBy: { borrowCount: "desc" },
+      take: limit,
+    });
   }
 
   async get(id: string) {

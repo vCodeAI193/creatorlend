@@ -27,7 +27,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-005** OAuth2-Login mit Google — _(P2, Launch)_
 - **B-006** OAuth2-Login mit Apple — _(P2, Launch)_
 - **B-007** Zwei-Faktor-Authentifizierung (TOTP) — _(P2, Launch)_
-- **B-008** Aktive-Sessions-Übersicht und Remote-Logout — _(P2, Launch)_
+- **B-008** ✅ Aktive-Sessions-Übersicht und Remote-Logout — _(P2, Launch)_
 - **B-009** ✅ Rate-Limiting und Brute-Force-Schutz für Login — _(P1, Beta)_
 - **B-010** ✅ Konto-Löschung (Self-Service) mit Datenbereinigung — _(P1, Launch)_
 - **B-011** ✅ DSGVO-Datenexport des eigenen Kontos — _(P2, Launch)_
@@ -35,14 +35,14 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 2 – Künstler-Profile & Verifizierung
 
-- **B-013** Öffentliche Künstler-Profilseite mit Bio und Avatar — _(P1, Beta)_
-- **B-014** Avatar-/Banner-Upload — _(P2, Beta)_
+- **B-013** ✅ Öffentliche Künstler-Profilseite mit Bio und Avatar — _(P1, Beta)_
+- **B-014** ✅ Avatar-/Banner-Upload — _(P2, Beta)_
 - **B-015** Verifizierungs-Badge mit Antrags-Workflow — _(P2, Launch)_
-- **B-016** Externe Links (Website, Social) im Profil — _(P3, Launch)_
-- **B-017** Künstler-Slug / individuelle Profil-URL — _(P2, Launch)_
+- **B-016** ✅ Externe Links (Website, Social) im Profil — _(P3, Launch)_
+- **B-017** ✅ Künstler-Slug / individuelle Profil-URL — _(P2, Launch)_
 - **B-018** Mehrere Mitwirkende pro Künstlerkonto (Team) — _(P3, Post-Launch)_
-- **B-019** Künstler-Onboarding-Checkliste — _(P2, Beta)_
-- **B-020** Öffentliche Statistik (Anzahl Werke, Follower) — _(P3, Launch)_
+- **B-019** ✅ Künstler-Onboarding-Checkliste — _(P2, Beta)_
+- **B-020** ✅ Öffentliche Statistik (Anzahl Werke, Follower) — _(P3, Launch)_
 - **B-021** Künstler-Pressekit / EPK-Seite — _(P3, Post-Launch)_
 - **B-022** Profil-Vorschau vor Veröffentlichung — _(P3, Launch)_
 
@@ -63,10 +63,10 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 - **B-033** ✅ Mehrteilige Werke (Episoden/Kapitel) — _(P1, Launch)_
 - **B-034** Kapitelmarken und Sprungnavigation — _(P2, Launch)_
-- **B-035** Genre-/Kategorie-Taxonomie mit Pflege — _(P1, Beta)_
-- **B-036** Tags / Schlagworte pro Werk — _(P2, Beta)_
+- **B-035** ✅ Genre-/Kategorie-Taxonomie mit Pflege — _(P1, Beta)_
+- **B-036** ✅ Tags / Schlagworte pro Werk — _(P2, Beta)_
 - **B-037** Mehrsprachige Metadaten — _(P3, Post-Launch)_
-- **B-038** Explicit-Content-Kennzeichnung — _(P2, Launch)_
+- **B-038** ✅ Explicit-Content-Kennzeichnung — _(P2, Launch)_
 - **B-039** Werk-Entwürfe mit Versionierung — _(P3, Launch)_
 - **B-040** Geplante Veröffentlichung (Scheduling) — _(P2, Launch)_
 - **B-041** ✅ Werk depublizieren / archivieren — _(P2, Beta)_
@@ -95,17 +95,17 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 - **B-059** ✅ Volltextsuche über Titel und Beschreibung — _(P1, Launch)_
 - **B-060** Such-Infrastruktur (OpenSearch/Meilisearch) — _(P2, Launch)_
-- **B-061** Facetten-Filter (Genre, Sprache, Dauer, Preis) — _(P2, Launch)_
+- **B-061** ✅ Facetten-Filter (Genre, Sprache, Dauer, Preis) — _(P2, Launch)_
 - **B-062** Autovervollständigung / Suchvorschläge — _(P3, Launch)_
-- **B-063** Trending / „diese Woche beliebt" — _(P2, Launch)_
+- **B-063** ✅ Trending / „diese Woche beliebt" — _(P2, Launch)_
 - **B-064** Personalisierte Empfehlungen (Collaborative Filtering) — _(P2, Post-Launch)_
-- **B-065** „Ähnliche Werke"-Sektion auf der Detailseite — _(P2, Launch)_
+- **B-065** ✅ „Ähnliche Werke"-Sektion auf der Detailseite — _(P2, Launch)_
 - **B-066** Kuratierte Redaktions-Sammlungen — _(P2, Launch)_
 - **B-067** Neuerscheinungen-Feed — _(P3, Launch)_
 - **B-068** Charts pro Kategorie — _(P3, Launch)_
 - **B-069** Such-Synonyme und Tippfehler-Toleranz — _(P3, Post-Launch)_
 - **B-070** Gespeicherte Suchen / Alerts — _(P3, Post-Launch)_
-- **B-071** Sortierung nach Dauer und Preis — _(P3, Launch)_
+- **B-071** ✅ Sortierung nach Dauer und Preis — _(P3, Launch)_
 - **B-072** Discovery-A/B-Testing-Framework — _(P3, Post-Launch)_
 
 ## Epic 7 – Leihen & Lebenszyklus
@@ -181,9 +181,9 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 12 – Social & Community
 
-- **B-129** Bewertungen (Sterne) für Werke — _(P2, Launch)_
-- **B-130** Rezensionen / Textbewertungen — _(P2, Launch)_
-- **B-131** Moderation von Rezensionen — _(P2, Launch)_
+- **B-129** ✅ Bewertungen (Sterne) für Werke — _(P2, Launch)_
+- **B-130** ✅ Rezensionen / Textbewertungen — _(P2, Launch)_
+- **B-131** ✅ Moderation von Rezensionen — _(P2, Launch)_
 - **B-132** Kommentare zu Werken — _(P3, Post-Launch)_
 - **B-133** Öffentliche Playlists / Sammlungen durch Nutzer:innen — _(P2, Launch)_
 - **B-134** Werk teilen (Deep-Links, Social-Cards) — _(P2, Launch)_
@@ -213,7 +213,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 - **B-152** ✅ Inhalts-Moderation (prüfen/sperren) — _(P1, Launch)_
 - **B-153** Melde-Workflow für unangemessene Inhalte — _(P2, Launch)_
 - **B-154** ✅ Nutzerverwaltung (sperren/entsperren) — _(P2, Launch)_
-- **B-155** Audit-Log aller Admin-Aktionen — _(P2, Launch)_
+- **B-155** ✅ Audit-Log aller Admin-Aktionen — _(P2, Launch)_
 - **B-156** Feature-Flags / Remote-Konfiguration — _(P2, Launch)_
 - **B-157** Manuelle Auszahlungs-Freigabe / Review — _(P2, Launch)_
 - **B-158** Support-Ticket-/Anfragen-Verwaltung — _(P3, Launch)_
@@ -244,7 +244,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 17 – Infrastruktur & DevOps
 
-- **B-177** CI-Pipeline (Lint, Test, Build) — _(P1, Beta)_
+- **B-177** ✅ CI-Pipeline (Lint, Test, Build) — _(P1, Beta)_
 - **B-178** CD-Pipeline mit Staging/Prod-Umgebungen — _(P1, Launch)_
 - **B-179** Infrastructure-as-Code (Terraform) — _(P2, Launch)_
 - **B-180** Container-Images + Registry + Health-Checks — _(P1, Launch)_

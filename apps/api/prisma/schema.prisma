@@ -52,6 +52,10 @@ model User {
   role         UserRole @default(LISTENER)
   displayName  String
   language     String?  // Bevorzugte Sprache (ISO 639-1, z. B. "de")
+  bio          String?  // Kurzbiografie für Künstler-Profil (B-013)
+  avatarUrl    String?  // Profilbild-URL (B-013, B-014)
+  slug         String?  @unique // individuelle Profil-URL (B-017)
+  socialLinks  Json?    // externe Links { website, twitter, instagram, ... } (B-016)
   emailVerified Boolean @default(false)
   stripeConnectAccountId String? // Stripe-Connect-Konto für Auszahlungen
   createdAt    DateTime @default(now())
@@ -69,6 +73,9 @@ model User {
   authTokens              AuthToken[]
   notificationPreferences NotificationPreference[]
   wishlist                Wishlist[]
+  ratingsGiven  Rating[]       @relation("RaterRatings")
+  reviews       Review[]       @relation("ReviewerReviews")
+  auditLogs     AuditLog[]
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -111,6 +118,8 @@ model Work {
   durationSeconds Int?
   language        String?
   category        String?
+  tags            String[]   @default([]) // Schlagworte (B-036)
+  explicit        Boolean    @default(false) // Explicit-Content-Kennzeichnung (B-038)
   borrowCount     Int        @default(0)
   mediaKey        String? // Schlüssel im Object Storage
   previewKey      String? // Vorschau-/Trailer-Datei (kostenlos hörbar, B-043)
@@ -122,6 +131,8 @@ model Work {
   favorites Favorite[]
   wishlists Wishlist[]
   episodes  Episode[] // mehrteilige Werke (B-033)
+  ratings   Rating[]
+  reviews   Review[]
 
   @@index([artistId])
   @@index([type, status])
@@ -279,4 +290,51 @@ model Wishlist {
 
   @@unique([userId, workId])
   @@index([userId])
+}
+
+// Sternebewertungen für Werke (B-129)
+model Rating {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation("RaterRatings", fields: [userId], references: [id])
+  workId    String
+  work      Work     @relation(fields: [workId], references: [id])
+  value     Int      // 1–5
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, workId])
+  @@index([workId])
+}
+
+// Textrezensionen für Werke (B-130)
+model Review {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation("ReviewerReviews", fields: [userId], references: [id])
+  workId    String
+  work      Work      @relation(fields: [workId], references: [id])
+  body      String
+  hidden    Boolean   @default(false) // moderiert (B-131)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([userId, workId])
+  @@index([workId])
+}
+
+// Audit-Log für Admin-Aktionen (B-155)
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id])
+  action     String   // z. B. SUSPEND_USER, MODERATE_WORK
+  targetType String?  // "User" | "Work"
+  targetId   String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
 }

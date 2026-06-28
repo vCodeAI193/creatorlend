@@ -1,4 +1,6 @@
 import {
+  IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
@@ -44,4 +46,13 @@ export class UpdateWorkDto {
   @IsString()
   @MaxLength(64)
   category?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  explicit?: boolean;
 }

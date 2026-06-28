@@ -24,8 +24,26 @@ export class AdminService {
     return { users, meta: { page, pageSize: PAGE_SIZE, total } };
   }
 
+  private async writeAuditLog(actorId: string, action: string, targetType?: string, targetId?: string, meta?: object) {
+    await this.prisma.auditLog.create({ data: { actorId, action, targetType, targetId, meta } });
+  }
+
+  /** Audit-Log auflisten (B-155). */
+  async listAuditLogs(page = 1, limit = 50) {
+    const [entries, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { actor: { select: { id: true, displayName: true, email: true } } },
+      }),
+      this.prisma.auditLog.count(),
+    ]);
+    return { entries, meta: { page, total } };
+  }
+
   /** Nutzer:in sperren – anonymisiert das Konto (B-154). */
-  async suspendUser(targetId: string) {
+  async suspendUser(actorId: string, targetId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: targetId } });
     if (!user) throw new NotFoundException("user_not_found");
     // Tokens widerrufen + Passwort ungültig machen
@@ -37,11 +55,12 @@ export class AdminService {
       where: { id: targetId },
       data: { passwordHash: "suspended" },
     });
+    await this.writeAuditLog(actorId, "SUSPEND_USER", "User", targetId);
     return { suspended: true, userId: targetId };
   }
 
   /** Nutzer:in reaktivieren – setzt Passwort-Hash auf Reset-Anforderung (B-154). */
-  async unsuspendUser(targetId: string) {
+  async unsuspendUser(actorId: string, targetId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: targetId } });
     if (!user) throw new NotFoundException("user_not_found");
     await this.prisma.user.update({
@@ -49,15 +68,27 @@ export class AdminService {
       // Setzt Hash zurück; Nutzer:in muss Passwort zurücksetzen.
       data: { passwordHash: "requires_password_reset" },
     });
+    await this.writeAuditLog(actorId, "UNSUSPEND_USER", "User", targetId);
     return { unsuspended: true, userId: targetId };
   }
 
   /** Werk moderieren: depublizieren (B-152). */
-  async moderateWork(workId: string, action: "unpublish" | "publish") {
+  async moderateWork(actorId: string, workId: string, action: "unpublish" | "publish") {
     const work = await this.prisma.work.findUnique({ where: { id: workId } });
     if (!work) throw new NotFoundException("work_not_found");
     const status = action === "publish" ? "PUBLISHED" : "DRAFT";
-    return this.prisma.work.update({ where: { id: workId }, data: { status } });
+    const updated = await this.prisma.work.update({ where: { id: workId }, data: { status } });
+    await this.writeAuditLog(actorId, `MODERATE_WORK_${action.toUpperCase()}`, "Work", workId);
+    return updated;
+  }
+
+  /** Rezension ausblenden – Moderations-Aktion (B-131). */
+  async hideReview(actorId: string, reviewId: string) {
+    const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
+    if (!review) throw new NotFoundException("review_not_found");
+    const updated = await this.prisma.review.update({ where: { id: reviewId }, data: { hidden: true } });
+    await this.writeAuditLog(actorId, "HIDE_REVIEW", "Review", reviewId);
+    return updated;
   }
 
   /** Globale Plattform-Statistiken für das Dashboard (B-151). */

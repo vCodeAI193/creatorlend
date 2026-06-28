@@ -119,6 +119,37 @@ e2e-Tests abgesichert:
 Das Abo kann im MVP per Dev-Endpoint aktiviert werden; mit konfiguriertem
 Stripe (siehe unten) läuft der echte Checkout-/Webhook-Pfad.
 
+### Phase 7 (Beta-Increment) – umgesetzt
+Aufbauend auf Phase 6:
+
+- **Sessions & Remote-Logout** (B-008): `GET /users/sessions` – aktive Refresh-Token-Sessions;
+  `DELETE /users/sessions/:id` – widerruft die gesamte Token-Familie.
+- **Öffentliches Künstler-Profil** (B-013): `GET /users/:id/profile` – Bio, Avatar, Werke,
+  Follower-Zahl. Auch per Slug (B-017): `GET /users/slug/:slug`.
+- **Profilfelder erweitert** (B-014, B-016): `PATCH /users/me` akzeptiert jetzt
+  `avatarUrl`, `bio`, `slug` (unique), `socialLinks` (JSON mit Website/Social-URLs).
+- **Onboarding-Checkliste** (B-019): `GET /users/me/onboarding` – 5 Schritte
+  (Bio, Avatar, erstes Werk, veröffentlicht, Stripe verbunden).
+- **Tags & Explicit-Flag** (B-036, B-038): `tags: string[]` und `explicit: boolean`
+  beim Anlegen/Aktualisieren von Werken; Filteroption `?explicit=false` schließt
+  explizite Inhalte aus.
+- **Facetten-Filter** (B-061): `?minPrice`, `?maxPrice`, `?minDuration`, `?maxDuration`,
+  `?tags` (kommasepariert) auf `GET /works`.
+- **Sortierung erweitert** (B-071): `?sort=price_asc|price_desc|duration_asc|duration_desc`
+  zusätzlich zu `new` und `popular`.
+- **Trending** (B-063): `GET /works/trending` – Top-20 Werke der letzten 7 Tage
+  (Raw-Query auf Loan-Tabelle).
+- **Ähnliche Werke** (B-065): `GET /works/:id/similar` – gleicher Typ + Kategorie.
+- **Bewertungen & Rezensionen** (B-129, B-130, B-131): `POST /ratings`, `POST /reviews`,
+  `GET /works/:id/ratings`, `GET /works/:id/reviews`; Admin kann via
+  `POST /admin/reviews/:id/hide` moderieren.
+- **Audit-Log** (B-155): Admin-Aktionen (Suspend, Unsuspend, Moderate, Hide-Review)
+  werden in `AuditLog`-Tabelle protokolliert; `GET /admin/audit-log`.
+- **CI-Pipeline** (B-177): `.github/workflows/ci.yml` – Lint → Build → Unit-Tests
+  gegen PostgreSQL-Service-Container.
+- **Schema-Migration** `ratings_reviews_audit_slug`: `User.slug`, `User.socialLinks`,
+  `Rating`-, `Review`-, `AuditLog`-Modelle.
+
 ### Phase 6 (Beta-Increment) – umgesetzt
 Aufbauend auf Phase 5:
 

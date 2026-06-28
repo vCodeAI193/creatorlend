@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-build-test:
+    name: Lint · Build · Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: creatorlend
+          POSTGRES_PASSWORD: creatorlend
+          POSTGRES_DB: creatorlend
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U creatorlend"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://creatorlend:creatorlend@localhost:5432/creatorlend
+      JWT_SECRET: ci-test-secret-32-chars-minimum!!
+      MEDIA_SECRET: ci-test-media-secret
+      MEDIA_CDN_BASE_URL: https://media.example.com
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build shared package
+        run: pnpm --filter @creatorlend/shared build
+
+      - name: Generate Prisma client
+        working-directory: apps/api
+        run: pnpm prisma generate
+
+      - name: Apply migrations
+        working-directory: apps/api
+        run: pnpm prisma migrate deploy
+
+      - name: Unit tests (API)
+        run: pnpm --filter @creatorlend/api test
+
+      - name: Build API
+        run: pnpm --filter @creatorlend/api build
+
+      - name: Build web
+        run: pnpm --filter @creatorlend/web build
+        continue-on-error: true # web build optional until pages are scaffolded

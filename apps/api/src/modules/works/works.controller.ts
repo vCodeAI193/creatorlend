@@ -15,12 +15,18 @@ import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { WorksService } from "./works.service";
+import { RatingsService } from "../engagement/ratings.service";
+import { ReviewsService } from "../engagement/reviews.service";
 import { CreateWorkDto } from "./dto/create-work.dto";
 import { UpdateWorkDto } from "./dto/update-work.dto";
 
 @Controller("works")
 export class WorksController {
-  constructor(private readonly works: WorksService) {}
+  constructor(
+    private readonly works: WorksService,
+    private readonly ratings: RatingsService,
+    private readonly reviews: ReviewsService,
+  ) {}
 
   // POST /api/v1/works – Werk einstellen (ARTIST)
   @Post()
@@ -58,7 +64,7 @@ export class WorksController {
     return this.works.unpublish(userId, id);
   }
 
-  // GET /api/v1/works – Suche / Discovery (öffentlich)
+  // GET /api/v1/works – Suche / Discovery (öffentlich, B-036/B-038/B-061 facets)
   @Get()
   search(
     @Query("type") type?: string,
@@ -66,14 +72,44 @@ export class WorksController {
     @Query("language") language?: string,
     @Query("category") category?: string,
     @Query("sort") sort?: string,
+    @Query("minPrice") minPrice?: string,
+    @Query("maxPrice") maxPrice?: string,
+    @Query("minDuration") minDuration?: string,
+    @Query("maxDuration") maxDuration?: string,
+    @Query("explicit") explicit?: string,
+    @Query("tags") tags?: string, // comma-separated
   ) {
-    return this.works.search({ type, q, language, category, sort });
+    return this.works.search({
+      type,
+      q,
+      language,
+      category,
+      sort,
+      minPrice: minPrice !== undefined ? Number(minPrice) : undefined,
+      maxPrice: maxPrice !== undefined ? Number(maxPrice) : undefined,
+      minDuration: minDuration !== undefined ? Number(minDuration) : undefined,
+      maxDuration: maxDuration !== undefined ? Number(maxDuration) : undefined,
+      explicit: explicit !== undefined ? explicit === "true" : undefined,
+      tags: tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+    });
+  }
+
+  // GET /api/v1/works/trending – Top-20 in den letzten 7 Tagen (B-063)
+  @Get("trending")
+  trending(@Query("limit") limit?: string) {
+    return this.works.trending(limit ? Number(limit) : 20);
   }
 
   // GET /api/v1/works/:id – Detailansicht inkl. Vorschau-URL (öffentlich)
   @Get(":id")
   get(@Param("id") id: string) {
     return this.works.getWithPreview(id);
+  }
+
+  // GET /api/v1/works/:id/similar – Ähnliche Werke (B-065)
+  @Get(":id/similar")
+  similar(@Param("id") id: string, @Query("limit") limit?: string) {
+    return this.works.similar(id, limit ? Number(limit) : 8);
   }
 
   // GET /api/v1/works/:id/episodes – Episodenliste (öffentlich, B-033)
@@ -112,5 +148,17 @@ export class WorksController {
   @Roles(UserRole.ARTIST)
   metrics(@CurrentUser() userId: string, @Param("id") id: string) {
     return this.works.metrics(userId, id);
+  }
+
+  // GET /api/v1/works/:id/ratings – Durchschnittsbewertung (B-129)
+  @Get(":id/ratings")
+  getRatingSummary(@Param("id") id: string) {
+    return this.ratings.summary(id);
+  }
+
+  // GET /api/v1/works/:id/reviews – Rezensionen (B-130)
+  @Get(":id/reviews")
+  getReviews(@Param("id") id: string) {
+    return this.reviews.list(id);
   }
 }
