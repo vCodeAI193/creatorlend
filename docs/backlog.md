@@ -4,8 +4,10 @@ Offene/geplante Features für CreatorLend. **Bereits umgesetzt** (und daher
 *nicht* in diesem Backlog) sind: Kern-Loop (Auth-Basis, Werke, Leihen,
 Verlängern/Tauschen, Abo-Dev-Aktivierung, Vergütung), Phase-2-Increment
 (Scheduler, In-App-Benachrichtigungen, Discovery-Filter/Sort, Favoriten,
-Folgen) sowie die Stripe-Integration (Billing-Checkout/Webhook, Connect-
-Auszahlungen).
+Folgen), die Stripe-Integration (Billing-Checkout/Webhook, Connect-
+Auszahlungen) sowie die **Auth-Härtung** (siehe ✅ unten).
+
+> ✅ = inzwischen in diesem Branch umgesetzt.
 
 **Legende**
 Priorität: **P1** (hoch) · **P2** (mittel) · **P3** (niedrig / nice-to-have)
@@ -18,15 +20,15 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 1 – Authentifizierung & Konto
 
-- **B-001** Refresh-Token-Rotation mit Token-Familien — _(P1, Beta)_
-- **B-002** E-Mail-Verifizierung bei Registrierung — _(P1, Beta)_
-- **B-003** Passwort-Zurücksetzen per zeitlich begrenztem Link — _(P1, Beta)_
-- **B-004** Passwort-Hashing auf argon2 umstellen (statt SHA-256) — _(P1, Beta)_
+- **B-001** ✅ Refresh-Token-Rotation mit Token-Familien (Reuse-Erkennung) — _(P1, Beta)_
+- **B-002** ✅ E-Mail-Verifizierung bei Registrierung — _(P1, Beta)_
+- **B-003** ✅ Passwort-Zurücksetzen per zeitlich begrenztem Link — _(P1, Beta)_
+- **B-004** ✅ Passwort-Hashing memory-hard (scrypt statt SHA-256) — _(P1, Beta)_
 - **B-005** OAuth2-Login mit Google — _(P2, Launch)_
 - **B-006** OAuth2-Login mit Apple — _(P2, Launch)_
 - **B-007** Zwei-Faktor-Authentifizierung (TOTP) — _(P2, Launch)_
 - **B-008** Aktive-Sessions-Übersicht und Remote-Logout — _(P2, Launch)_
-- **B-009** Rate-Limiting und Brute-Force-Schutz für Login — _(P1, Beta)_
+- **B-009** ✅ Rate-Limiting und Brute-Force-Schutz für Login — _(P1, Beta)_
 - **B-010** Konto-Löschung (Self-Service) mit Datenbereinigung — _(P1, Launch)_
 - **B-011** DSGVO-Datenexport des eigenen Kontos — _(P2, Launch)_
 - **B-012** Magic-Link-/Passwordless-Login — _(P3, Post-Launch)_
@@ -166,7 +168,7 @@ Bezug: [VISION.md](../VISION.md), [anforderungen.md](./anforderungen.md),
 
 ## Epic 11 – Benachrichtigungen
 
-- **B-119** Transaktionale E-Mails (Provider-Anbindung) — _(P1, Beta)_
+- **B-119** ◐ Transaktionale E-Mails — Mail-Service-Abstraktion vorhanden (Dev-Stub); Provider-Anbindung offen — _(P1, Beta)_
 - **B-120** E-Mail-Templates mit Lokalisierung — _(P2, Launch)_
 - **B-121** Web-Push-Benachrichtigungen — _(P2, Launch)_
 - **B-122** Mobile Push (APNs/FCM) — _(P2, Launch)_

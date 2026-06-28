@@ -50,6 +50,7 @@ model User {
   passwordHash String
   role         UserRole @default(LISTENER)
   displayName  String
+  emailVerified Boolean @default(false)
   stripeConnectAccountId String? // Stripe-Connect-Konto für Auszahlungen
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -62,6 +63,37 @@ model User {
   following      Follow[]       @relation("Following")
   followers      Follow[]       @relation("Followers")
   notifications Notification[]
+  refreshTokens RefreshToken[]
+  authTokens    AuthToken[]
+}
+
+// Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @unique
+  family    String // Token-Familie für Reuse-Erkennung
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([family])
+}
+
+// Einmal-Tokens für E-Mail-Verifizierung (B-002) und Passwort-Reset (B-003).
+model AuthToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  type      String // EMAIL_VERIFY | PASSWORD_RESET
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, type])
 }
 
 model Work {

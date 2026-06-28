@@ -131,6 +131,12 @@ Aufbauend auf dem Kern-Loop, mit Unit- und e2e-Tests abgesichert:
   `type`, `q`, `language`, `category`, `sort=new|popular`
 - **Engagement**: Favoriten (F-016) `POST/DELETE/GET /favorites` und
   Folgen (F-017) `POST/DELETE/GET /follows`
+- **Auth-Härtung** (Backlog B-001–B-004, B-009): scrypt-Passwort-Hashing,
+  rotierende Refresh-Tokens mit Reuse-Erkennung (`/auth/refresh`,
+  `/auth/logout`), E-Mail-Verifizierung (`/auth/verify-email`),
+  Passwort-Reset (`/auth/forgot-password`, `/auth/reset-password`) und
+  Rate-Limiting auf Login/Forgot. Mail-Versand über eine `MailService`-
+  Abstraktion (Dev-Stub; Provider-Anbindung offen, B-119)
 
 ### Stripe-Integration (Phase 2) – umgesetzt
 Konfigurierbar über `STRIPE_SECRET_KEY`. Ist der Key nicht gesetzt, bleibt

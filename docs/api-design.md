@@ -307,6 +307,17 @@ Auth: Stripe-Signatur (kein JWT)
 | Gefolgte anzeigen | GET | `/follows` |
 | Abo (Dev-Aktivierung) | POST | `/subscriptions/activate` |
 | Connect-Onboarding | POST | `/payouts/connect/onboard` |
+| Login (rate-limited) | POST | `/auth/login` |
+| Token erneuern | POST | `/auth/refresh` |
+| Logout | POST | `/auth/logout` |
+| E-Mail verifizieren | POST | `/auth/verify-email` |
+| Passwort vergessen | POST | `/auth/forgot-password` |
+| Passwort zurücksetzen | POST | `/auth/reset-password` |
+
+**Auth-Tokens:** `register`/`login`/`refresh` liefern `accessToken` (JWT,
+kurzlebig) und ein rotierendes `refreshToken`. Refresh-Tokens werden bei
+jeder Nutzung rotiert; ein erneut verwendetes (bereits rotiertes) Token
+gilt als kompromittiert und widerruft die gesamte Token-Familie.
 
 **Stripe:** `POST /subscriptions` liefert mit konfiguriertem Stripe eine
 echte Checkout-URL; ohne Stripe einen Dev-Platzhalter (`mode: "dev"`).

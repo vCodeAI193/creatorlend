@@ -1,10 +1,10 @@
 import { PrismaClient } from "@prisma/client";
-import { createHash } from "node:crypto";
+import { hashPassword } from "../src/modules/auth/password.util";
 
 const prisma = new PrismaClient();
 
-// Muss zum Hash in AuthService passen (MVP: SHA-256; später argon2/bcrypt).
-const hash = (pw: string) => createHash("sha256").update(pw).digest("hex");
+// Nutzt dieselbe scrypt-Hashing-Funktion wie der AuthService (B-004).
+const hash = (pw: string) => hashPassword(pw);
 
 async function main() {
   const artist = await prisma.user.upsert({

@@ -1,9 +1,11 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./prisma/prisma.module";
 import { MediaModule } from "./modules/media/media.module";
 import { StripeModule } from "./modules/stripe/stripe.module";
+import { MailModule } from "./modules/mail/mail.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -18,9 +20,11 @@ import { WebhooksModule } from "./modules/webhooks/webhooks.module";
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
     MediaModule,
     StripeModule,
+    MailModule,
     NotificationsModule,
     AuthModule,
     UsersModule,
