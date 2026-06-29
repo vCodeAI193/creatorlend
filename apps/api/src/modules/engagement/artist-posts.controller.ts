@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -51,5 +51,19 @@ export class ArtistPostsController {
   @Post(':id/comments')
   comment(@CurrentUser() userId: string, @Param('id') postId: string, @Body() body: { body: string }) {
     return this.posts.comment(userId, postId, body.body);
+  }
+
+  // PATCH /api/v1/posts/:id/pin – Beitrag anpinnen (F-615)
+  @Patch(':id/pin')
+  @Roles(UserRole.ARTIST)
+  pin(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.posts.pinPost(userId, id);
+  }
+
+  // PATCH /api/v1/posts/:id/unpin – Pin entfernen (F-615)
+  @Patch(':id/unpin')
+  @Roles(UserRole.ARTIST)
+  unpin(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.posts.unpinPost(userId, id);
   }
 }

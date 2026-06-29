@@ -1,6 +1,9 @@
+import { APP_INTERCEPTOR } from "@nestjs/core";
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { LanguageMiddleware } from "./common/language.middleware";
 import { RequestIdMiddleware } from "./common/request-id.middleware";
+import { HttpLoggerInterceptor } from "./common/http-logger.interceptor";
+import { DeprecationInterceptor } from "./common/deprecation.interceptor";
 import { ConfigModule } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
@@ -46,6 +49,10 @@ import { HealthModule } from "./modules/health/health.module";
     PlaylistsModule,
     ReportsModule,
     HealthModule,
+  ],
+  providers: [
+    { provide: APP_INTERCEPTOR, useClass: HttpLoggerInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: DeprecationInterceptor },
   ],
 })
 export class AppModule implements NestModule {

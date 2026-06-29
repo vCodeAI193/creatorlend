@@ -99,6 +99,11 @@ export class WorksService {
     });
   }
 
+  async updateAccessibility(artistId: string, workId: string, data: { hasTranscript?: boolean; hasAudioDescription?: boolean; hasCaptions?: boolean }) {
+    await this.ownedWork(artistId, workId);
+    return this.prisma.work.update({ where: { id: workId }, data });
+  }
+
   async publish(artistId: string, id: string, earlyAccessDays?: number) {
     const work = await this.ownedWork(artistId, id);
     const updated = await this.prisma.work.update({
