@@ -152,6 +152,15 @@ export class WorksController {
     return this.works.updateMetadata(userId, id, body);
   }
 
+  // GET /api/v1/works/charts – Top-Charts (F-216)
+  @Get('charts')
+  getTopCharts(
+    @Query('period') period: '7d' | '30d' | '365d' = '7d',
+    @Query('limit') limit?: string,
+  ) {
+    return this.works.getTopCharts(period, limit ? Number(limit) : 20);
+  }
+
   // GET /api/v1/works/rss/:artistId – RSS-Feed eines Künstlers (F-137)
   @Get("rss/:artistId")
   @Header("Content-Type", "application/rss+xml")

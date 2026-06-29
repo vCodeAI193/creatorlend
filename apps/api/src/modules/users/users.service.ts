@@ -586,4 +586,66 @@ export class UsersService {
     });
     return user;
   }
+
+  // F-024: Request account deletion
+  async requestDeletion(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { deletionRequestedAt: new Date() },
+      select: { id: true, deletionRequestedAt: true },
+    });
+  }
+
+  // F-024: Cancel deletion request
+  async cancelDeletion(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { deletionRequestedAt: null },
+      select: { id: true, deletionRequestedAt: true },
+    });
+  }
+
+  // F-025: Deactivate account
+  async deactivate(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { isDeactivated: true },
+      select: { id: true, isDeactivated: true },
+    });
+  }
+
+  // F-025: Reactivate account
+  async reactivate(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { isDeactivated: false },
+      select: { id: true, isDeactivated: true },
+    });
+  }
+
+  // F-028: Downgrade artist to listener (sets PUBLISHED works to DRAFT)
+  async downgradeToListener(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('user_not_found');
+    if (user.role !== 'ARTIST') return { message: 'not_artist', role: user.role };
+    await this.prisma.work.updateMany({
+      where: { artistId: userId, status: 'PUBLISHED' },
+      data: { status: 'DRAFT' },
+    });
+    return this.prisma.user.update({ where: { id: userId }, data: { role: 'LISTENER' } });
+  }
+
+  // F-115: Set age verification status
+  async setAgeVerified(userId: string, verified: boolean) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { ageVerified: verified },
+      select: { id: true, ageVerified: true },
+    });
+  }
+
+  // Alias for exportData (GDPR export)
+  async exportUserData(userId: string) {
+    return this.exportData(userId);
+  }
 }

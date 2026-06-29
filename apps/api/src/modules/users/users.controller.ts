@@ -410,6 +410,66 @@ export class UsersController {
     return this.users.getInterestTags(userId);
   }
 
+  // POST /api/v1/users/request-deletion – Löschung beantragen (F-024)
+  @Post('request-deletion')
+  requestDeletion(@CurrentUser() userId: string) {
+    return this.users.requestDeletion(userId);
+  }
+
+  // POST /api/v1/users/cancel-deletion – Löschung widerrufen (F-024)
+  @Post('cancel-deletion')
+  cancelDeletion(@CurrentUser() userId: string) {
+    return this.users.cancelDeletion(userId);
+  }
+
+  // POST /api/v1/users/deactivate – Konto deaktivieren (F-025)
+  @Post('deactivate')
+  deactivate(@CurrentUser() userId: string) {
+    return this.users.deactivate(userId);
+  }
+
+  // POST /api/v1/users/reactivate – Konto reaktivieren (F-025)
+  @Post('reactivate')
+  reactivate(@CurrentUser() userId: string) {
+    return this.users.reactivate(userId);
+  }
+
+  // POST /api/v1/users/downgrade-to-listener – Downgrade zu Hörer:in (F-028)
+  @Post('downgrade-to-listener')
+  downgradeToListener(@CurrentUser() userId: string) {
+    return this.users.downgradeToListener(userId);
+  }
+
+  // POST /api/v1/users/upgrade-to-artist – Upgrade zu Künstler:in (F-027)
+  @Post('upgrade-to-artist')
+  upgradeToArtist2(@CurrentUser() userId: string) {
+    return this.users.upgradeToArtist(userId);
+  }
+
+  // GET /api/v1/users/data-export – DSGVO-Datenexport
+  @Get('data-export')
+  dataExport(@CurrentUser() userId: string) {
+    return this.users.exportUserData(userId);
+  }
+
+  // POST /api/v1/users/verify-age-r18 – Altersverifikation für R18-Inhalte (F-115)
+  @Post('verify-age-r18')
+  setAgeVerified(@CurrentUser() userId: string, @Body('verified') verified: boolean) {
+    return this.users.setAgeVerified(userId, verified);
+  }
+
+  // POST /api/v1/users/profiling-opt-out – Profiling-Widerspruch (F-080)
+  @Post('profiling-opt-out')
+  profilingOptOut(@CurrentUser() userId: string) {
+    return this.users.setTrackingPreferences(userId, { profilingOptOut: true });
+  }
+
+  // POST /api/v1/users/profiling-opt-in – Profiling-Zustimmung (F-080)
+  @Post('profiling-opt-in')
+  profilingOptIn(@CurrentUser() userId: string) {
+    return this.users.setTrackingPreferences(userId, { profilingOptOut: false });
+  }
+
   // POST /api/v1/users/reading-challenge – Leseherausforderung setzen (F-550)
   @Post("reading-challenge")
   setReadingChallenge(

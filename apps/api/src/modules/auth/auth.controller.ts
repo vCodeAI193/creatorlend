@@ -1,7 +1,9 @@
-import { Body, Controller, Get, HttpCode, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Request, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import { AuthService } from "./auth.service";
+import { JwtAuthGuard } from "./jwt-auth.guard";
+import { CurrentUser } from "../../common/current-user.decorator";
 import { OAuthServerService } from "./oauth-server.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
@@ -29,8 +31,8 @@ export class AuthController {
   @HttpCode(200)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  login(@Body() body: LoginDto) {
-    return this.auth.login(body.email, body.password);
+  login(@Body() body: LoginDto, @Request() req: any) {
+    return this.auth.login(body.email, body.password, req.ip, req.headers?.['user-agent']);
   }
 
   // POST /api/v1/auth/refresh – Token-Rotation (B-001)
@@ -100,5 +102,33 @@ export class AuthController {
   @HttpCode(200)
   oauthToken(@Body("code") code: string) {
     return this.oauthServer.token(code);
+  }
+
+  // GET /api/v1/auth/sessions
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  getSessions(@CurrentUser() userId: string) {
+    return this.auth.getSessions(userId);
+  }
+
+  // DELETE /api/v1/auth/sessions/:id
+  @Delete('sessions/:id')
+  @UseGuards(JwtAuthGuard)
+  revokeSession(@CurrentUser() userId: string, @Param('id') sessionId: string) {
+    return this.auth.revokeSession(userId, sessionId);
+  }
+
+  // DELETE /api/v1/auth/sessions
+  @Delete('sessions')
+  @UseGuards(JwtAuthGuard)
+  revokeAllSessions(@CurrentUser() userId: string) {
+    return this.auth.revokeAllSessions(userId);
+  }
+
+  // GET /api/v1/auth/login-history
+  @Get('login-history')
+  @UseGuards(JwtAuthGuard)
+  getLoginHistory(@CurrentUser() userId: string) {
+    return this.auth.getLoginHistory(userId);
   }
 }

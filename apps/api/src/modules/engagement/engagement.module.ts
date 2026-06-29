@@ -13,10 +13,12 @@ import { BlocksService } from "./blocks.service";
 import { BookmarksService } from "./bookmarks.service";
 import { FaqsService } from "./faqs.service";
 import { ReadingChallengeService } from "./reading-challenge.service";
+import { WorkNotesService } from "./work-notes.service";
+import { WorkNotesController } from "./work-notes.controller";
 
 @Module({
-  controllers: [EngagementController, ArtistPostsController, MessagesController],
-  providers: [FavoritesService, FollowsService, WishlistService, RatingsService, ReviewsService, ArtistPostsService, MessagesService, BlocksService, BookmarksService, FaqsService, ReadingChallengeService],
-  exports: [FavoritesService, FollowsService, WishlistService, RatingsService, ReviewsService, ArtistPostsService, MessagesService, BlocksService, BookmarksService, FaqsService, ReadingChallengeService],
+  controllers: [EngagementController, ArtistPostsController, MessagesController, WorkNotesController],
+  providers: [FavoritesService, FollowsService, WishlistService, RatingsService, ReviewsService, ArtistPostsService, MessagesService, BlocksService, BookmarksService, FaqsService, ReadingChallengeService, WorkNotesService],
+  exports: [FavoritesService, FollowsService, WishlistService, RatingsService, ReviewsService, ArtistPostsService, MessagesService, BlocksService, BookmarksService, FaqsService, ReadingChallengeService, WorkNotesService],
 })
 export class EngagementModule {}

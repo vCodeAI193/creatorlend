@@ -950,4 +950,34 @@ export class WorksService {
     });
     return related;
   }
+
+  // F-216: Top charts by loan count
+  async getTopCharts(period: '7d' | '30d' | '365d' = '7d', limit = 20) {
+    const days = period === '7d' ? 7 : period === '30d' ? 30 : 365;
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const groups = await this.prisma.loan.groupBy({
+      by: ['workId'],
+      where: { createdAt: { gte: startDate } },
+      _count: { workId: true },
+      orderBy: { _count: { workId: 'desc' } },
+      take: limit,
+    });
+
+    if (groups.length === 0) return [];
+
+    const workIds = groups.map((g: { workId: string }) => g.workId);
+    const works = await this.prisma.work.findMany({
+      where: { id: { in: workIds }, status: 'PUBLISHED' },
+      select: {
+        id: true, title: true, type: true, loanPriceCents: true, borrowCount: true,
+        artist: { select: { id: true, displayName: true } },
+      },
+    });
+
+    const countMap = new Map(groups.map((g: { workId: string; _count: { workId: number } }) => [g.workId, g._count.workId]));
+    return works
+      .map((w: { id: string; title: string; type: string; loanPriceCents: number; borrowCount: number; artist: { id: string; displayName: string } }) => ({ ...w, loanCount: countMap.get(w.id) ?? 0 }))
+      .sort((a: { loanCount: number }, b: { loanCount: number }) => b.loanCount - a.loanCount);
+  }
 }

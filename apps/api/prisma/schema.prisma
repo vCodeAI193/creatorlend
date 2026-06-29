@@ -94,6 +94,10 @@ model User {
   suspendedAt         DateTime?                        // Suspension timestamp (F-384)
   suspendReason       String?                          // Suspension reason (F-384)
   fcmToken            String?                          // FCM push notification token (F-402)
+  failedLoginAttempts   Int       @default(0)      // F-012
+  deletionRequestedAt   DateTime?                   // F-024
+  isDeactivated         Boolean   @default(false)   // F-025
+  ageVerified           Boolean   @default(false)   // F-115
 
   works         Work[]         @relation("ArtistWorks")
   loans         Loan[]
@@ -155,6 +159,10 @@ model User {
   billingAddress        BillingAddress?       // F-341
   discountCodes         DiscountCode[]        @relation("ArtistDiscountCodes") // F-383
   readingChallenge      ReadingChallenge?     // F-550
+  userSessions      UserSession[]
+  loginHistory      LoginHistory[]
+  passwordHistory   PasswordHistory[]
+  playbackPositions PlaybackPosition[]
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -222,6 +230,8 @@ model Work {
   earningsGoalCents Int?     // Einnahmenziel in Cents (F-460)
   coAuthorIds     String[]   @default([]) // Mitautor-IDs (F-472)
   status          WorkStatus @default(DRAFT)
+  availableFrom DateTime?  // F-113: availability window start
+  availableTo   DateTime?  // F-113: availability window end
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
@@ -249,6 +259,7 @@ model Work {
   hasAudioDescription Boolean         @default(false)
   hasCaptions         Boolean         @default(false)
   collectionItems     CollectionItem[]
+  playbackPositions PlaybackPosition[]
 
   @@index([artistId])
   @@index([type, status])
@@ -1266,6 +1277,58 @@ model ReadingChallenge {
   year           Int
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model UserSession {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash    String    @unique
+  deviceName   String?
+  browser      String?
+  ip           String?
+  lastActiveAt DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  revokedAt    DateTime?
+
+  @@index([userId])
+}
+
+model LoginHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ip        String?
+  userAgent String?
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model PasswordHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PlaybackPosition {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workId          String
+  work            Work      @relation(fields: [workId], references: [id], onDelete: Cascade)
+  positionSeconds Float
+  completedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, workId])
+  @@index([userId])
 }
 
 // App-Einstellungen (F-372)

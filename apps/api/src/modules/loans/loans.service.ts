@@ -77,6 +77,23 @@ export class LoansService {
     }
 
     const now = new Date();
+
+    // F-113: availableFrom/availableTo embargo check
+    if (work.availableFrom && work.availableFrom > now) {
+      throw new BadRequestException('not_yet_available');
+    }
+    if (work.availableTo && work.availableTo < now) {
+      throw new BadRequestException('no_longer_available');
+    }
+
+    // F-115: Age rating check for R18 content
+    if (work.ageRating === 'R18' || work.ageRating === 'FSK_18') {
+      const userRecord = await this.prisma.user.findUnique({ where: { id: userId }, select: { ageVerified: true } });
+      if (!userRecord?.ageVerified) {
+        throw new ForbiddenException('age_verification_required');
+      }
+    }
+
     const existing = await this.prisma.loan.findFirst({
       where: { userId, workId, status: "ACTIVE", expiresAt: { gt: now } },
     });

@@ -1,7 +1,10 @@
 import {
   Injectable,
   UnauthorizedException,
+  ForbiddenException,
+  BadRequestException,
 } from "@nestjs/common";
+import { createHash } from 'node:crypto';
 import { JwtService } from "@nestjs/jwt";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MailService } from "../mail/mail.service";
@@ -66,12 +69,55 @@ export class AuthService {
     };
   }
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string, ip?: string, userAgent?: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user || !verifyPassword(password, user.passwordHash)) {
-      throw new UnauthorizedException("invalid_credentials");
+
+    // Account lockout check
+    if (user && user.failedLoginAttempts >= 5) {
+      if (user.lockedUntil && user.lockedUntil > new Date()) {
+        await this.prisma.loginHistory.create({ data: { userId: user.id, ip, userAgent, success: false } }).catch(() => {});
+        throw new ForbiddenException('account_locked');
+      }
     }
-    return this.issueTokens(user.id, user.role, generateToken());
+
+    const valid = user && verifyPassword(password, user.passwordHash);
+
+    if (!valid) {
+      if (user) {
+        const newCount = (user.failedLoginAttempts ?? 0) + 1;
+        const lockUntil = newCount >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null;
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { failedLoginAttempts: newCount, ...(lockUntil ? { lockedUntil: lockUntil } : {}) },
+        });
+        await this.prisma.loginHistory.create({ data: { userId: user.id, ip, userAgent, success: false } }).catch(() => {});
+      }
+      throw new UnauthorizedException('invalid_credentials');
+    }
+
+    // Reset on success
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
+
+    // Log success
+    await this.prisma.loginHistory.create({ data: { userId: user.id, ip, userAgent, success: true } }).catch(() => {});
+
+    const family = generateToken();
+    const tokens = await this.issueTokens(user.id, user.role, family);
+
+    // Create UserSession
+    await this.prisma.userSession.create({
+      data: {
+        userId: user.id,
+        tokenHash: createHash('sha256').update(tokens.refreshToken).digest('hex'),
+        ip,
+        browser: userAgent?.substring(0, 255),
+      },
+    }).catch(() => {});
+
+    return tokens;
   }
 
   // --- Refresh-Token-Rotation (B-001) ---
@@ -140,16 +186,70 @@ export class AuthService {
 
   async resetPassword(token: string, newPassword: string) {
     const userId = await this.consumeAuthToken(token, "PASSWORD_RESET");
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { passwordHash: hashPassword(newPassword) },
+
+    // Check password history (last 5)
+    const history = await this.prisma.passwordHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
     });
+
+    const newHash = hashPassword(newPassword);
+    for (const h of history) {
+      if (verifyPassword(newPassword, h.passwordHash)) {
+        throw new BadRequestException('password_recently_used');
+      }
+    }
+
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash: newHash } });
+
+    // Save to history, keep only last 5
+    await this.prisma.passwordHistory.create({ data: { userId, passwordHash: newHash } });
+    const allHistory = await this.prisma.passwordHistory.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+    if (allHistory.length > 5) {
+      const toDelete = allHistory.slice(5).map((h: { id: string }) => h.id);
+      await this.prisma.passwordHistory.deleteMany({ where: { id: { in: toDelete } } });
+    }
+
     // Alle bestehenden Sessions invalidieren.
     await this.prisma.refreshToken.updateMany({
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
     return { reset: true };
+  }
+
+  async getSessions(userId: string) {
+    return this.prisma.userSession.findMany({
+      where: { userId, revokedAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, deviceName: true, browser: true, ip: true, lastActiveAt: true, createdAt: true },
+    });
+  }
+
+  async revokeSession(userId: string, sessionId: string) {
+    await this.prisma.userSession.updateMany({
+      where: { id: sessionId, userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return { revoked: true };
+  }
+
+  async revokeAllSessions(userId: string) {
+    await this.prisma.userSession.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return { revoked: true };
+  }
+
+  async getLoginHistory(userId: string) {
+    const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    return this.prisma.loginHistory.findMany({
+      where: { userId, createdAt: { gte: since } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
   }
 
   // --- Magic-Link Passwordless Login (F-014) ---
