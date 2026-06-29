@@ -260,4 +260,47 @@ export class NotificationsService {
       select: { id: true, quietHoursStart: true, quietHoursEnd: true },
     });
   }
+
+  // F-670: Benachrichtigungs-Log (alle versendeten Nachrichten)
+  async getNotificationLog(userId: string, page = 1, limit = 50) {
+    const skip = (page - 1) * limit;
+    const [items, total] = await Promise.all([
+      this.prisma.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.notification.count({ where: { userId } }),
+    ]);
+    return { items, total, page, limit };
+  }
+
+  // F-674: Suche in Benachrichtigungen
+  async searchNotifications(userId: string, query: string) {
+    return this.prisma.notification.findMany({
+      where: {
+        userId,
+        OR: [
+          { title: { contains: query, mode: 'insensitive' } },
+          { body: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
+  // F-675: Benachrichtigung anpinnen
+  async pinNotification(userId: string, id: string) {
+    const notif = await this.prisma.notification.findFirst({ where: { id, userId } });
+    if (!notif) throw new NotFoundException('notification_not_found');
+    return this.prisma.notification.update({ where: { id }, data: { pinnedAt: new Date() } });
+  }
+
+  async unpinNotification(userId: string, id: string) {
+    const notif = await this.prisma.notification.findFirst({ where: { id, userId } });
+    if (!notif) throw new NotFoundException('notification_not_found');
+    return this.prisma.notification.update({ where: { id }, data: { pinnedAt: null } });
+  }
 }

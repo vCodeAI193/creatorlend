@@ -137,7 +137,6 @@ export class NotificationsScheduler {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const thirtyOneDaysAgo = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000);
-    // Find users who last had a loan exactly 30 days ago (no activity since)
     const inactiveUsers = await this.prisma.user.findMany({
       where: {
         role: 'LISTENER',
@@ -156,6 +155,80 @@ export class NotificationsScheduler {
         body: 'Du hast in letzter Zeit nichts gehört. Schau rein – es gibt Neues für dich!',
         data: {},
       });
+    }
+  }
+
+  // F-656: Winback nach Abo-Kündigung (täglich um 12:00)
+  @Cron('0 12 * * *')
+  async sendWinbackNotifications() {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const eightDaysAgo = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000);
+    const cancelledSubs = await this.prisma.subscription.findMany({
+      where: { status: 'CANCELED', updatedAt: { gte: eightDaysAgo, lte: sevenDaysAgo } },
+      select: { userId: true },
+    });
+    for (const sub of cancelledSubs) {
+      await this.notifications.create({
+        userId: sub.userId,
+        type: NotificationType.WINBACK_CAMPAIGN,
+        title: 'Komm zurück zu CreatorLend!',
+        body: 'Dein Abo wurde gekündigt. Wir würden uns freuen, dich wieder begrüßen zu dürfen.',
+        data: {},
+      });
+    }
+  }
+
+  // F-657: Post-Leihe-Umfrage 3 Tage nach Leihe (täglich um 13:00)
+  @Cron('0 13 * * *')
+  async sendPostLoanSurveys() {
+    const now = new Date();
+    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+    const fourDaysAgo = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000);
+    const recentLoans = await this.prisma.loan.findMany({
+      where: { createdAt: { gte: fourDaysAgo, lte: threeDaysAgo } },
+      select: { id: true, userId: true, workId: true },
+    });
+    for (const loan of recentLoans) {
+      await this.notifications.create({
+        userId: loan.userId,
+        type: NotificationType.POST_LOAN_SURVEY,
+        title: 'Hat dir das Werk gefallen?',
+        body: 'Teile deine Meinung und bewerte deine Leihe.',
+        data: { loanId: loan.id, workId: loan.workId },
+      });
+    }
+  }
+
+  // F-660: Welcome-Serie für neue Nutzer:innen (täglich um 08:30)
+  @Cron('30 8 * * *')
+  async sendWelcomeSeries() {
+    const now = new Date();
+    const days = [1, 3, 7, 10, 14];
+    for (const day of days) {
+      const start = new Date(now.getTime() - day * 24 * 60 * 60 * 1000);
+      const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+      const newUsers = await this.prisma.user.findMany({
+        where: { createdAt: { gte: start, lte: end } },
+        select: { id: true },
+      });
+      for (const user of newUsers) {
+        await this.notifications.create({
+          userId: user.id,
+          type: NotificationType.WELCOME_SERIES,
+          title: `Willkommen bei CreatorLend – Tag ${day}`,
+          body: day === 1
+            ? 'Schön, dass du da bist! Entdecke jetzt Werke von unabhängigen Künstler:innen.'
+            : day === 3
+            ? 'Hast du schon dein erstes Werk ausgeliehen? Stöbere in unserer Bibliothek!'
+            : day === 7
+            ? 'Eine Woche dabei – entdecke Creator, denen du folgen kannst.'
+            : day === 10
+            ? 'Deine persönlichen Empfehlungen warten auf dich.'
+            : 'Zwei Wochen CreatorLend – wie gefällt dir die Plattform?',
+          data: { day },
+        });
+      }
     }
   }
 }

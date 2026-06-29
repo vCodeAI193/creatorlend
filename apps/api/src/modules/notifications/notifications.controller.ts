@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Put, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { NotificationsService } from "./notifications.service";
@@ -90,5 +90,33 @@ export class NotificationsController {
     @Body("end") end: number | null,
   ) {
     return this.notifications.setQuietHours(userId, start, end);
+  }
+
+  // GET /api/v1/notifications/log – Benachrichtigungs-Log (F-670)
+  @Get("log")
+  getNotificationLog(
+    @CurrentUser() userId: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ) {
+    return this.notifications.getNotificationLog(userId, page ? Number(page) : 1, limit ? Number(limit) : 50);
+  }
+
+  // GET /api/v1/notifications/search?q=... – Suche (F-674)
+  @Get("search")
+  searchNotifications(@CurrentUser() userId: string, @Query("q") q: string) {
+    return this.notifications.searchNotifications(userId, q ?? '');
+  }
+
+  // POST /api/v1/notifications/:id/pin – Anpinnen (F-675)
+  @Post(":id/pin")
+  pinNotification(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.notifications.pinNotification(userId, id);
+  }
+
+  // DELETE /api/v1/notifications/:id/pin – Anpinnen entfernen (F-675)
+  @Delete(":id/pin")
+  unpinNotification(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.notifications.unpinNotification(userId, id);
   }
 }

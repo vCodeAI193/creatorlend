@@ -166,6 +166,7 @@ model User {
   loginHistory      LoginHistory[]
   passwordHistory   PasswordHistory[]
   playbackPositions PlaybackPosition[]
+  supportTickets    SupportTicket[]
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -384,6 +385,7 @@ model Notification {
   data         Json?
   readAt       DateTime?
   archivedAt   DateTime?  // F-673: archiviert nach 30 Tagen
+  pinnedAt     DateTime?  // F-675: angepinnt
   createdAt    DateTime  @default(now())
 
   @@index([userId, readAt])
@@ -1384,4 +1386,25 @@ model Announcement {
   createdAt DateTime  @default(now())
 
   @@index([active])
+}
+
+// Support-Ticket (F-693/694/700)
+model SupportTicket {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  subject      String
+  body         String
+  status       String    @default("OPEN") // OPEN | IN_PROGRESS | RESOLVED | CLOSED
+  priority     String    @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  assigneeId   String?
+  slaDeadline  DateTime?
+  resolvedAt   DateTime?
+  csatScore    Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([assigneeId])
 }
