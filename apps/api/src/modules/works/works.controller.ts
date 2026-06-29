@@ -188,7 +188,7 @@ export class WorksController {
     return data;
   }
 
-  // GET /api/v1/works – Suche / Discovery (öffentlich, B-036/B-038/B-061 facets)
+  // GET /api/v1/works – Suche / Discovery mit Facetten (F-581/F-582)
   @Get()
   search(
     @Query("type") type?: string,
@@ -202,8 +202,9 @@ export class WorksController {
     @Query("maxDuration") maxDuration?: string,
     @Query("explicit") explicit?: string,
     @Query("tags") tags?: string, // comma-separated
+    @Query("facets") facets?: string, // if "true", return facets
   ) {
-    return this.works.search({
+    const filter = {
       type,
       q,
       language,
@@ -215,7 +216,19 @@ export class WorksController {
       maxDuration: maxDuration !== undefined ? Number(maxDuration) : undefined,
       explicit: explicit !== undefined ? explicit === "true" : undefined,
       tags: tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
-    });
+    };
+    if (facets === "true" || q?.includes(":")) {
+      return this.works.searchWithFacets(filter);
+    }
+    return this.works.search(filter);
+  }
+
+  // GET /api/v1/works/performance – Performance-Tabelle (F-452)
+  @Get("performance")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getPerformanceTable(@CurrentUser() userId: string) {
+    return this.works.getPerformanceTable(userId);
   }
 
   // GET /api/v1/works/trending – Top-20 in den letzten 7 Tagen (B-063)
@@ -282,6 +295,37 @@ export class WorksController {
   @Get(":id/similar")
   similar(@Param("id") id: string, @Query("limit") limit?: string) {
     return this.works.similar(id, limit ? Number(limit) : 8);
+  }
+
+  // GET /api/v1/works/:id/related – Related works (F-586)
+  @Get(":id/related")
+  related(@Param("id") id: string, @Query("limit") limit?: string) {
+    return this.works.getRelatedWorks(id, limit ? Number(limit) : 5);
+  }
+
+  // PATCH /api/v1/works/:id/promo – Promotional price (F-455)
+  @Patch(":id/promo")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setPromoPrice(
+    @CurrentUser() userId: string,
+    @Param("id") id: string,
+    @Body("promoPrice") promoPrice: number | null,
+    @Body("promoEndsAt") promoEndsAt: string | null,
+  ) {
+    return this.works.setPromoPrice(userId, id, promoPrice, promoEndsAt);
+  }
+
+  // PATCH /api/v1/works/:id/earnings-goal – Earnings goal (F-460)
+  @Patch(":id/earnings-goal")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setEarningsGoal(
+    @CurrentUser() userId: string,
+    @Param("id") id: string,
+    @Body("earningsGoalCents") earningsGoalCents: number | null,
+  ) {
+    return this.works.setEarningsGoal(userId, id, earningsGoalCents);
   }
 
   // GET /api/v1/works/:id/episodes – Episodenliste (öffentlich, B-033)

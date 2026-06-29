@@ -518,4 +518,26 @@ export class UsersService {
     await this.prisma.searchHistory.deleteMany({ where: { id, userId } });
     return { deleted: true };
   }
+
+  // ─── F-306: Currency setting ──────────────────────────────────────────────
+
+  /** Set preferred currency for a user (F-306). */
+  async setCurrency(userId: string, currency: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { currency },
+      select: { id: true, currency: true },
+    });
+  }
+
+  // ─── F-402: FCM token ─────────────────────────────────────────────────────
+
+  /** Save FCM push token for a user (F-402). */
+  async setFcmToken(userId: string, token: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { fcmToken: token },
+      select: { id: true, fcmToken: true },
+    });
+  }
 }

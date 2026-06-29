@@ -148,4 +148,62 @@ export class NotificationsService {
     }
     return { unsubscribed: true, type: record.type ?? "all" };
   }
+
+  /** F-407: Abmelden per Token (Alias für processUnsubscribeToken). */
+  async unsubscribeByToken(token: string) {
+    return this.processUnsubscribeToken(token);
+  }
+
+  // ─── F-403: Unread count / mark all read ─────────────────────────────────
+
+  /** F-403: Anzahl ungelesener Benachrichtigungen zurückgeben. */
+  async countUnread(userId: string): Promise<{ unread: number }> {
+    const unread = await this.prisma.notification.count({
+      where: { userId, readAt: null },
+    });
+    return { unread };
+  }
+
+  /** F-403: Alle Benachrichtigungen als gelesen markieren. */
+  async markAllReadV2(userId: string): Promise<{ updated: number }> {
+    const result = await this.prisma.notification.updateMany({
+      where: { userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+    return { updated: result.count };
+  }
+
+  // ─── F-401: Email digest ──────────────────────────────────────────────────
+
+  /**
+   * Collects recent notifications for a user and returns them as digest content.
+   * In MVP: returns notification list (actual email sending is a stub).
+   */
+  async sendDigest(userId: string, frequency: string) {
+    const since = frequency === "WEEKLY"
+      ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() - 24 * 60 * 60 * 1000); // DAILY
+
+    const notifications = await this.prisma.notification.findMany({
+      where: { userId, createdAt: { gte: since } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+
+    // In MVP, just log — real email sending would use MailService
+    console.log(`[Digest] Sending ${frequency} digest to ${userId}: ${notifications.length} notifications`);
+    return { userId, frequency, notificationCount: notifications.length };
+  }
+
+  /** F-401: Find users with daily digest and send digests. */
+  async scheduleDigests() {
+    const users = await this.prisma.user.findMany({
+      where: { notifDigestMode: "DAILY" },
+      select: { id: true },
+    });
+    for (const user of users) {
+      await this.sendDigest(user.id, "DAILY");
+    }
+    return { processed: users.length };
+  }
 }

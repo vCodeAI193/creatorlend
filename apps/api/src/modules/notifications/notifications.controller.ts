@@ -31,10 +31,10 @@ export class NotificationsController {
     return this.notifications.list(userId, unread === "true", type);
   }
 
-  // GET /api/v1/notifications/unread-count
+  // GET /api/v1/notifications/unread-count (F-403)
   @Get("unread-count")
   async unreadCount(@CurrentUser() userId: string) {
-    return { count: await this.notifications.unreadCount(userId) };
+    return this.notifications.countUnread(userId);
   }
 
   // POST /api/v1/notifications/:id/read
@@ -47,6 +47,12 @@ export class NotificationsController {
   @Post("read-all")
   markAllRead(@CurrentUser() userId: string) {
     return this.notifications.markAllRead(userId);
+  }
+
+  // POST /api/v1/notifications/mark-all-read (F-403)
+  @Post("mark-all-read")
+  markAllReadV2(@CurrentUser() userId: string) {
+    return this.notifications.markAllReadV2(userId);
   }
 
   // GET /api/v1/notifications/preferences – eigene Präferenzen (B-028)

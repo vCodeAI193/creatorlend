@@ -153,4 +153,24 @@ export class SubscriptionsController {
   studentStatus(@CurrentUser() userId: string) {
     return this.studentDiscount.checkStudentStatus(userId);
   }
+
+  // GET /api/v1/subscriptions/plans – Plan-Vergleich (F-501)
+  @Get("plans")
+  getPlans() {
+    return this.subscriptions.getPlans();
+  }
+
+  // DELETE /api/v1/subscriptions/me – Kündigung (F-502)
+  // Note: existing DELETE /me calls cancel(), this aliases cancelSubscription()
+  // POST /api/v1/subscriptions/me/cancel – Kündigung mit Bestätigung (F-502)
+  @Post("me/cancel")
+  cancelSubscription(@CurrentUser() userId: string) {
+    return this.subscriptions.cancelSubscription(userId);
+  }
+
+  // POST /api/v1/subscriptions/me/reactivate – Reaktivierung (F-503)
+  @Post("me/reactivate")
+  reactivate(@CurrentUser() userId: string) {
+    return this.subscriptions.reactivate(userId);
+  }
 }

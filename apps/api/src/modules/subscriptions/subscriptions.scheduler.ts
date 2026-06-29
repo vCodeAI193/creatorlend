@@ -86,4 +86,13 @@ export class SubscriptionsScheduler {
       this.logger.log(`Auto-Resume: ${result.resumed} Abos reaktiviert`);
     }
   }
+
+  /** F-510: Dunning – retry failed payments daily. */
+  @Cron(CronExpression.EVERY_DAY_AT_9AM)
+  async handleRetryFailedPayments() {
+    const result = await this.subscriptions.retryFailedPayments();
+    if (result.processed > 0) {
+      this.logger.log(`Dunning retry: processed ${result.processed} PAST_DUE subscriptions`);
+    }
+  }
 }

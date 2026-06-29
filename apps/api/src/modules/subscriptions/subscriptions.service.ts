@@ -326,6 +326,64 @@ export class SubscriptionsService {
     });
   }
 
+  // ─── F-501: Plan definitions ──────────────────────────────────────────────
+
+  /** F-501: Return available subscription plan definitions. */
+  getPlans() {
+    return [
+      { id: "BASIC", name: "Basic", loanQuota: 5, priceCents: 499 },
+      { id: "STANDARD", name: "Standard", loanQuota: 10, priceCents: 999 },
+      { id: "PREMIUM", name: "Premium", loanQuota: 30, priceCents: 1499 },
+    ];
+  }
+
+  // ─── F-502: Cancel subscription ──────────────────────────────────────────
+
+  /** F-502: Cancel subscription (sets cancelAtPeriodEnd=true). */
+  async cancelSubscription(userId: string) {
+    const sub = await this.prisma.subscription.update({
+      where: { userId },
+      data: { cancelAtPeriodEnd: true },
+    });
+    await this.recordEvent(userId, "CANCEL_REQUESTED", sub.plan);
+    // Stub: send cancellation email notification
+    this.logger.log(`Cancellation requested for user ${userId}`);
+    return { cancelAtPeriodEnd: true, currentPeriodEnd: sub.currentPeriodEnd };
+  }
+
+  // ─── F-503: Reactivate subscription ──────────────────────────────────────
+
+  /** F-503: Reactivate subscription (sets cancelAtPeriodEnd=false). */
+  async reactivate(userId: string) {
+    const sub = await this.prisma.subscription.update({
+      where: { userId },
+      data: { cancelAtPeriodEnd: false },
+    });
+    await this.recordEvent(userId, "REACTIVATED", sub.plan);
+    return { reactivated: true, plan: sub.plan };
+  }
+
+  // ─── F-510: Dunning retry failed payments ─────────────────────────────────
+
+  /** F-510: Retry failed payments for PAST_DUE subscriptions. */
+  async retryFailedPayments(): Promise<{ processed: number }> {
+    const pastDue = await this.prisma.subscription.findMany({
+      where: { status: "PAST_DUE" },
+      select: { userId: true, plan: true },
+    });
+    let processed = 0;
+    for (const sub of pastDue) {
+      try {
+        // Stub: simulate retry (no real Stripe call in MVP)
+        this.logger.log(`[Dunning] Retrying payment for user ${sub.userId}`);
+        processed += 1;
+      } catch (err) {
+        this.logger.error(`[Dunning] Retry failed for ${sub.userId}`, err);
+      }
+    }
+    return { processed };
+  }
+
   /**
    * Alle fälligen pausierten Abos automatisch wieder aktivieren.
    * Wird stündlich vom Scheduler aufgerufen.

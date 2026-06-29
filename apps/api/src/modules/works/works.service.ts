@@ -302,7 +302,16 @@ export class WorksService {
         }
       }
     }
-    return work;
+    // F-458: Increment viewCount in background (fire-and-forget)
+    this.prisma.work.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch(() => {});
+
+    // F-455: Return effective price (promoPrice if promo is active)
+    const effectivePrice =
+      work.promoEndsAt && work.promoEndsAt > new Date() && work.promoPrice != null
+        ? work.promoPrice
+        : work.loanPriceCents;
+
+    return { ...work, effectivePriceCents: effectivePrice };
   }
 
   // ─── Episodes (B-033) ─────────────────────────────────────────────────────
@@ -679,5 +688,235 @@ export class WorksService {
       paidCents: paid._sum.amountCents ?? 0,
       totalRevenueCents: (pending._sum.amountCents ?? 0) + (paid._sum.amountCents ?? 0),
     };
+  }
+
+  // ─── F-452: Work performance table ───────────────────────────────────────
+
+  /**
+   * F-452: Performance table for all works of an artist.
+   * Returns borrowCount, totalEarnings, avgRating, reviewCount per work.
+   */
+  async getPerformanceTable(artistId: string) {
+    const works = await this.prisma.work.findMany({
+      where: { artistId, deletedAt: null },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        status: true,
+        borrowCount: true,
+        earningsGoalCents: true,
+        loans: {
+          select: {
+            payoutItems: {
+              select: { amountCents: true },
+            },
+          },
+        },
+        ratings: {
+          select: { value: true },
+        },
+        reviews: {
+          select: { id: true },
+        },
+      },
+    });
+
+    return works.map((w) => {
+      const totalEarnings = w.loans.reduce(
+        (sum, loan) => sum + loan.payoutItems.reduce((s, pi) => s + pi.amountCents, 0),
+        0,
+      );
+      const avgRating =
+        w.ratings.length > 0
+          ? w.ratings.reduce((s, r) => s + r.value, 0) / w.ratings.length
+          : null;
+      const goalProgress = w.earningsGoalCents && w.earningsGoalCents > 0
+        ? Math.min(100, Math.round((totalEarnings / w.earningsGoalCents) * 100))
+        : null;
+      return {
+        workId: w.id,
+        title: w.title,
+        type: w.type,
+        status: w.status,
+        borrowCount: w.borrowCount,
+        totalEarnings,
+        avgRating,
+        reviewCount: w.reviews.length,
+        goalProgress,
+      };
+    });
+  }
+
+  // ─── F-455: Promo price update ────────────────────────────────────────────
+
+  /** F-455: Set promotional price for a work. */
+  async setPromoPrice(artistId: string, workId: string, promoPrice: number | null, promoEndsAt: string | null) {
+    await this.ownedWork(artistId, workId);
+    return this.prisma.work.update({
+      where: { id: workId },
+      data: {
+        promoPrice: promoPrice,
+        promoEndsAt: promoEndsAt ? new Date(promoEndsAt) : null,
+      },
+      select: { id: true, loanPriceCents: true, promoPrice: true, promoEndsAt: true },
+    });
+  }
+
+  // ─── F-460: Earnings goal ─────────────────────────────────────────────────
+
+  /** F-460: Set earnings goal for a work. */
+  async setEarningsGoal(artistId: string, workId: string, earningsGoalCents: number | null) {
+    await this.ownedWork(artistId, workId);
+    return this.prisma.work.update({
+      where: { id: workId },
+      data: { earningsGoalCents },
+      select: { id: true, earningsGoalCents: true },
+    });
+  }
+
+  // ─── F-581: Faceted search ────────────────────────────────────────────────
+
+  /**
+   * F-581: Search with facet aggregations.
+   * Returns { total, works, facets: { types, languages, categories, priceRange } }.
+   * F-582: Supports search operators: artist:"name", type:podcast, language:de.
+   */
+  async searchWithFacets(filter: SearchFilter & { q?: string }) {
+    // F-582: Parse operators from query string
+    let q = filter.q ?? "";
+    let artistFilter: string | undefined;
+    let typeFromOp: string | undefined;
+    let langFromOp: string | undefined;
+
+    // Extract operator: artist:"..." or artist:name
+    const artistMatch = q.match(/artist:"([^"]+)"|artist:(\S+)/);
+    if (artistMatch) {
+      artistFilter = artistMatch[1] ?? artistMatch[2];
+      q = q.replace(artistMatch[0], "").trim();
+    }
+    const typeMatch = q.match(/type:(\S+)/);
+    if (typeMatch) {
+      typeFromOp = typeMatch[1].toUpperCase();
+      q = q.replace(typeMatch[0], "").trim();
+    }
+    const langMatch = q.match(/language:(\S+)/);
+    if (langMatch) {
+      langFromOp = langMatch[1];
+      q = q.replace(langMatch[0], "").trim();
+    }
+
+    const effectiveFilter: SearchFilter = {
+      ...filter,
+      q: q || undefined,
+      type: typeFromOp ?? filter.type,
+      language: langFromOp ?? filter.language,
+    };
+
+    const now = new Date();
+    const baseWhere: Prisma.WorkWhereInput = {
+      status: "PUBLISHED",
+      OR: [{ embargoUntil: null }, { embargoUntil: { lte: now } }],
+      ...(effectiveFilter.type ? { type: effectiveFilter.type as never } : {}),
+      ...(effectiveFilter.language ? { language: effectiveFilter.language } : {}),
+      ...(effectiveFilter.category ? { category: effectiveFilter.category } : {}),
+      ...(effectiveFilter.explicit === false ? { explicit: false } : {}),
+      ...(effectiveFilter.minPrice !== undefined || effectiveFilter.maxPrice !== undefined
+        ? {
+            loanPriceCents: {
+              ...(effectiveFilter.minPrice !== undefined ? { gte: effectiveFilter.minPrice } : {}),
+              ...(effectiveFilter.maxPrice !== undefined ? { lte: effectiveFilter.maxPrice } : {}),
+            },
+          }
+        : {}),
+      ...(effectiveFilter.tags && effectiveFilter.tags.length > 0
+        ? { tags: { hasSome: effectiveFilter.tags } }
+        : {}),
+      ...(effectiveFilter.q
+        ? {
+            OR: [
+              { title: { contains: effectiveFilter.q, mode: "insensitive" } },
+              { description: { contains: effectiveFilter.q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+      ...(artistFilter
+        ? {
+            artist: { displayName: { contains: artistFilter, mode: "insensitive" } },
+          }
+        : {}),
+    };
+
+    const [works, total, typeCounts, langCounts, catCounts, priceAgg] = await Promise.all([
+      this.prisma.work.findMany({ where: baseWhere, orderBy: { createdAt: "desc" }, take: 100 }),
+      this.prisma.work.count({ where: baseWhere }),
+      // Type facets
+      this.prisma.work.groupBy({
+        by: ["type"],
+        where: { status: "PUBLISHED" },
+        _count: { id: true },
+      }),
+      // Language facets
+      this.prisma.work.groupBy({
+        by: ["language"],
+        where: { status: "PUBLISHED", language: { not: null } },
+        _count: { id: true },
+      }),
+      // Category facets
+      this.prisma.work.groupBy({
+        by: ["category"],
+        where: { status: "PUBLISHED", category: { not: null } },
+        _count: { id: true },
+      }),
+      // Price range
+      this.prisma.work.aggregate({
+        where: { status: "PUBLISHED" },
+        _min: { loanPriceCents: true },
+        _max: { loanPriceCents: true },
+      }),
+    ]);
+
+    return {
+      total,
+      works,
+      facets: {
+        types: typeCounts.map((t) => ({ value: t.type, count: t._count.id })),
+        languages: langCounts.map((l) => ({ value: l.language, count: l._count.id })),
+        categories: catCounts.map((c) => ({ value: c.category, count: c._count.id })),
+        priceRange: {
+          min: priceAgg._min.loanPriceCents ?? 0,
+          max: priceAgg._max.loanPriceCents ?? 0,
+        },
+      },
+    };
+  }
+
+  // ─── F-586: Related works ─────────────────────────────────────────────────
+
+  /**
+   * F-586: Returns 5 works related to the given work (same type/language/artist or tags).
+   */
+  async getRelatedWorks(workId: string, limit = 5) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work) throw new NotFoundException("work_not_found");
+
+    const related = await this.prisma.work.findMany({
+      where: {
+        id: { not: workId },
+        status: "PUBLISHED",
+        OR: [
+          { artistId: work.artistId },
+          { type: work.type, language: work.language ?? undefined },
+          ...(work.tags.length > 0 ? [{ tags: { hasSome: work.tags } }] : []),
+        ],
+      },
+      orderBy: { borrowCount: "desc" },
+      take: limit,
+      select: {
+        id: true, title: true, type: true, language: true, borrowCount: true,
+        loanPriceCents: true, artist: { select: { id: true, displayName: true } },
+      },
+    });
+    return related;
   }
 }

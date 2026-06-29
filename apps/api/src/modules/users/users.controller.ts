@@ -271,4 +271,16 @@ export class UsersController {
   getAbTests(@CurrentUser() userId: string) {
     return this.abTests.listAssignments(userId);
   }
+
+  // PATCH /api/v1/users/me/currency – Währung setzen (F-306)
+  @Patch("me/currency")
+  setCurrency(@CurrentUser() userId: string, @Body("currency") currency: string) {
+    return this.users.setCurrency(userId, currency);
+  }
+
+  // PATCH /api/v1/users/me/fcm-token – FCM-Token speichern (F-402)
+  @Patch("me/fcm-token")
+  setFcmToken(@CurrentUser() userId: string, @Body("token") token: string) {
+    return this.users.setFcmToken(userId, token);
+  }
 }
