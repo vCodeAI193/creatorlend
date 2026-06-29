@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, Res, UseGuards } from "@nestjs/common";
 import { UserRole } from "@creatorlend/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -130,5 +130,64 @@ export class PayoutsController {
   @Get("tax-statement/years")
   getTaxStatementYears(@CurrentUser() userId: string) {
     return this.taxStatement.listAvailableYears(userId);
+  }
+
+  // GET /api/v1/payouts – payout history with filters (F-302)
+  @Get()
+  listPayouts(
+    @CurrentUser() userId: string,
+    @Query("status") status?: string,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
+    @Query("page") page = "1",
+  ) {
+    return this.payouts.listForArtist(
+      userId,
+      status,
+      from ? new Date(from) : undefined,
+      to ? new Date(to) : undefined,
+      Number(page),
+    );
+  }
+
+  // GET /api/v1/payouts/by-work – earnings breakdown per work (F-303)
+  @Get("by-work")
+  earningsByWork(
+    @CurrentUser() userId: string,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
+  ) {
+    return this.payouts.earningsByWork(
+      userId,
+      from ? new Date(from) : undefined,
+      to ? new Date(to) : undefined,
+    );
+  }
+
+  // GET /api/v1/payouts/settings – payout settings (F-310)
+  @Get("settings")
+  getPayoutSettings(@CurrentUser() userId: string) {
+    return this.payouts.getPayoutSettings(userId);
+  }
+
+  // PATCH /api/v1/payouts/settings – update payout threshold (F-310)
+  @Patch("settings")
+  setPayoutThreshold(
+    @CurrentUser() userId: string,
+    @Body("minCents") minCents: number,
+  ) {
+    return this.payouts.setPayoutThreshold(userId, minCents);
+  }
+
+  // POST /api/v1/payouts/auto-payout – schedule auto-payout (F-300)
+  @Post("auto-payout")
+  scheduleAutoPayout(@CurrentUser() userId: string) {
+    return this.payouts.scheduleAutoPayout(userId);
+  }
+
+  // GET /api/v1/payouts/dashboard – artist dashboard summary (F-451)
+  @Get("dashboard")
+  artistDashboard(@CurrentUser() userId: string) {
+    return this.payouts.artistDashboard(userId);
   }
 }

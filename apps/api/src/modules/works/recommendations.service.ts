@@ -16,9 +16,19 @@ export class RecommendationsService {
       }),
       this.prisma.user.findUnique({
         where: { id: userId },
-        select: { preferredTypes: true, excludedLanguages: true },
+        select: { preferredTypes: true, excludedLanguages: true, profilingOptOut: true },
       }),
     ]);
+
+    // F-077: If user opts out of profiling, return generic popular works
+    if (user?.profilingOptOut) {
+      return this.prisma.work.findMany({
+        where: { status: 'PUBLISHED' },
+        orderBy: { borrowCount: 'desc' },
+        take: limit,
+      });
+    }
+
     const followedArtistIds = following.map((f) => f.artistId);
     const recentTypes = [...new Set(recentLoans.map((l) => l.work.type))];
     const borrowedWorkIds = recentLoans.map((l) => l.workId);

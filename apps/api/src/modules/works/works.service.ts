@@ -32,6 +32,7 @@ export interface SearchFilter {
   maxDuration?: number;
   explicit?: boolean; // true = include explicit; false = exclude
   tags?: string[]; // filter by any of these tags
+  userId?: string; // for kidsMode filtering and search history
 }
 
 @Injectable()
@@ -149,9 +150,28 @@ export class WorksService {
   /**
    * Discovery: Filter nach Typ/Sprache/Kategorie + Volltext über Titel und
    * Beschreibung (B-059), Sortierung nach "new" (Standard) oder "popular".
+   * F-042: kidsMode-Filterung wenn userId übergeben.
    */
-  search(filter: SearchFilter) {
+  async search(filter: SearchFilter) {
     const now = new Date();
+
+    // Check kidsMode if userId provided
+    let kidsMode = false;
+    if (filter.userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: filter.userId },
+        select: { kidsModeEnabled: true },
+      });
+      kidsMode = user?.kidsModeEnabled ?? false;
+
+      // Save search history (fire and forget)
+      if (filter.q) {
+        this.prisma.searchHistory.create({
+          data: { userId: filter.userId, query: filter.q },
+        }).catch(() => {});
+      }
+    }
+
     const where: Prisma.WorkWhereInput = {
       status: "PUBLISHED",
       // F-113: Embargo-Filter – nur Werke ohne oder mit abgelaufenem Embargo
@@ -161,6 +181,8 @@ export class WorksService {
       ...(filter.category ? { category: filter.category } : {}),
       // Explicit-Content-Filter (B-038): explicit=false schließt explizite Werke aus
       ...(filter.explicit === false ? { explicit: false } : {}),
+      // F-042: kidsMode filtert altersbeschränkte Inhalte heraus
+      ...(kidsMode ? { ageRating: { notIn: ["FSK_12", "FSK_16", "FSK_18"] } } : {}),
       // Preis-Facette (B-061)
       ...(filter.minPrice !== undefined || filter.maxPrice !== undefined
         ? {

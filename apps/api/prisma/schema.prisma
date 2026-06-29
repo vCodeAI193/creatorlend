@@ -88,6 +88,11 @@ model User {
   trackingOptOut      Boolean  @default(false)         // Tracking opt-out (F-076)
   profilingOptOut     Boolean  @default(false)         // Profiling-Widerspruch (F-080)
   doNotTrack          Boolean  @default(false)         // Do Not Track (F-078)
+  currency            String   @default("EUR")         // Bevorzugte Währung (F-306)
+  payoutThreshold     Int      @default(1000)          // Mindestauszahlungsbetrag in Cents (F-310)
+  suspendedAt         DateTime?                        // Suspension timestamp (F-384)
+  suspendReason       String?                          // Suspension reason (F-384)
+  fcmToken            String?                          // FCM push notification token (F-402)
 
   works         Work[]         @relation("ArtistWorks")
   loans         Loan[]
@@ -201,6 +206,10 @@ model Work {
   earlyAccessDays Int        @default(0)    // Früher Zugang für PREMIUM (F-165/F-166)
   isbn            String?    // ISBN für Audiobücher (F-116)
   isrc            String?    // ISRC für Musik (F-116)
+  promoPrice      Int?       // Rabattpreis während Promo (F-455)
+  promoEndsAt     DateTime?  // Promo-Ablauf (F-455)
+  viewCount       Int        @default(0) // Seitenaufrufe (F-458)
+  earningsGoalCents Int?     // Einnahmenziel in Cents (F-460)
   status          WorkStatus @default(DRAFT)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
@@ -1085,4 +1094,19 @@ model SearchHistory {
   createdAt DateTime @default(now())
   @@index([userId])
   @@index([createdAt])
+}
+
+// Site-weite Ankündigungen (F-390)
+model Announcement {
+  id        String    @id @default(uuid())
+  title     String
+  body      String
+  type      String    @default("INFO") // INFO | WARNING | MAINTENANCE
+  active    Boolean   @default(true)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+
+  @@index([active])
 }

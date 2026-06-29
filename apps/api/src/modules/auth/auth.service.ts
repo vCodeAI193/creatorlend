@@ -14,6 +14,7 @@ interface RegisterInput {
   displayName: string;
   role?: "LISTENER" | "ARTIST" | "ADMIN";
   referralCode?: string;
+  birthYear?: number; // COPPA compliance (F-041)
 }
 
 const REFRESH_TTL_DAYS = 30;
@@ -48,6 +49,10 @@ export class AuthService {
         role: input.role ?? "LISTENER",
         referralCode: newReferralCode,
         ...(referredById ? { referredById } : {}),
+        ...(input.birthYear !== undefined ? {
+          birthYear: input.birthYear,
+          isMinor: new Date().getFullYear() - input.birthYear < 18,
+        } : {}),
       },
     });
 

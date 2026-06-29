@@ -137,12 +137,12 @@ export class UsersService {
   }
 
   /**
-   * DSGVO-Datenexport (B-011): alle personenbezogenen Daten des Nutzers
+   * DSGVO-Datenexport (B-011, Art. 15 DSGVO): alle personenbezogenen Daten des Nutzers
    * als strukturiertes JSON-Objekt. Passwort-Hash und Token-Hashes werden
    * NICHT exportiert.
    */
   async exportData(userId: string) {
-    const [user, loans, favorites, follows, notifications] = await Promise.all([
+    const [user, loans, favorites, follows, notifications, consentRecords, cookieConsents, abTests, studentVerification, oauthAccounts, apiKeys] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({
         where: { id: userId },
         select: { id: true, email: true, displayName: true, language: true, role: true, emailVerified: true, createdAt: true, updatedAt: true },
@@ -165,6 +165,26 @@ export class UsersService {
         orderBy: { createdAt: "desc" },
         take: 200,
       }),
+      this.prisma.consentRecord.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.cookieConsent.findMany({
+        where: { userId },
+      }),
+      this.prisma.abTestAssignment.findMany({
+        where: { userId },
+        orderBy: { assignedAt: "desc" },
+      }),
+      this.prisma.studentVerification.findUnique({ where: { userId } }),
+      this.prisma.oAuthAccount.findMany({
+        where: { userId },
+        select: { provider: true, email: true, createdAt: true },
+      }),
+      this.prisma.apiKey.findMany({
+        where: { userId },
+        select: { name: true, prefix: true, createdAt: true, scopes: true },
+      }),
     ]);
 
     return {
@@ -174,6 +194,12 @@ export class UsersService {
       favorites: favorites.map((f) => ({ workId: f.workId, work: f.work, addedAt: f.createdAt })),
       follows,
       notifications,
+      consentRecords,
+      cookieConsents,
+      abTestAssignments: abTests,
+      studentVerification,
+      oauthAccounts,
+      apiKeys,
     };
   }
 
@@ -444,13 +470,22 @@ export class UsersService {
     });
   }
 
-  async verifyAge(userId: string, birthYear: number, parentalConsent?: boolean) {
-    const age = new Date().getFullYear() - birthYear;
-    const isMinor = age < 13;
-    if (isMinor && !parentalConsent) throw new BadRequestException("minor_needs_parental_consent");
+  /**
+   * F-041: Altersverifizierung.
+   */
+  async verifyAge(userId: string, birthYear: number, parentalConsentGiven?: boolean) {
+    const currentYear = new Date().getFullYear();
+    const age = currentYear - birthYear;
+    const isMinor = age < 18;
     return this.prisma.user.update({
       where: { id: userId },
-      data: { birthYear, isMinor: age < 18, ageVerifiedAt: new Date() },
+      data: {
+        birthYear,
+        isMinor,
+        ageVerifiedAt: new Date(),
+        ...(isMinor && parentalConsentGiven !== undefined ? { parentalConsent: parentalConsentGiven } : {}),
+      },
+      select: { id: true, birthYear: true, isMinor: true, ageVerifiedAt: true, parentalConsent: true },
     });
   }
 
@@ -458,8 +493,16 @@ export class UsersService {
     return this.prisma.user.update({ where: { id: userId }, data: { kidsModeEnabled: enabled } });
   }
 
-  async setTrackingPreferences(userId: string, prefs: { trackingOptOut?: boolean; profilingOptOut?: boolean }) {
-    return this.prisma.user.update({ where: { id: userId }, data: { ...prefs } });
+  async setTrackingPreferences(userId: string, prefs: { trackingOptOut?: boolean; profilingOptOut?: boolean; doNotTrack?: boolean }) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(prefs.trackingOptOut !== undefined ? { trackingOptOut: prefs.trackingOptOut } : {}),
+        ...(prefs.profilingOptOut !== undefined ? { profilingOptOut: prefs.profilingOptOut } : {}),
+        ...(prefs.doNotTrack !== undefined ? { doNotTrack: prefs.doNotTrack } : {}),
+      },
+      select: { id: true, trackingOptOut: true, profilingOptOut: true, doNotTrack: true },
+    });
   }
 
   async getSearchHistory(userId: string, limit = 20) {
