@@ -8,6 +8,7 @@ import { AdminService } from "./admin.service";
 import { DmcaService } from "./dmca.service";
 import { FeatureFlagsService } from "./feature-flags.service";
 import { AnalyticsService } from "./analytics.service";
+import { AbTestingService } from "./ab-testing.service";
 
 /** Admin-Backoffice (B-151, B-152, B-154, B-155). Nur für ADMIN-Rolle. */
 @Controller("admin")
@@ -19,6 +20,7 @@ export class AdminController {
     private readonly dmca: DmcaService,
     private readonly featureFlags: FeatureFlagsService,
     private readonly analytics: AnalyticsService,
+    private readonly abTesting: AbTestingService,
   ) {}
 
   // GET /api/v1/admin/stats – Plattform-Übersicht
@@ -181,5 +183,25 @@ export class AdminController {
   @Get("analytics/revenue")
   revenueMetrics(@Query("period") period?: "monthly" | "weekly" | "daily") {
     return this.analytics.getRevenueMetrics(period ?? "monthly");
+  }
+
+  // POST /api/v1/admin/ab-tests – A/B-Test erstellen (ADMIN, F-080)
+  @Post("ab-tests")
+  createAbTest(
+    @Body() body: { testKey: string; description?: string },
+  ) {
+    return this.abTesting.createTest(body.testKey, body.description);
+  }
+
+  // GET /api/v1/admin/ab-tests – A/B-Tests auflisten (ADMIN, F-080)
+  @Get("ab-tests")
+  listAbTests() {
+    return this.abTesting.listTests();
+  }
+
+  // GET /api/v1/admin/ab-tests/:testKey/results – A/B-Test-Ergebnisse (ADMIN, F-080)
+  @Get("ab-tests/:testKey/results")
+  getAbTestResults(@Param("testKey") testKey: string) {
+    return this.abTesting.getTestResults(testKey);
   }
 }
