@@ -99,6 +99,8 @@ model User {
   isDeactivated         Boolean   @default(false)   // F-025
   ageVerified           Boolean   @default(false)   // F-115
   privateListeningMode  Boolean   @default(false)   // F-318
+  fraudScore            Int       @default(0)       // F-738: interner Betrugs-Score (0-100)
+  adminTags             String[]  @default([])      // F-717: VIP, At-Risk, Flagged
 
   works         Work[]         @relation("ArtistWorks")
   loans         Loan[]
@@ -373,17 +375,19 @@ model Follow {
 
 // In-App-Benachrichtigungen (F-082..F-084)
 model Notification {
-  id        String    @id @default(uuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id])
-  type      String
-  title     String
-  body      String?
-  data      Json?
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  type         String
+  title        String
+  body         String?
+  data         Json?
+  readAt       DateTime?
+  archivedAt   DateTime?  // F-673: archiviert nach 30 Tagen
+  createdAt    DateTime  @default(now())
 
   @@index([userId, readAt])
+  @@index([userId, archivedAt])
 }
 
 // Benachrichtigungspräferenzen je Typ (B-028)

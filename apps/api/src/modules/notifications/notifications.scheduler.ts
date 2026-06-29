@@ -125,6 +125,12 @@ export class NotificationsScheduler {
     }
   }
 
+  // F-673: Benachrichtigungen älter als 30 Tage archivieren (täglich um Mitternacht)
+  @Cron('30 0 * * *')
+  async archiveOldNotifications() {
+    await this.notifications.archiveOldNotifications();
+  }
+
   // F-655: Re-Engagement nach 30 Tagen Inaktivität (täglich um 11:00)
   @Cron('0 11 * * *')
   async sendReEngagementNotifications() {

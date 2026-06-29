@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PromoCodesService } from "../promo-codes/promo-codes.service";
 import { ReportsService } from "../reports/reports.service";
@@ -14,6 +15,7 @@ export class AdminService {
     private readonly promoCodes: PromoCodesService,
     private readonly reports: ReportsService,
     private readonly mail: MailService,
+    private readonly jwt: JwtService,
   ) {}
 
   /** Nutzer:innen auflisten mit Paginierung und Filtern (F-381). */
@@ -488,5 +490,197 @@ export class AdminService {
       orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
       take: 100,
     });
+  }
+
+  // F-709/710/711/712: Erweitertes Admin-Dashboard mit Zeitraum-Aufschlüsselung
+  async getDashboardMetrics() {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [
+      usersToday, usersThisWeek, usersThisMonth,
+      revenueToday, revenueThisWeek, revenueThisMonth,
+      activeLoans, reportQueueCount,
+    ] = await Promise.all([
+      this.prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
+      this.prisma.user.count({ where: { createdAt: { gte: weekStart } } }),
+      this.prisma.user.count({ where: { createdAt: { gte: monthStart } } }),
+      this.prisma.payoutItem.aggregate({ where: { createdAt: { gte: todayStart } }, _sum: { amountCents: true } }),
+      this.prisma.payoutItem.aggregate({ where: { createdAt: { gte: weekStart } }, _sum: { amountCents: true } }),
+      this.prisma.payoutItem.aggregate({ where: { createdAt: { gte: monthStart } }, _sum: { amountCents: true } }),
+      this.prisma.loan.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.report.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
+    ]);
+
+    return {
+      newUsers: { today: usersToday, week: usersThisWeek, month: usersThisMonth },
+      revenue: {
+        todayCents: revenueToday._sum.amountCents ?? 0,
+        weekCents: revenueThisWeek._sum.amountCents ?? 0,
+        monthCents: revenueThisMonth._sum.amountCents ?? 0,
+      },
+      activeLoans,
+      reportQueueCount,
+    };
+  }
+
+  // F-715: Nutzer:in-Impersonation (Token generieren)
+  async impersonateUser(adminId: string, targetUserId: string) {
+    const target = await this.prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!target) throw new NotFoundException('user_not_found');
+    await this.writeAuditLog(adminId, 'IMPERSONATE_USER', 'User', targetUserId);
+    const token = this.jwt.sign(
+      { sub: target.id, role: target.role, impersonatedBy: adminId },
+      { expiresIn: '1h' },
+    );
+    return { token, expiresIn: 3600, targetUserId, targetEmail: target.email };
+  }
+
+  // F-717: Admin-Tags setzen
+  async setUserTags(adminId: string, userId: string, tags: string[]) {
+    await this.writeAuditLog(adminId, 'SET_USER_TAGS', 'User', userId, { tags });
+    return this.prisma.user.update({ where: { id: userId }, data: { adminTags: tags }, select: { id: true, adminTags: true } });
+  }
+
+  // F-717: Nutzer:innen nach Tag filtern
+  async getUsersByTag(tag: string) {
+    return this.prisma.user.findMany({
+      where: { adminTags: { has: tag } },
+      select: { id: true, email: true, displayName: true, adminTags: true, role: true },
+    });
+  }
+
+  // F-718: Massen-E-Mail an gefiltertes Segment
+  async sendMassEmail(filter: { role?: string; tag?: string }, subject: string, body: string) {
+    const where: Record<string, unknown> = {};
+    if (filter.role) where['role'] = filter.role;
+    if (filter.tag) where['adminTags'] = { has: filter.tag };
+    const users = await this.prisma.user.findMany({ where, select: { email: true } });
+    let sent = 0;
+    for (const user of users) {
+      await this.mail.sendEmail(user.email, subject, body).catch(() => {});
+      sent++;
+    }
+    return { sent };
+  }
+
+  // F-738: Betrugs-Score setzen
+  async setUserFraudScore(adminId: string, userId: string, score: number) {
+    await this.writeAuditLog(adminId, 'SET_FRAUD_SCORE', 'User', userId, { score });
+    return this.prisma.user.update({ where: { id: userId }, data: { fraudScore: score }, select: { id: true, fraudScore: true } });
+  }
+
+  // F-738: Nutzer:innen mit erhöhtem Betrugs-Score
+  async listHighFraudUsers(minScore = 50) {
+    return this.prisma.user.findMany({
+      where: { fraudScore: { gte: minScore } },
+      select: { id: true, email: true, displayName: true, fraudScore: true, adminTags: true },
+      orderBy: { fraudScore: 'desc' },
+    });
+  }
+
+  // F-742: Maintenance-Modus aktivieren / deaktivieren via Announcement
+  async setMaintenanceMode(active: boolean, message?: string, adminId?: string) {
+    if (active) {
+      const ann = await this.prisma.announcement.create({
+        data: {
+          title: 'Wartungsarbeiten',
+          body: message ?? 'Die Plattform ist kurzzeitig nicht verfügbar.',
+          type: 'MAINTENANCE',
+          active: true,
+          createdBy: adminId ?? 'system',
+        },
+      });
+      return { maintenanceMode: true, announcementId: ann.id };
+    } else {
+      await this.prisma.announcement.updateMany({
+        where: { type: 'MAINTENANCE', active: true },
+        data: { active: false },
+      });
+      return { maintenanceMode: false };
+    }
+  }
+
+  // F-778: DAU/WAU/MAU
+  async getDAUWAUMAU() {
+    const now = new Date();
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const [dau, wau, mau] = await Promise.all([
+      this.prisma.loan.groupBy({ by: ['userId'], where: { createdAt: { gte: dayAgo } }, _count: true }).then(r => r.length),
+      this.prisma.loan.groupBy({ by: ['userId'], where: { createdAt: { gte: weekAgo } }, _count: true }).then(r => r.length),
+      this.prisma.loan.groupBy({ by: ['userId'], where: { createdAt: { gte: monthAgo } }, _count: true }).then(r => r.length),
+    ]);
+    return { dau, wau, mau, stickyFactor: mau > 0 ? Math.round((dau / mau) * 100) / 100 : 0 };
+  }
+
+  // F-770: MRR / ARR
+  async getMRRARR() {
+    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const revenue = await this.prisma.payoutItem.aggregate({
+      where: { createdAt: { gte: monthAgo } },
+      _sum: { amountCents: true },
+    });
+    const totalAmountCents = revenue._sum.amountCents ?? 0;
+    // Platform revenue = total / (1 - fee). We get 30%, so platform = payout / 0.7 * 0.3
+    const platformShareCents = Math.round(totalAmountCents / 0.7 * 0.3);
+    const mrrCents = totalAmountCents + platformShareCents;
+    return { mrrCents, arrCents: mrrCents * 12, artistEarningsCents: totalAmountCents };
+  }
+
+  // F-723: Auto-Assign Meldungen nach Kategorie
+  async autoAssignReports() {
+    const openReports = await this.prisma.report.findMany({
+      where: { status: 'OPEN', assigneeId: null },
+      select: { id: true, reason: true },
+      take: 50,
+    });
+    // Assign by round-robin to admin users (simplified: just update to IN_PROGRESS)
+    const admins = await this.prisma.user.findMany({ where: { role: 'ADMIN' }, select: { id: true }, take: 5 });
+    if (admins.length === 0) return { assigned: 0 };
+    let count = 0;
+    for (const report of openReports) {
+      const admin = admins[count % admins.length];
+      await this.prisma.report.update({ where: { id: report.id }, data: { assigneeId: admin.id, status: 'IN_PROGRESS' } });
+      count++;
+    }
+    return { assigned: count };
+  }
+
+  // F-749: Retention-Policy – veraltete Daten löschen
+  async runRetentionPolicyCleanup(retentionYears = 3) {
+    const cutoff = new Date(Date.now() - retentionYears * 365 * 24 * 60 * 60 * 1000);
+    const [deletedLogs, deletedNotifs] = await Promise.all([
+      this.prisma.auditLog.deleteMany({ where: { createdAt: { lt: cutoff } } }),
+      this.prisma.notification.deleteMany({ where: { createdAt: { lt: cutoff }, archivedAt: { not: null } } }),
+    ]);
+    return { deletedAuditLogs: deletedLogs.count, deletedNotifications: deletedNotifs.count };
+  }
+
+  // F-760: Plattform-Statistiken als CSV exportieren
+  async exportPlatformStatsCsv(): Promise<string> {
+    const stats = await this.platformStats();
+    const dashboard = await this.getDashboardMetrics();
+    const mrrArr = await this.getMRRARR();
+    const lines = [
+      'metric,value',
+      `totalUsers,${stats.totalUsers}`,
+      `publishedWorks,${stats.publishedWorks}`,
+      `activeLoans,${stats.activeLoans}`,
+      `pendingPayoutCents,${stats.pendingPayoutCents}`,
+      `newUsersToday,${dashboard.newUsers.today}`,
+      `newUsersWeek,${dashboard.newUsers.week}`,
+      `newUsersMonth,${dashboard.newUsers.month}`,
+      `revenueTodayCents,${dashboard.revenue.todayCents}`,
+      `revenueWeekCents,${dashboard.revenue.weekCents}`,
+      `revenueMonthCents,${dashboard.revenue.monthCents}`,
+      `mrrCents,${mrrArr.mrrCents}`,
+      `arrCents,${mrrArr.arrCents}`,
+      `reportQueueCount,${dashboard.reportQueueCount}`,
+    ];
+    return lines.join('\n');
   }
 }

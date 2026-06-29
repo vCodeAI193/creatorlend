@@ -206,4 +206,58 @@ export class NotificationsService {
     }
     return { processed: users.length };
   }
+
+  // F-673: Benachrichtigung archivieren
+  async archiveNotification(userId: string, id: string) {
+    const notif = await this.prisma.notification.findFirst({ where: { id, userId } });
+    if (!notif) throw new NotFoundException('notification_not_found');
+    return this.prisma.notification.update({
+      where: { id },
+      data: { archivedAt: new Date() },
+    });
+  }
+
+  // F-673: Alle älteren als 30 Tage archivieren (via scheduler)
+  async archiveOldNotifications() {
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const result = await this.prisma.notification.updateMany({
+      where: { archivedAt: null, createdAt: { lt: cutoff } },
+      data: { archivedAt: new Date() },
+    });
+    return { archived: result.count };
+  }
+
+  // F-643: Benachrichtigung unter Berücksichtigung stiller Stunden anlegen
+  async createWithQuietHoursCheck(input: { userId: string; type: string; title: string; body?: string; data?: Prisma.InputJsonValue }) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { quietHoursStart: true, quietHoursEnd: true },
+    });
+    if (user?.quietHoursStart != null && user?.quietHoursEnd != null) {
+      const hour = new Date().getUTCHours();
+      const start = user.quietHoursStart;
+      const end = user.quietHoursEnd;
+      const inQuiet = start <= end ? hour >= start && hour < end : hour >= start || hour < end;
+      if (inQuiet) return null; // Skip during quiet hours
+    }
+    return this.create(input);
+  }
+
+  // F-642: Digest-Modus setzen
+  async setDigestMode(userId: string, mode: 'INSTANT' | 'HOURLY' | 'DAILY' | 'WEEKLY' | null) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { notifDigestMode: mode },
+      select: { id: true, notifDigestMode: true },
+    });
+  }
+
+  // F-643: Stille Stunden setzen
+  async setQuietHours(userId: string, start: number | null, end: number | null) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { quietHoursStart: start, quietHoursEnd: end },
+      select: { id: true, quietHoursStart: true, quietHoursEnd: true },
+    });
+  }
 }

@@ -438,4 +438,99 @@ export class AdminController {
   getReportQueue(@Query("status") status?: string) {
     return this.admin.getReportQueue(status);
   }
+
+  // GET /api/v1/admin/dashboard – Dashboard-Metriken (F-709/710/711/712)
+  @Get("dashboard")
+  getDashboardMetrics() {
+    return this.admin.getDashboardMetrics();
+  }
+
+  // POST /api/v1/admin/users/:id/impersonate – Nutzer imitieren (F-715)
+  @Post("users/:id/impersonate")
+  impersonateUser(@CurrentUser() adminId: string, @Param("id") id: string) {
+    return this.admin.impersonateUser(adminId, id);
+  }
+
+  // PUT /api/v1/admin/users/:id/tags – Admin-Tags setzen (F-717)
+  @Put("users/:id/tags")
+  setUserTags(
+    @CurrentUser() adminId: string,
+    @Param("id") id: string,
+    @Body("tags") tags: string[],
+  ) {
+    return this.admin.setUserTags(adminId, id, tags);
+  }
+
+  // GET /api/v1/admin/users/by-tag/:tag – Nutzer nach Tag (F-717)
+  @Get("users/by-tag/:tag")
+  getUsersByTag(@Param("tag") tag: string) {
+    return this.admin.getUsersByTag(tag);
+  }
+
+  // POST /api/v1/admin/users/mass-email – Massen-E-Mail senden (F-718)
+  @Post("users/mass-email")
+  sendMassEmail(
+    @Body("filter") filter: { role?: string; tag?: string },
+    @Body("subject") subject: string,
+    @Body("body") body: string,
+  ) {
+    return this.admin.sendMassEmail(filter ?? {}, subject, body);
+  }
+
+  // PATCH /api/v1/admin/users/:id/fraud-score – Betrugs-Score setzen (F-738)
+  @Patch("users/:id/fraud-score")
+  setUserFraudScore(
+    @CurrentUser() adminId: string,
+    @Param("id") id: string,
+    @Body("score") score: number,
+  ) {
+    return this.admin.setUserFraudScore(adminId, id, score);
+  }
+
+  // GET /api/v1/admin/users/high-fraud – Nutzer mit hohem Betrugs-Score (F-738)
+  @Get("users/high-fraud")
+  listHighFraudUsers(@Query("minScore") minScore?: string) {
+    return this.admin.listHighFraudUsers(minScore ? Number(minScore) : undefined);
+  }
+
+  // POST /api/v1/admin/maintenance – Wartungsmodus setzen (F-742)
+  @Post("maintenance")
+  setMaintenanceMode(
+    @CurrentUser() adminId: string,
+    @Body("active") active: boolean,
+    @Body("message") message?: string,
+  ) {
+    return this.admin.setMaintenanceMode(active, message, adminId);
+  }
+
+  // GET /api/v1/admin/analytics/dau-wau-mau – DAU/WAU/MAU (F-778)
+  @Get("analytics/dau-wau-mau")
+  getDAUWAUMAU() {
+    return this.admin.getDAUWAUMAU();
+  }
+
+  // GET /api/v1/admin/analytics/mrr-arr – MRR/ARR (F-770)
+  @Get("analytics/mrr-arr")
+  getMRRARR() {
+    return this.admin.getMRRARR();
+  }
+
+  // POST /api/v1/admin/reports/auto-assign – Meldungen automatisch zuweisen (F-723)
+  @Post("reports/auto-assign")
+  autoAssignReports() {
+    return this.admin.autoAssignReports();
+  }
+
+  // POST /api/v1/admin/retention-cleanup – Datenbereinigung (F-749)
+  @Post("retention-cleanup")
+  runRetentionPolicyCleanup(@Body("retentionYears") retentionYears?: number) {
+    return this.admin.runRetentionPolicyCleanup(retentionYears);
+  }
+
+  // GET /api/v1/admin/stats.csv – Plattform-Statistiken als CSV (F-760)
+  @Get("stats.csv")
+  @Header("Content-Type", "text/csv")
+  exportPlatformStatsCsv() {
+    return this.admin.exportPlatformStatsCsv();
+  }
 }
