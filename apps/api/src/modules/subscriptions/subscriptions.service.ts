@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type Stripe from "stripe";
 import type { SubscriptionStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -268,5 +268,62 @@ export class SubscriptionsService {
       default:
         this.logger.debug(`Unbehandeltes Stripe-Event: ${event.type}`);
     }
+  }
+
+  /**
+   * Abo pausieren (F-529): legt einen SubscriptionPause-Datensatz an und
+   * setzt das Abo auf PAUSED. Automatisches Fortsetzen nach resumeInDays Tagen.
+   */
+  async pauseSubscription(userId: string, resumeInDays = 30) {
+    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
+    if (!sub) throw new NotFoundException("no_subscription");
+    if (sub.status !== "ACTIVE") throw new BadRequestException("subscription_not_active");
+    const resumeAt = new Date(Date.now() + resumeInDays * 24 * 60 * 60 * 1000);
+    await this.prisma.$transaction([
+      this.prisma.subscription.update({ where: { userId }, data: { status: "PAUSED" as never } }),
+      this.prisma.subscriptionPause.create({ data: { userId, resumeAt } }),
+    ]);
+    await this.recordEvent(userId, "PAUSED", sub.plan);
+    return { paused: true, resumeAt };
+  }
+
+  /**
+   * Abo manuell fortsetzen (F-529): markiert offene Pause als erledigt
+   * und setzt das Abo auf ACTIVE.
+   */
+  async resumeSubscription(userId: string) {
+    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
+    if (!sub) throw new NotFoundException("no_subscription");
+    const pause = await this.prisma.subscriptionPause.findFirst({
+      where: { userId, resumedAt: null },
+    });
+    await this.prisma.$transaction([
+      this.prisma.subscription.update({ where: { userId }, data: { status: "ACTIVE" } }),
+      ...(pause
+        ? [this.prisma.subscriptionPause.update({ where: { id: pause.id }, data: { resumedAt: new Date() } })]
+        : []),
+    ]);
+    await this.recordEvent(userId, "RESUMED", sub.plan);
+    return { resumed: true };
+  }
+
+  /**
+   * Alle fälligen pausierten Abos automatisch wieder aktivieren.
+   * Wird stündlich vom Scheduler aufgerufen.
+   */
+  async autoResumePaused(): Promise<{ resumed: number }> {
+    const now = new Date();
+    const duePauses = await this.prisma.subscriptionPause.findMany({
+      where: { resumeAt: { lte: now }, resumedAt: null },
+      select: { id: true, userId: true },
+    });
+    if (duePauses.length === 0) return { resumed: 0 };
+    for (const p of duePauses) {
+      await this.prisma.$transaction([
+        this.prisma.subscription.update({ where: { userId: p.userId }, data: { status: "ACTIVE" } }),
+        this.prisma.subscriptionPause.update({ where: { id: p.id }, data: { resumedAt: now } }),
+      ]);
+    }
+    return { resumed: duePauses.length };
   }
 }

@@ -88,4 +88,30 @@ export class AdminController {
   ) {
     return this.admin.reviewReport(actorId, id, action);
   }
+
+  // POST /api/v1/admin/users/:id/notes – Admin-Notiz anlegen (F-081)
+  @Post("users/:id/notes")
+  addNote(
+    @CurrentUser() actorId: string,
+    @Param("id") id: string,
+    @Body("body") body: string,
+  ) {
+    return this.admin.addNote(actorId, id, body);
+  }
+
+  // GET /api/v1/admin/users/:id/notes – Admin-Notizen abrufen (F-081)
+  @Get("users/:id/notes")
+  getNotes(@Param("id") id: string) {
+    return this.admin.getNotes(id);
+  }
+
+  // POST /api/v1/admin/users/:id/badges – Badge vergeben (F-065)
+  @Post("users/:id/badges")
+  awardBadge(
+    @CurrentUser() actorId: string,
+    @Param("id") id: string,
+    @Body("type") type: string,
+  ) {
+    return this.admin.awardBadge(actorId, id, type);
+  }
 }

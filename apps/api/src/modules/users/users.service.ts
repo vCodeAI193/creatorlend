@@ -235,4 +235,140 @@ export class UsersService {
       });
     });
   }
+
+  /**
+   * Profilvervollständigungs-Score (F-068).
+   */
+  async profileCompletion(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException("user_not_found");
+    const checks = {
+      displayName: !!user.displayName,
+      bio: !!user.bio,
+      avatar: !!user.avatarUrl,
+      slug: !!user.slug,
+      socialLinks: !!(user.socialLinks && Object.keys(user.socialLinks as object).length > 0),
+      emailVerified: user.emailVerified,
+      termsAccepted: !!user.termsAcceptedAt,
+    };
+    const completedSteps = Object.values(checks).filter(Boolean).length;
+    const totalSteps = Object.keys(checks).length;
+    return { score: Math.round((completedSteps / totalSteps) * 100), checks, completedSteps, totalSteps };
+  }
+
+  /**
+   * Nutzer:in zu Künstler:in upgraden (F-027).
+   */
+  async upgradeToArtist(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException("user_not_found");
+    if (user.role === "ARTIST" || user.role === "ADMIN") return { message: "already_artist", role: user.role };
+    return this.prisma.user.update({ where: { id: userId }, data: { role: "ARTIST" } });
+  }
+
+  /**
+   * Einladungscode erstellen (F-062).
+   */
+  async createInviteCode(userId: string, input: { maxUses?: number; bonusLoans?: number; expiresAt?: string }) {
+    return this.prisma.inviteCode.create({
+      data: {
+        creatorId: userId,
+        maxUses: input.maxUses ?? 1,
+        bonusLoans: input.bonusLoans ?? 0,
+        expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
+      },
+    });
+  }
+
+  /**
+   * Eigene Einladungscodes abrufen (F-062).
+   */
+  async getInviteCodes(userId: string) {
+    return this.prisma.inviteCode.findMany({
+      where: { creatorId: userId },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  /**
+   * Eigene Milestones abrufen (F-469).
+   */
+  async getMilestones(userId: string) {
+    return this.prisma.milestone.findMany({
+      where: { userId },
+      orderBy: { reachedAt: "desc" },
+    });
+  }
+
+  /**
+   * Badges eines Nutzers abrufen (F-065).
+   */
+  async getBadges(userId: string) {
+    return this.prisma.userBadge.findMany({ where: { userId }, orderBy: { awardedAt: "desc" } });
+  }
+
+  /**
+   * Benachrichtigungs-Einstellungen setzen (F-642, F-643).
+   */
+  async setNotificationSettings(userId: string, settings: { quietHoursStart?: number; quietHoursEnd?: number; notifDigestMode?: string }) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(settings.quietHoursStart !== undefined ? { quietHoursStart: settings.quietHoursStart } : {}),
+        ...(settings.quietHoursEnd !== undefined ? { quietHoursEnd: settings.quietHoursEnd } : {}),
+        ...(settings.notifDigestMode !== undefined ? { notifDigestMode: settings.notifDigestMode } : {}),
+      },
+      select: { id: true, quietHoursStart: true, quietHoursEnd: true, notifDigestMode: true },
+    });
+  }
+
+  /**
+   * Alle persönlichen Notizen zu Werken abrufen (F-126).
+   */
+  async listWorkNotes(userId: string) {
+    return this.prisma.workNote.findMany({
+      where: { userId },
+      include: { work: { select: { id: true, title: true } } },
+      orderBy: { updatedAt: "desc" },
+    });
+  }
+
+  /** DSGVO-Anonymisierung (F-024): wird vom Scheduler 30 Tage nach Soft-Delete aufgerufen. */
+  async anonymizeAccount(userId: string): Promise<void> {
+    const anon = `anonymized_${userId.slice(0, 8)}@anonymized.creatorlend`;
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        email: anon,
+        passwordHash: "anonymized",
+        displayName: "Gelöschter Account",
+        emailVerified: false,
+        stripeConnectAccountId: null,
+        bio: null,
+        avatarUrl: null,
+        socialLinks: {},
+      },
+    });
+  }
+
+  /** Konto nach Soft-Delete wiederherstellen (F-024). */
+  async recoverAccount(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException("user_not_found");
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { deletedAt: null },
+    });
+  }
+
+  /**
+   * Referral-Statistiken (F-063): eigener Einladungscode und Anzahl eingeladener Nutzer:innen.
+   */
+  async getReferralStats(userId: string) {
+    const [user, referredCount] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId }, select: { referralCode: true } }),
+      this.prisma.user.count({ where: { referredById: userId } }),
+    ]);
+    return { referralCode: user?.referralCode, referredCount };
+  }
 }

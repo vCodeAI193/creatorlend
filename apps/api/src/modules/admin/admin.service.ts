@@ -117,6 +117,35 @@ export class AdminService {
     return this.reports.review(adminId, reportId, action);
   }
 
+  /** Admin-Notiz zu einem Nutzer anlegen (F-081). */
+  async addNote(authorId: string, userId: string, body: string) {
+    const note = await this.prisma.adminNote.create({
+      data: { authorId, userId, body },
+    });
+    await this.writeAuditLog(authorId, "ADD_ADMIN_NOTE", "User", userId, { noteId: note.id });
+    return note;
+  }
+
+  /** Admin-Notizen zu einem Nutzer auflisten (F-081). */
+  async getNotes(userId: string) {
+    return this.prisma.adminNote.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: { author: { select: { id: true, displayName: true } } },
+    });
+  }
+
+  /** Badge an Nutzer:in vergeben (F-065). */
+  async awardBadge(actorId: string, userId: string, type: string) {
+    const badge = await this.prisma.userBadge.upsert({
+      where: { userId_type: { userId, type } },
+      create: { userId, type },
+      update: {},
+    });
+    await this.writeAuditLog(actorId, "AWARD_BADGE", "User", userId, { type });
+    return badge;
+  }
+
   /** Globale Plattform-Statistiken für das Dashboard (B-151). */
   async platformStats() {
     const [users, works, loans, pendingPayouts] = await Promise.all([

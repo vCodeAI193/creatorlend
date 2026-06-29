@@ -20,7 +20,7 @@ describe("LoansService – Sweeps (Phase 2)", () => {
       createMany: jest.fn().mockResolvedValue({ count: 2 }),
     } as never;
 
-    const service = new LoansService(prisma, media, notifications);
+    const service = new LoansService(prisma, media, notifications, { sendEmail: jest.fn() } as never);
     const result = await service.runExpirySweep();
 
     expect(result.expired).toBe(2);
@@ -38,7 +38,7 @@ describe("LoansService – Sweeps (Phase 2)", () => {
     } as never;
     const notifications = { createMany: jest.fn() } as never;
 
-    const service = new LoansService(prisma, media, notifications);
+    const service = new LoansService(prisma, media, notifications, { sendEmail: jest.fn() } as never);
     const result = await service.runExpirySweep();
 
     expect(result.expired).toBe(0);
@@ -52,7 +52,7 @@ describe("LoansService – Sweeps (Phase 2)", () => {
     } as never;
     const notifications = {} as never;
 
-    const service = new LoansService(prisma, media, notifications);
+    const service = new LoansService(prisma, media, notifications, { sendEmail: jest.fn() } as never);
     const result = await service.resetExpiredQuotas();
 
     expect(result.reset).toBe(3);

@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from "@nestjs/common";
 import { UserRole } from "@creatorlend/shared";
@@ -16,6 +17,7 @@ import { Roles } from "../auth/roles.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { WorksService } from "./works.service";
 import { ChapterMarksService } from "./chapter-marks.service";
+import { TranscriptsService } from "./transcripts.service";
 import { RatingsService } from "../engagement/ratings.service";
 import { ReviewsService } from "../engagement/reviews.service";
 import { CreateWorkDto } from "./dto/create-work.dto";
@@ -26,6 +28,7 @@ export class WorksController {
   constructor(
     private readonly works: WorksService,
     private readonly chapters: ChapterMarksService,
+    private readonly transcripts: TranscriptsService,
     private readonly ratings: RatingsService,
     private readonly reviews: ReviewsService,
   ) {}
@@ -66,6 +69,30 @@ export class WorksController {
     return this.works.unpublish(userId, id);
   }
 
+  // POST /api/v1/works/:id/archive – Werk archivieren (ARTIST)
+  @Post(":id/archive")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  archive(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.works.archive(userId, id);
+  }
+
+  // POST /api/v1/works/:id/restore – Werk wiederherstellen (ARTIST)
+  @Post(":id/restore")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  restore(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.works.restore(userId, id);
+  }
+
+  // POST /api/v1/works/:id/clone – Werk klonen (ARTIST)
+  @Post(":id/clone")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  clone(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.works.clone(userId, id);
+  }
+
   // GET /api/v1/works – Suche / Discovery (öffentlich, B-036/B-038/B-061 facets)
   @Get()
   search(
@@ -100,6 +127,36 @@ export class WorksController {
   @Get("trending")
   trending(@Query("limit") limit?: string) {
     return this.works.trending(limit ? Number(limit) : 20);
+  }
+
+  // GET /api/v1/works/recommendations – Personalisierte Empfehlungen
+  @Get("recommendations")
+  @UseGuards(JwtAuthGuard)
+  recommendations(@CurrentUser() userId: string, @Query("limit") limit?: string) {
+    return this.works.recommendations(userId, limit ? Number(limit) : 20);
+  }
+
+  // GET /api/v1/works/artist/:artistId/feed.rss – RSS-Feed eines Künstlers
+  @Get("artist/:artistId/feed.rss")
+  async rssFeed(
+    @Param("artistId") artistId: string,
+    @Query("limit") limit?: string,
+    @Res() res?: any,
+  ) {
+    const artist = await this.works.getArtistForFeed(artistId);
+    const works = await this.works.listByArtist(artistId, "PUBLISHED", limit ? Number(limit) : 50);
+    const items = (works as Array<{ id: string; title: string; description: string | null; createdAt: Date; type: string }>)
+      .map(
+        (w) =>
+          `<item><title>${w.title}</title><description>${w.description ?? ""}</description><pubDate>${w.createdAt.toUTCString()}</pubDate><link>/works/${w.id}</link></item>`,
+      )
+      .join("\n");
+    const feed = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>${(artist as { displayName: string } | null)?.displayName ?? artistId}</title><link>/users/${artistId}/profile</link>${items}</channel></rss>`;
+    if (res) {
+      res.setHeader("Content-Type", "application/rss+xml");
+      res.send(feed);
+    }
+    return feed;
   }
 
   // GET /api/v1/works/:id – Detailansicht inkl. Vorschau-URL (öffentlich)
@@ -192,5 +249,67 @@ export class WorksController {
     @Param("markId") markId: string,
   ) {
     return this.chapters.remove(userId, workId, markId);
+  }
+
+  // POST /api/v1/works/:id/transcripts – Transkript anlegen/aktualisieren (ARTIST)
+  @Post(":id/transcripts")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  upsertTranscript(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body() body: { language: string; format: string; content: string },
+  ) {
+    return this.transcripts.upsert(userId, workId, body);
+  }
+
+  // GET /api/v1/works/:id/transcripts – Transkript-Liste
+  @Get(":id/transcripts")
+  listTranscripts(@Param("id") workId: string) {
+    return this.transcripts.list(workId);
+  }
+
+  // GET /api/v1/works/:id/transcripts/search – Volltext-Suche im Transkript
+  @Get(":id/transcripts/search")
+  searchTranscript(@Param("id") workId: string, @Query("q") q: string) {
+    return this.transcripts.search(workId, q);
+  }
+
+  // GET /api/v1/works/:id/transcripts/:lang – Transkript abrufen
+  @Get(":id/transcripts/:lang")
+  getTranscript(@Param("id") workId: string, @Param("lang") lang: string) {
+    return this.transcripts.get(workId, lang);
+  }
+
+  // DELETE /api/v1/works/:id/transcripts/:lang – Transkript löschen (ARTIST)
+  @Delete(":id/transcripts/:lang")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  deleteTranscript(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Param("lang") lang: string,
+  ) {
+    return this.transcripts.delete(userId, workId, lang);
+  }
+
+  // POST /api/v1/works/:id/versions – neue Version hochladen (ARTIST)
+  @Post(":id/versions")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  addVersion(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body() body: { mediaKey: string; note?: string },
+  ) {
+    return this.works.addVersion(userId, workId, body.mediaKey, body.note);
+  }
+
+  // GET /api/v1/works/:id/versions – Versionshistorie (ARTIST)
+  @Get(":id/versions")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getVersionHistory(@CurrentUser() userId: string, @Param("id") workId: string) {
+    return this.works.getVersionHistory(userId, workId);
   }
 }

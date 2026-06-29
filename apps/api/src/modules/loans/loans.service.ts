@@ -11,6 +11,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { MediaService } from "../media/media.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { NotificationType } from "../notifications/notification-types";
+import { MailService } from "../mail/mail.service";
 
 /**
  * Kern-Logik des Leihmodells:
@@ -22,10 +23,14 @@ import { NotificationType } from "../notifications/notification-types";
  */
 @Injectable()
 export class LoansService {
+  // F-372: Revenue share – platform keeps platformFeePct, artist gets the rest
+  private readonly platformFeePct = parseInt(process.env.PLATFORM_FEE_PERCENT ?? "30", 10) / 100;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
     private readonly notifications: NotificationsService,
+    private readonly mail: MailService,
   ) {}
 
   private expiryFromNow(now: Date, days = 7): Date {
@@ -79,11 +84,12 @@ export class LoansService {
         },
       });
 
+      // F-372: Revenue share – artist gets (1 - platformFeePct) of loanPriceCents
       await tx.payoutItem.create({
         data: {
           artistId: work.artistId,
           loanId: created.id,
-          amountCents: work.loanPriceCents,
+          amountCents: Math.round(work.loanPriceCents * (1 - this.platformFeePct)),
           status: "PENDING",
         },
       });
@@ -109,6 +115,16 @@ export class LoansService {
       body: `Dein Werk wurde geliehen (+${work.loanPriceCents} Cent).`,
       data: { loanId: loan.id, workId },
     });
+
+    // Leih-Bestätigung per E-Mail (F-320)
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (user) {
+      this.mail.sendEmail(
+        user.email,
+        "Leih-Bestätigung",
+        `Du hast "${work.title}" geliehen. Gültig bis: ${loan.expiresAt.toLocaleDateString("de")}.`,
+      ).catch(() => { /* ignore mail errors */ });
+    }
 
     return this.withAccess(loan);
   }
@@ -159,11 +175,12 @@ export class LoansService {
         },
       });
 
+      // F-372: Revenue share – artist gets (1 - platformFeePct) of loanPriceCents
       await tx.payoutItem.create({
         data: {
           artistId: work.artistId,
           loanId: loan.id,
-          amountCents: work.loanPriceCents,
+          amountCents: Math.round(work.loanPriceCents * (1 - this.platformFeePct)),
           status: "PENDING",
         },
       });
@@ -330,5 +347,44 @@ export class LoansService {
       where: { loanId: id },
     });
     return { loanId: id, positionSeconds: progress?.positionSeconds ?? 0 };
+  }
+
+  /**
+   * Hör-Statistiken des Nutzers (F-270-272).
+   */
+  async getListeningStats(userId: string) {
+    const [totalLoans, completedLoans, totalRenewals] = await Promise.all([
+      this.prisma.loan.count({ where: { userId } }),
+      this.prisma.loan.count({ where: { userId, status: "EXPIRED" } }),
+      this.prisma.loan.aggregate({ where: { userId }, _sum: { renewalCount: true } }),
+    ]);
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    const recentLoans = await this.prisma.loan.findMany({
+      where: { userId, createdAt: { gte: twelveMonthsAgo } },
+      select: { createdAt: true, work: { select: { type: true } } },
+    });
+    const byMonth: Record<string, number> = {};
+    recentLoans.forEach((l) => {
+      const key = `${l.createdAt.getFullYear()}-${String(l.createdAt.getMonth() + 1).padStart(2, "0")}`;
+      byMonth[key] = (byMonth[key] ?? 0) + 1;
+    });
+    return { totalLoans, completedLoans, totalRenewals: totalRenewals._sum.renewalCount ?? 0, byMonth };
+  }
+
+  /**
+   * Jahresrückblick (F-271).
+   */
+  async getYearInReview(userId: string, year: number) {
+    const start = new Date(year, 0, 1);
+    const end = new Date(year + 1, 0, 1);
+    const loans = await this.prisma.loan.findMany({
+      where: { userId, createdAt: { gte: start, lt: end } },
+      include: { work: { select: { type: true, title: true, artist: { select: { displayName: true } } } } },
+    });
+    const byType: Record<string, number> = {};
+    loans.forEach((l) => { byType[l.work.type] = (byType[l.work.type] ?? 0) + 1; });
+    const favoriteType = Object.entries(byType).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    return { year, totalLoans: loans.length, byType, favoriteType };
   }
 }

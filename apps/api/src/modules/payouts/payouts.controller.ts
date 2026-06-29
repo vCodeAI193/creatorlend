@@ -1,17 +1,21 @@
-import { Controller, Get, Post, Query, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from "@nestjs/common";
 import { UserRole } from "@creatorlend/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { PayoutsService } from "./payouts.service";
+import { TipsService } from "./tips.service";
 
 /** Vergütung & Auszahlungen für Künstler:innen. */
 @Controller("payouts")
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ARTIST)
 export class PayoutsController {
-  constructor(private readonly payouts: PayoutsService) {}
+  constructor(
+    private readonly payouts: PayoutsService,
+    private readonly tips: TipsService,
+  ) {}
 
   // GET /api/v1/payouts/summary – aggregierte Vergütung
   @Get("summary")
@@ -77,5 +81,40 @@ export class PayoutsController {
       year ? Number(year) : now.getFullYear(),
       month ? Number(month) : now.getMonth() + 1,
     );
+  }
+
+  // GET /api/v1/payouts/chart?period=month&limit=12 – Einnahmen-Diagramm (F-372)
+  @Get("chart")
+  earningsChart(
+    @CurrentUser() userId: string,
+    @Query("period") period: "day" | "week" | "month" = "month",
+    @Query("limit") limit = "12",
+  ) {
+    return this.payouts.earningsChart(userId, period, Number(limit));
+  }
+
+  // POST /api/v1/payouts/tip – Trinkgeld an Künstler:in senden (F-323)
+  @Post("tip")
+  @Roles(UserRole.LISTENER)
+  sendTip(
+    @CurrentUser() userId: string,
+    @Body("artistId") artistId: string,
+    @Body("amountCents") amountCents: number,
+    @Body("workId") workId?: string,
+    @Body("message") message?: string,
+  ) {
+    return this.tips.sendTip(userId, artistId, amountCents, workId, message);
+  }
+
+  // GET /api/v1/payouts/tips – eingegangene Trinkgelder (F-323)
+  @Get("tips")
+  receivedTips(@CurrentUser() userId: string) {
+    return this.tips.receivedTips(userId);
+  }
+
+  // GET /api/v1/payouts/tips/:artistId – Trinkgelder für bestimmten Künstler
+  @Get("tips/:artistId")
+  tipsByArtist(@Param("artistId") artistId: string) {
+    return this.tips.receivedTips(artistId);
   }
 }

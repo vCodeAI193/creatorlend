@@ -70,4 +70,19 @@ export class SubscriptionsController {
   billingHistory(@CurrentUser() userId: string, @Query("page") page = "1") {
     return this.subscriptions.getBillingHistory(userId, Number(page));
   }
+
+  // POST /api/v1/subscriptions/me/pause – Abo pausieren (F-529)
+  @Post("me/pause")
+  pause(
+    @CurrentUser() userId: string,
+    @Body("resumeInDays") resumeInDays?: number,
+  ) {
+    return this.subscriptions.pauseSubscription(userId, resumeInDays);
+  }
+
+  // POST /api/v1/subscriptions/me/resume – Abo fortsetzen (F-529)
+  @Post("me/resume")
+  resume(@CurrentUser() userId: string) {
+    return this.subscriptions.resumeSubscription(userId);
+  }
 }

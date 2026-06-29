@@ -13,6 +13,7 @@ interface RegisterInput {
   password: string;
   displayName: string;
   role?: "LISTENER" | "ARTIST" | "ADMIN";
+  referralCode?: string;
 }
 
 const REFRESH_TTL_DAYS = 30;
@@ -31,12 +32,22 @@ export class AuthService {
   // --- Registrierung & Login ---
 
   async register(input: RegisterInput) {
+    const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+
+    let referredById: string | undefined;
+    if (input.referralCode) {
+      const inviter = await this.prisma.user.findUnique({ where: { referralCode: input.referralCode } });
+      if (inviter) referredById = inviter.id;
+    }
+
     const user = await this.prisma.user.create({
       data: {
         email: input.email,
         passwordHash: hashPassword(input.password),
         displayName: input.displayName,
         role: input.role ?? "LISTENER",
+        referralCode: newReferralCode,
+        ...(referredById ? { referredById } : {}),
       },
     });
 

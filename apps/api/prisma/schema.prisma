@@ -60,6 +60,17 @@ model User {
   stripeConnectAccountId String? // Stripe-Connect-Konto für Auszahlungen
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  loginAttempts   Int       @default(0)
+  lockedUntil     DateTime?              // Account-Sperre nach Fehlversuchen (F-012)
+  deletedAt       DateTime?              // Soft-Delete (F-024)
+  termsVersion    String?                // Akzeptierte AGB-Version (F-047)
+  termsAcceptedAt DateTime?              // Zeitpunkt der Zustimmung
+  analyticsOptOut Boolean   @default(false) // Analytics-Opt-out (F-076)
+  referralCode    String?    @unique // Einladungscode (F-063)
+  referredById    String?    // Wer hat eingeladen?
+  notifDigestMode String?    // Benachrichtigungsdigest-Modus (F-642)
+  quietHoursStart Int?       // Stille Stunden: Beginn (0-23) (F-643)
+  quietHoursEnd   Int?       // Stille Stunden: Ende (0-23) (F-643)
 
   works         Work[]         @relation("ArtistWorks")
   loans         Loan[]
@@ -80,6 +91,24 @@ model User {
   reports           Report[]           @relation("UserReports")
   subscriptionEvents SubscriptionEvent[]
   unsubscribeTokens UnsubscribeToken[]
+  emailChangeRequests EmailChangeRequest[]
+  savedSearches SavedSearch[]
+  series              Series[]           @relation("ArtistSeries")
+  artistPosts         ArtistPost[]       @relation("ArtistPosts")
+  postComments        ArtistPostComment[] @relation("PostComments")
+  sentMessages        DirectMessage[]    @relation("SentMessages")
+  receivedMessages    DirectMessage[]    @relation("ReceivedMessages")
+  blocking            Block[]            @relation("Blocking")
+  blockedBy           Block[]            @relation("Blocked")
+  sentTips            Tip[]              @relation("SentTips")
+  receivedTips        Tip[]              @relation("ReceivedTips")
+  milestones          Milestone[]
+  inviteCodes         InviteCode[]
+  userBadges          UserBadge[]
+  bookmarks           Bookmark[]
+  workNotes           WorkNote[]
+  adminNotes          AdminNote[]
+  authoredNotes       AdminNote[]        @relation("AuthoredNotes")
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -130,6 +159,7 @@ model Work {
   previewKey      String? // Vorschau-/Trailer-Datei (kostenlos hörbar, B-043)
   coverKey        String? // Cover-Bild-Schlüssel im Object Storage (B-056)
   publishAt       DateTime?  // Geplante Veröffentlichung (B-040)
+  archivedAt      DateTime?  // Archiviert (F-097)
   status          WorkStatus @default(DRAFT)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
@@ -142,6 +172,11 @@ model Work {
   ratings       Rating[]
   reviews       Review[]
   playlistItems PlaylistItem[]
+  seriesItems   SeriesItem[]
+  transcripts   Transcript[]
+  workVersions  WorkVersion[]
+  bookmarks     Bookmark[]
+  workNotes     WorkNote[]
 
   @@index([artistId])
   @@index([type, status])
@@ -467,4 +502,268 @@ model UnsubscribeToken {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+// E-Mail-Änderungsanfragen mit Verifizierung (F-020)
+model EmailChangeRequest {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  newEmail    String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// Gespeicherte Suchanfragen (F-199)
+model SavedSearch {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  query     Json     // serialisierter Suchfilter
+  notify    Boolean  @default(false) // E-Mail bei neuen Treffern
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Serien für mehrteilige Werke (F-117)
+model Series {
+  id          String   @id @default(uuid())
+  artistId    String
+  artist      User     @relation("ArtistSeries", fields: [artistId], references: [id])
+  title       String
+  description String?
+  coverKey    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  works SeriesItem[]
+
+  @@index([artistId])
+}
+
+model SeriesItem {
+  id        String   @id @default(uuid())
+  seriesId  String
+  series    Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  workId    String
+  work      Work     @relation(fields: [workId], references: [id])
+  position  Int      @default(0)
+
+  @@unique([seriesId, workId])
+  @@index([seriesId])
+}
+
+// Transkripte für Werke (F-103)
+model Transcript {
+  id        String   @id @default(uuid())
+  workId    String
+  work      Work     @relation(fields: [workId], references: [id])
+  language  String   @default("de")
+  format    String   @default("TXT") // TXT | SRT | VTT
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workId, language])
+  @@index([workId])
+}
+
+// Künstler:innen-Beiträge / Ankündigungen (F-446)
+model ArtistPost {
+  id          String    @id @default(uuid())
+  artistId    String
+  artist      User      @relation("ArtistPosts", fields: [artistId], references: [id])
+  title       String
+  body        String
+  imageUrl    String?
+  linkUrl     String?
+  publishedAt DateTime?
+  scheduledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  reactions ArtistPostReaction[]
+  comments  ArtistPostComment[]
+
+  @@index([artistId])
+  @@index([publishedAt])
+}
+
+model ArtistPostReaction {
+  id        String     @id @default(uuid())
+  postId    String
+  post      ArtistPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  emoji     String     @default("👍")
+  createdAt DateTime   @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+model ArtistPostComment {
+  id        String     @id @default(uuid())
+  postId    String
+  post      ArtistPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation("PostComments", fields: [userId], references: [id])
+  body      String
+  hidden    Boolean    @default(false)
+  createdAt DateTime   @default(now())
+
+  @@index([postId])
+}
+
+// Direktnachrichten (F-580)
+model DirectMessage {
+  id          String    @id @default(uuid())
+  senderId    String
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
+  recipientId String
+  recipient   User      @relation("ReceivedMessages", fields: [recipientId], references: [id])
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([senderId, recipientId])
+  @@index([recipientId])
+}
+
+// Nutzer:innen blockieren (F-577)
+model Block {
+  id        String   @id @default(uuid())
+  blockerId String
+  blocker   User     @relation("Blocking", fields: [blockerId], references: [id])
+  blockedId String
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+}
+
+// Work-Versionen (F-095)
+model WorkVersion {
+  id        String   @id @default(uuid())
+  workId    String
+  work      Work     @relation(fields: [workId], references: [id])
+  mediaKey  String
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([workId])
+}
+
+// Lesezeichen (F-124)
+model Bookmark {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  workId          String
+  work            Work     @relation(fields: [workId], references: [id])
+  positionSeconds Int
+  label           String?
+  createdAt       DateTime @default(now())
+
+  @@index([userId, workId])
+}
+
+// Persönliche Notizen zu Werken (F-126)
+model WorkNote {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  workId    String
+  work      Work     @relation(fields: [workId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, workId])
+  @@index([userId])
+}
+
+// Einladungscodes (F-062)
+model InviteCode {
+  id         String    @id @default(uuid())
+  creatorId  String
+  creator    User      @relation(fields: [creatorId], references: [id])
+  code       String    @unique @default(uuid())
+  maxUses    Int       @default(1)
+  usesCount  Int       @default(0)
+  bonusLoans Int       @default(0)
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([creatorId])
+}
+
+// Meilensteine / Gamification (F-064)
+model Milestone {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  reachedAt DateTime @default(now())
+
+  @@unique([userId, type])
+  @@index([userId])
+}
+
+// Badges / Abzeichen (F-065)
+model UserBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  awardedAt DateTime @default(now())
+
+  @@unique([userId, type])
+  @@index([userId])
+}
+
+// Admin-Notizen zu Nutzern (B-155)
+model AdminNote {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  authorId  String
+  author    User     @relation("AuthoredNotes", fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Abo-Pausierung (F-307)
+model SubscriptionPause {
+  id        String    @id @default(uuid())
+  userId    String    @unique
+  pausedAt  DateTime  @default(now())
+  resumeAt  DateTime
+  resumedAt DateTime?
+
+  @@index([resumeAt])
+}
+
+// Trinkgeld / Micropayment (F-323)
+model Tip {
+  id          String   @id @default(uuid())
+  senderId    String
+  sender      User     @relation("SentTips", fields: [senderId], references: [id])
+  artistId    String
+  artist      User     @relation("ReceivedTips", fields: [artistId], references: [id])
+  workId      String?
+  amountCents Int
+  message     String?
+  createdAt   DateTime @default(now())
+
+  @@index([senderId])
+  @@index([artistId])
 }

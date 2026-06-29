@@ -289,6 +289,84 @@ export class WorksService {
     return { ...work, preview: this.getPreviewUrl(work) };
   }
 
+  async archive(artistId: string, workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
+    return this.prisma.work.update({ where: { id: workId }, data: { archivedAt: new Date(), status: 'DRAFT' } });
+  }
+
+  async restore(artistId: string, workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
+    return this.prisma.work.update({ where: { id: workId }, data: { archivedAt: null } });
+  }
+
+  async clone(artistId: string, workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
+    const { id, createdAt, updatedAt, borrowCount, publishAt, archivedAt, ...rest } = work;
+    return this.prisma.work.create({ data: { ...rest, title: `${work.title} (Kopie)`, status: 'DRAFT', borrowCount: 0 } });
+  }
+
+  async recommendations(userId: string, limit = 20) {
+    const loans = await this.prisma.loan.findMany({
+      where: { userId },
+      include: { work: { select: { type: true, category: true, artistId: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+    const borrowedIds = new Set(loans.map(l => l.workId));
+    if (loans.length === 0) {
+      return this.prisma.work.findMany({
+        where: { status: 'PUBLISHED' },
+        orderBy: { borrowCount: 'desc' },
+        take: limit,
+        select: { id: true, title: true, type: true, loanPriceCents: true, borrowCount: true, artist: { select: { displayName: true } } },
+      });
+    }
+    const typeCount: Record<string, number> = {};
+    loans.forEach(l => { typeCount[l.work.type] = (typeCount[l.work.type] ?? 0) + 1; });
+    const preferredType = Object.entries(typeCount).sort((a, b) => b[1] - a[1])[0]?.[0];
+    return this.prisma.work.findMany({
+      where: {
+        status: 'PUBLISHED',
+        type: preferredType as never ?? undefined,
+        id: { notIn: [...borrowedIds] },
+      },
+      orderBy: { borrowCount: 'desc' },
+      take: limit,
+      select: { id: true, title: true, type: true, loanPriceCents: true, borrowCount: true, artist: { select: { displayName: true } } },
+    });
+  }
+
+  async getArtistForFeed(artistId: string) {
+    return this.prisma.user.findUnique({ where: { id: artistId }, select: { displayName: true } });
+  }
+
+  async listByArtist(artistId: string, status: string, limit: number) {
+    return this.prisma.work.findMany({
+      where: { artistId, status: status as never },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: { id: true, title: true, description: true, createdAt: true, type: true },
+    });
+  }
+
+  async addVersion(artistId: string, workId: string, mediaKey: string, note?: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
+    if (work.mediaKey) {
+      await this.prisma.workVersion.create({ data: { workId, mediaKey: work.mediaKey, note } });
+    }
+    return this.prisma.work.update({ where: { id: workId }, data: { mediaKey } });
+  }
+
+  async getVersionHistory(artistId: string, workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
+    return this.prisma.workVersion.findMany({ where: { workId }, orderBy: { createdAt: 'desc' } });
+  }
+
   /**
    * Detaillierte Metriken je Werk für das Künstler-Dashboard (B-142).
    * Nur der Eigentümer darf seine eigenen Werke einsehen.

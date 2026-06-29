@@ -27,6 +27,18 @@ export class LoansController {
     return this.loans.listForUser(userId, status);
   }
 
+  // GET /api/v1/loans/stats – Hör-Statistiken (F-270-272)
+  @Get("stats")
+  listeningStats(@CurrentUser() userId: string) {
+    return this.loans.getListeningStats(userId);
+  }
+
+  // GET /api/v1/loans/year-in-review?year=2026 – Jahresrückblick (F-271)
+  @Get("year-in-review")
+  yearInReview(@CurrentUser() userId: string, @Query("year") year?: string) {
+    return this.loans.getYearInReview(userId, year ? Number(year) : new Date().getFullYear());
+  }
+
   // GET /api/v1/loans/:id
   @Get(":id")
   get(@CurrentUser() userId: string, @Param("id") id: string) {

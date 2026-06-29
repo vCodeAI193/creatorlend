@@ -5,10 +5,16 @@ import { FollowsService } from "./follows.service";
 import { WishlistService } from "./wishlist.service";
 import { RatingsService } from "./ratings.service";
 import { ReviewsService } from "./reviews.service";
+import { ArtistPostsService } from "./artist-posts.service";
+import { ArtistPostsController } from "./artist-posts.controller";
+import { MessagesService } from "./messages.service";
+import { MessagesController } from "./messages.controller";
+import { BlocksService } from "./blocks.service";
+import { BookmarksService } from "./bookmarks.service";
 
 @Module({
-  controllers: [EngagementController],
-  providers: [FavoritesService, FollowsService, WishlistService, RatingsService, ReviewsService],
-  exports: [FavoritesService, FollowsService, WishlistService, RatingsService, ReviewsService],
+  controllers: [EngagementController, ArtistPostsController, MessagesController],
+  providers: [FavoritesService, FollowsService, WishlistService, RatingsService, ReviewsService, ArtistPostsService, MessagesService, BlocksService, BookmarksService],
+  exports: [FavoritesService, FollowsService, WishlistService, RatingsService, ReviewsService, ArtistPostsService, MessagesService, BlocksService, BookmarksService],
 })
 export class EngagementModule {}

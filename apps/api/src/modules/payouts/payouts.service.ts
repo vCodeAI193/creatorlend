@@ -271,4 +271,28 @@ export class PayoutsService {
       items,
     };
   }
+
+  /**
+   * Einnahmen-Diagramm (F-372): aggregiert PayoutItems nach Periode.
+   * period: 'day' | 'week' | 'month' (default 'month'), limit: max Buckets.
+   */
+  async earningsChart(artistId: string, period: "day" | "week" | "month" = "month", limit = 12) {
+    const truncFn = period;
+    const rows = await this.prisma.$queryRaw<
+      Array<{ bucket: Date; amountCents: bigint; items: bigint }>
+    >`
+      SELECT
+        DATE_TRUNC(${truncFn}, pi."createdAt") AS bucket,
+        SUM(pi."amountCents")                  AS "amountCents",
+        COUNT(*)                               AS items
+      FROM "PayoutItem" pi
+      WHERE pi."artistId" = ${artistId}
+      GROUP BY 1
+      ORDER BY 1 DESC
+      LIMIT ${limit}
+    `;
+    return rows
+      .map((r) => ({ bucket: r.bucket, amountCents: Number(r.amountCents), items: Number(r.items) }))
+      .reverse();
+  }
 }

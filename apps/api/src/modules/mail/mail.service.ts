@@ -20,6 +20,10 @@ export class MailService {
     this.logger.log(`[MAIL] an ${message.to}: ${message.subject}`);
   }
 
+  async sendEmail(to: string, subject: string, body: string): Promise<void> {
+    await this.send({ to, subject, body });
+  }
+
   async sendVerifyEmail(to: string, token: string): Promise<void> {
     await this.send({
       to,

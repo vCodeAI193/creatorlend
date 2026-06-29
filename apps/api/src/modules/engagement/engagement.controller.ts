@@ -18,6 +18,7 @@ import { FollowsService } from "./follows.service";
 import { WishlistService } from "./wishlist.service";
 import { RatingsService } from "./ratings.service";
 import { ReviewsService } from "./reviews.service";
+import { BookmarksService } from "./bookmarks.service";
 import { FavoriteDto } from "./dto/favorite.dto";
 import { FollowDto } from "./dto/follow.dto";
 
@@ -32,6 +33,7 @@ export class EngagementController {
     private readonly wishlist: WishlistService,
     private readonly ratings: RatingsService,
     private readonly reviews: ReviewsService,
+    private readonly bookmarks: BookmarksService,
   ) {}
 
   // POST /api/v1/favorites
@@ -74,6 +76,22 @@ export class EngagementController {
   @Get("follows/feed")
   activityFeed(@CurrentUser() userId: string, @Query("limit") limit?: string) {
     return this.follows.activityFeed(userId, limit ? Number(limit) : 30);
+  }
+
+  // GET /api/v1/follows/growth – Follower-Wachstum (F-273) – ARTIST only via Roles override per route
+  @Get("follows/growth")
+  followerGrowth(@CurrentUser() userId: string) {
+    return this.follows.followerGrowth(userId);
+  }
+
+  // POST /api/v1/follows/newsletter – Newsletter an Follower:innen (F-274)
+  @Post("follows/newsletter")
+  sendNewsletter(
+    @CurrentUser() userId: string,
+    @Body("subject") subject: string,
+    @Body("body") body: string,
+  ) {
+    return this.follows.sendNewsletterToFollowers(userId, subject, body);
   }
 
   // POST /api/v1/wishlist – Werk zur Wunschliste hinzufügen (B-031)
@@ -124,5 +142,28 @@ export class EngagementController {
   @Delete("reviews/:workId")
   removeReview(@CurrentUser() userId: string, @Param("workId") workId: string) {
     return this.reviews.remove(userId, workId);
+  }
+
+  // POST /api/v1/bookmarks – Lesezeichen setzen (F-323)
+  @Post("bookmarks")
+  addBookmark(
+    @CurrentUser() userId: string,
+    @Body("workId") workId: string,
+    @Body("positionSeconds") positionSeconds: number,
+    @Body("label") label?: string,
+  ) {
+    return this.bookmarks.add(userId, workId, positionSeconds, label);
+  }
+
+  // GET /api/v1/bookmarks – eigene Lesezeichen (F-323)
+  @Get("bookmarks")
+  listBookmarks(@CurrentUser() userId: string, @Query("workId") workId?: string) {
+    return this.bookmarks.list(userId, workId);
+  }
+
+  // DELETE /api/v1/bookmarks/:id – Lesezeichen entfernen (F-323)
+  @Delete("bookmarks/:id")
+  removeBookmark(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.bookmarks.remove(userId, id);
   }
 }
