@@ -13,6 +13,6 @@ import { ReportsModule } from "../reports/reports.module";
   imports: [PromoCodesModule, ReportsModule],
   controllers: [AdminController, PublicAdminController],
   providers: [AdminService, DmcaService, FeatureFlagsService, AnalyticsService, AbTestingService],
-  exports: [DmcaService, FeatureFlagsService, AnalyticsService, AbTestingService],
+  exports: [AdminService, DmcaService, FeatureFlagsService, AnalyticsService, AbTestingService],
 })
 export class AdminModule {}

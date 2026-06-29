@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PromoCodesService } from "../promo-codes/promo-codes.service";
 import { ReportsService } from "../reports/reports.service";
+import { MailService } from "../mail/mail.service";
 
 const PAGE_SIZE = 50;
 
@@ -12,22 +13,49 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly promoCodes: PromoCodesService,
     private readonly reports: ReportsService,
+    private readonly mail: MailService,
   ) {}
 
-  /** Nutzer:innen auflisten mit Paginierung. */
-  async listUsers(page: number, role?: string) {
-    const where = role ? { role: role as never } : {};
+  /** Nutzer:innen auflisten mit Paginierung und Filtern (F-381). */
+  async listUsers(filters: {
+    role?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  } = {}) {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? PAGE_SIZE;
+    const where: Record<string, unknown> = {};
+    if (filters.role) where.role = filters.role;
+    if (filters.search) {
+      (where as Record<string, unknown>)["OR"] = [
+        { email: { contains: filters.search, mode: "insensitive" } },
+        { displayName: { contains: filters.search, mode: "insensitive" } },
+      ];
+    }
+    if (filters.status === "suspended") {
+      (where as Record<string, unknown>)["suspendedAt"] = { not: null };
+    } else if (filters.status === "deleted") {
+      (where as Record<string, unknown>)["deletedAt"] = { not: null };
+    } else if (filters.status === "active") {
+      (where as Record<string, unknown>)["suspendedAt"] = null;
+      (where as Record<string, unknown>)["deletedAt"] = null;
+    }
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
-        where,
-        select: { id: true, email: true, displayName: true, role: true, emailVerified: true, createdAt: true },
+        where: where as never,
+        select: {
+          id: true, email: true, displayName: true, role: true,
+          emailVerified: true, createdAt: true, suspendedAt: true, deletedAt: true,
+        },
         orderBy: { createdAt: "desc" },
-        skip: (Math.max(page, 1) - 1) * PAGE_SIZE,
-        take: PAGE_SIZE,
+        skip: (Math.max(page, 1) - 1) * limit,
+        take: limit,
       }),
-      this.prisma.user.count({ where }),
+      this.prisma.user.count({ where: where as never }),
     ]);
-    return { users, meta: { page, pageSize: PAGE_SIZE, total } };
+    return { users, meta: { page, pageSize: limit, total } };
   }
 
   private async writeAuditLog(actorId: string, action: string, targetType?: string, targetId?: string, meta?: object) {
@@ -48,8 +76,48 @@ export class AdminService {
     return { entries, meta: { page, total } };
   }
 
-  /** Nutzer:in sperren – anonymisiert das Konto (B-154). */
-  async suspendUser(actorId: string, targetId: string) {
+  /** Nutzer:in Rolle setzen (F-382). */
+  async setUserRole(adminId: string, userId: string, role: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException("user_not_found");
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { role: role as never },
+      select: { id: true, email: true, displayName: true, role: true },
+    });
+    await this.writeAuditLog(adminId, "SET_USER_ROLE", "User", userId, { role });
+    return updated;
+  }
+
+  /** Admin: Abo manuell aktivieren (F-383). */
+  async activateSubscription(userId: string, plan: string, durationDays: number) {
+    const periodEnd = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+    const PLAN_QUOTA: Record<string, number> = { BASIC: 5, STANDARD: 10, PREMIUM: 30 };
+    const quota = PLAN_QUOTA[plan] ?? 10;
+    const sub = await this.prisma.subscription.upsert({
+      where: { userId },
+      create: {
+        userId,
+        plan,
+        status: "ACTIVE",
+        loanQuotaPerPeriod: quota,
+        loansUsedThisPeriod: 0,
+        currentPeriodEnd: periodEnd,
+      },
+      update: {
+        plan,
+        status: "ACTIVE",
+        loanQuotaPerPeriod: quota,
+        loansUsedThisPeriod: 0,
+        currentPeriodEnd: periodEnd,
+        cancelAtPeriodEnd: false,
+      },
+    });
+    return sub;
+  }
+
+  /** Nutzer:in sperren (F-384). */
+  async suspendUser(actorId: string, targetId: string, reason?: string) {
     const user = await this.prisma.user.findUnique({ where: { id: targetId } });
     if (!user) throw new NotFoundException("user_not_found");
     // Tokens widerrufen + Passwort ungültig machen
@@ -59,23 +127,59 @@ export class AdminService {
     });
     await this.prisma.user.update({
       where: { id: targetId },
-      data: { passwordHash: "suspended" },
+      data: { passwordHash: "suspended", suspendedAt: new Date(), suspendReason: reason ?? null },
     });
-    await this.writeAuditLog(actorId, "SUSPEND_USER", "User", targetId);
+    await this.writeAuditLog(actorId, "SUSPEND_USER", "User", targetId, { reason });
     return { suspended: true, userId: targetId };
   }
 
-  /** Nutzer:in reaktivieren – setzt Passwort-Hash auf Reset-Anforderung (B-154). */
+  /** Nutzer:in Sperre aufheben (F-384). */
   async unsuspendUser(actorId: string, targetId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: targetId } });
     if (!user) throw new NotFoundException("user_not_found");
     await this.prisma.user.update({
       where: { id: targetId },
-      // Setzt Hash zurück; Nutzer:in muss Passwort zurücksetzen.
-      data: { passwordHash: "requires_password_reset" },
+      data: { passwordHash: "requires_password_reset", suspendedAt: null, suspendReason: null },
     });
     await this.writeAuditLog(actorId, "UNSUSPEND_USER", "User", targetId);
     return { unsuspended: true, userId: targetId };
+  }
+
+  /** Werk genehmigen: status=PUBLISHED (F-385). */
+  async approveWork(adminId: string, workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work) throw new NotFoundException("work_not_found");
+    const updated = await this.prisma.work.update({
+      where: { id: workId },
+      data: { status: "PUBLISHED" },
+    });
+    await this.writeAuditLog(adminId, "APPROVE_WORK", "Work", workId);
+    return updated;
+  }
+
+  /** Werk ablehnen: status=DRAFT + E-Mail (F-385). */
+  async rejectWork(adminId: string, workId: string, reason?: string) {
+    const work = await this.prisma.work.findUnique({
+      where: { id: workId },
+      include: { artist: { select: { email: true, displayName: true } } },
+    });
+    if (!work) throw new NotFoundException("work_not_found");
+    const updated = await this.prisma.work.update({
+      where: { id: workId },
+      data: { status: "DRAFT" },
+    });
+    // Send rejection email if available
+    try {
+      await this.mail.sendEmail(
+        work.artist.email,
+        "Dein Werk wurde abgelehnt",
+        `Hallo ${work.artist.displayName},\n\ndein Werk „${work.title}" wurde abgelehnt.${reason ? `\n\nGrund: ${reason}` : ""}\n\nDu kannst das Werk überarbeiten und erneut einreichen.`,
+      );
+    } catch (_) {
+      // non-critical
+    }
+    await this.writeAuditLog(adminId, "REJECT_WORK", "Work", workId, { reason });
+    return updated;
   }
 
   /** Werk moderieren: depublizieren (B-152). */
@@ -144,6 +248,55 @@ export class AdminService {
     });
     await this.writeAuditLog(actorId, "AWARD_BADGE", "User", userId, { type });
     return badge;
+  }
+
+  // ─── F-390: Announcements ─────────────────────────────────────────────────
+
+  /** Ankündigung erstellen (F-390). */
+  async createAnnouncement(
+    adminId: string,
+    data: { title: string; body: string; type?: string; startsAt?: string; endsAt?: string },
+  ) {
+    const announcement = await this.prisma.announcement.create({
+      data: {
+        title: data.title,
+        body: data.body,
+        type: data.type ?? "INFO",
+        startsAt: data.startsAt ? new Date(data.startsAt) : null,
+        endsAt: data.endsAt ? new Date(data.endsAt) : null,
+        createdBy: adminId,
+      },
+    });
+    await this.writeAuditLog(adminId, "CREATE_ANNOUNCEMENT", "Announcement", announcement.id);
+    return announcement;
+  }
+
+  /** Ankündigungen auflisten (F-390). */
+  async listAnnouncements(activeOnly = false) {
+    const now = new Date();
+    const where: Record<string, unknown> = {};
+    if (activeOnly) {
+      where.active = true;
+      where["OR"] = [
+        { startsAt: null },
+        { startsAt: { lte: now } },
+      ];
+      // Also filter endsAt
+    }
+    const items = await this.prisma.announcement.findMany({
+      where: where as never,
+      orderBy: { createdAt: "desc" },
+    });
+    if (activeOnly) {
+      return items.filter((a) => !a.endsAt || a.endsAt > now);
+    }
+    return items;
+  }
+
+  /** Ankündigung löschen (F-390). */
+  async deleteAnnouncement(id: string) {
+    await this.prisma.announcement.delete({ where: { id } });
+    return { deleted: true };
   }
 
   /** Globale Plattform-Statistiken für das Dashboard (B-151). */

@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query } from "@nestjs/common";
 import { DmcaService } from "./dmca.service";
 import { FeatureFlagsService } from "./feature-flags.service";
+import { AdminService } from "./admin.service";
 
 /**
  * Public endpoints for DMCA filing and Feature Flag checks.
@@ -11,6 +12,7 @@ export class PublicAdminController {
   constructor(
     private readonly dmca: DmcaService,
     private readonly featureFlags: FeatureFlagsService,
+    private readonly admin: AdminService,
   ) {}
 
   // POST /api/v1/admin/dmca – DMCA-Antrag einreichen (öffentlich, F-730)
@@ -36,5 +38,11 @@ export class PublicAdminController {
   ) {
     const enabled = await this.featureFlags.isEnabled(key, userId);
     return { enabled };
+  }
+
+  // GET /api/v1/announcements – aktive Ankündigungen (F-390, öffentlich)
+  @Get("announcements")
+  listAnnouncements() {
+    return this.admin.listAnnouncements(true);
   }
 }

@@ -29,19 +29,55 @@ export class AdminController {
     return this.admin.platformStats();
   }
 
-  // GET /api/v1/admin/users?role=ARTIST&page=1
+  // GET /api/v1/admin/users?role=ARTIST&search=max&page=1 (F-381)
   @Get("users")
-  listUsers(@Query("page") page = "1", @Query("role") role?: string) {
-    return this.admin.listUsers(Number(page), role);
+  listUsers(
+    @Query("page") page = "1",
+    @Query("role") role?: string,
+    @Query("status") status?: string,
+    @Query("search") search?: string,
+    @Query("limit") limit?: string,
+  ) {
+    return this.admin.listUsers({
+      role,
+      status,
+      search,
+      page: Number(page),
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
-  // POST /api/v1/admin/users/:id/suspend – Nutzer:in sperren (B-154)
+  // PATCH /api/v1/admin/users/:id/role – Rolle setzen (F-382)
+  @Patch("users/:id/role")
+  setUserRole(
+    @CurrentUser() actorId: string,
+    @Param("id") id: string,
+    @Body("role") role: string,
+  ) {
+    return this.admin.setUserRole(actorId, id, role);
+  }
+
+  // POST /api/v1/admin/users/:id/subscription – Abo manuell aktivieren (F-383)
+  @Post("users/:id/subscription")
+  activateSubscription(
+    @Param("id") id: string,
+    @Body("plan") plan: string,
+    @Body("durationDays") durationDays: number,
+  ) {
+    return this.admin.activateSubscription(id, plan, durationDays);
+  }
+
+  // POST /api/v1/admin/users/:id/suspend – Nutzer:in sperren (F-384)
   @Post("users/:id/suspend")
-  suspend(@CurrentUser() actorId: string, @Param("id") id: string) {
-    return this.admin.suspendUser(actorId, id);
+  suspend(
+    @CurrentUser() actorId: string,
+    @Param("id") id: string,
+    @Body("reason") reason?: string,
+  ) {
+    return this.admin.suspendUser(actorId, id, reason);
   }
 
-  // POST /api/v1/admin/users/:id/unsuspend – Sperre aufheben (B-154)
+  // POST /api/v1/admin/users/:id/unsuspend – Sperre aufheben (F-384)
   @Post("users/:id/unsuspend")
   unsuspend(@CurrentUser() actorId: string, @Param("id") id: string) {
     return this.admin.unsuspendUser(actorId, id);
@@ -55,6 +91,44 @@ export class AdminController {
     @Body("action") action: "unpublish" | "publish",
   ) {
     return this.admin.moderateWork(actorId, id, action);
+  }
+
+  // POST /api/v1/admin/works/:id/approve – Werk genehmigen (F-385)
+  @Post("works/:id/approve")
+  approveWork(@CurrentUser() actorId: string, @Param("id") id: string) {
+    return this.admin.approveWork(actorId, id);
+  }
+
+  // POST /api/v1/admin/works/:id/reject – Werk ablehnen (F-385)
+  @Post("works/:id/reject")
+  rejectWork(
+    @CurrentUser() actorId: string,
+    @Param("id") id: string,
+    @Body("reason") reason?: string,
+  ) {
+    return this.admin.rejectWork(actorId, id, reason);
+  }
+
+  // POST /api/v1/admin/announcements – Ankündigung erstellen (F-390)
+  @Post("announcements")
+  createAnnouncement(
+    @CurrentUser() actorId: string,
+    @Body()
+    body: { title: string; body: string; type?: string; startsAt?: string; endsAt?: string },
+  ) {
+    return this.admin.createAnnouncement(actorId, body);
+  }
+
+  // GET /api/v1/admin/announcements – Ankündigungen auflisten (F-390)
+  @Get("announcements")
+  listAnnouncementsAdmin() {
+    return this.admin.listAnnouncements(false);
+  }
+
+  // DELETE /api/v1/admin/announcements/:id – Ankündigung löschen (F-390)
+  @Delete("announcements/:id")
+  deleteAnnouncement(@Param("id") id: string) {
+    return this.admin.deleteAnnouncement(id);
   }
 
   // GET /api/v1/admin/audit-log – Audit-Log (B-155)
