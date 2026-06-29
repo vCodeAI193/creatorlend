@@ -35,4 +35,18 @@ export class AiService {
           : `„${work.title}" hat bisher wenige Bewertungen.`;
     return { workId, critique, generated: false };
   }
+
+  // POST /api/v1/works/:id/cover-art – AI Cover Art Generation stub (F-1000)
+  async generateCoverArt(workId: string, style = 'abstract') {
+    const work = await this.prisma.work.findUnique({ where: { id: workId }, select: { title: true, type: true } });
+    if (!work) throw new Error('work_not_found');
+    // Stub: in prod call DALL-E or Stable Diffusion API
+    return {
+      workId,
+      prompt: `${style} cover art for ${work.type} titled "${work.title}"`,
+      imageUrl: null,
+      isStub: true,
+      message: 'Cover art generation requires AI API key in production',
+    };
+  }
 }

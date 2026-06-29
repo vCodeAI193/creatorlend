@@ -27,6 +27,8 @@ import { LyricsService } from "./lyrics.service";
 import { WorkTranslationsService } from "./translations.service";
 import { CollectionsService } from "./collections.service";
 import { AiService } from "./ai.service";
+import { GeoService } from "./geo.service";
+import { AutoTranslateService } from "./auto-translate.service";
 import { CreateWorkDto } from "./dto/create-work.dto";
 import { UpdateWorkDto } from "./dto/update-work.dto";
 
@@ -44,6 +46,8 @@ export class WorksController {
     private readonly translations: WorkTranslationsService,
     private readonly collections: CollectionsService,
     private readonly ai: AiService,
+    private readonly geo: GeoService,
+    private readonly autoTranslate: AutoTranslateService,
   ) {}
 
   // POST /api/v1/works – Werk einstellen (ARTIST)
@@ -665,5 +669,31 @@ export class WorksController {
     @Param("workId") workId: string,
   ) {
     return this.collections.removeWork(userId, collectionId, workId);
+  }
+
+  // GET /api/v1/works/:id/geo-check – Geo-blocking check (F-914)
+  @Get(":id/geo-check")
+  geoCheck(@Param("id") id: string, @Query("ip") ip?: string) {
+    return this.geo.checkAccess(id, ip ?? '');
+  }
+
+  // POST /api/v1/works/:id/auto-translate – Auto-Translation stub (F-915)
+  @Post(":id/auto-translate")
+  @UseGuards(JwtAuthGuard)
+  autoTranslateWork(
+    @Param("id") id: string,
+    @Body("targetLanguage") targetLanguage: string,
+  ) {
+    return this.autoTranslate.autoTranslate(id, targetLanguage);
+  }
+
+  // POST /api/v1/works/:id/cover-art – AI Cover Art Generation stub (F-1000)
+  @Post(":id/cover-art")
+  @UseGuards(JwtAuthGuard)
+  generateCoverArt(
+    @Param("id") id: string,
+    @Body("style") style?: string,
+  ) {
+    return this.ai.generateCoverArt(id, style);
   }
 }

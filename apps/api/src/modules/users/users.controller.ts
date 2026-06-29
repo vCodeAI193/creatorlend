@@ -8,6 +8,7 @@ import { ConsentService } from "./consent.service";
 import { CookieConsentService } from "./cookie-consent.service";
 import { AbTestingService } from "../admin/ab-testing.service";
 import { ApiKeysService } from "../auth/api-keys.service";
+import { MarketingService } from "../mail/marketing.service";
 
 // Plan quota limits (stub)
 const PLAN_LIMITS: Record<string, { requestsPerMinute: number }> = {
@@ -27,6 +28,7 @@ export class UsersController {
     private readonly cookieConsent: CookieConsentService,
     private readonly abTests: AbTestingService,
     private readonly apiKeys: ApiKeysService,
+    private readonly marketing: MarketingService,
   ) {}
 
   // GET /api/v1/users/me – eigenes Profil
@@ -329,5 +331,39 @@ export class UsersController {
       requestsPerMinute: limits.requestsPerMinute,
       used: 0, // Stub: would be populated from a rate-limit store
     };
+  }
+
+  // POST /api/v1/users/me/marketing/sync – Mailchimp sync stub (F-911)
+  @Post("me/marketing/sync")
+  marketingSync(@CurrentUser() userId: string) {
+    return this.marketing.syncToMailchimp(userId);
+  }
+
+  // DELETE /api/v1/users/me/marketing/subscribe – Unsubscribe from marketing (F-911)
+  @Delete("me/marketing/subscribe")
+  marketingUnsubscribe(@CurrentUser() userId: string) {
+    return this.marketing.unsubscribeFromMarketing(userId);
+  }
+
+  // POST /api/v1/users/me/marketing/track-event – Track marketing event stub (F-911)
+  @Post("me/marketing/track-event")
+  marketingTrackEvent(
+    @CurrentUser() userId: string,
+    @Body("event") event: string,
+    @Body("properties") properties?: Record<string, unknown>,
+  ) {
+    return this.marketing.trackEvent(userId, event, properties);
+  }
+
+  // POST /api/v1/users/me/ccpa/do-not-sell – Do Not Sell My Data (F-946)
+  @Post("me/ccpa/do-not-sell")
+  ccpaDoNotSell(@CurrentUser() userId: string) {
+    return this.users.setDoNotSell(userId);
+  }
+
+  // GET /api/v1/users/me/ccpa/data-request – CCPA Data Request (F-946)
+  @Get("me/ccpa/data-request")
+  ccpaDataRequest(@CurrentUser() userId: string) {
+    return this.users.exportData(userId); // reuse existing GDPR export
   }
 }

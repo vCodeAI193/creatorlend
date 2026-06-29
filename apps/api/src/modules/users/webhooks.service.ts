@@ -63,6 +63,20 @@ export class WebhooksSubscriptionService {
   }
 
   /**
+   * F-887/F-888/F-889/F-890: Integration webhook stubs (Zapier/IFTTT/n8n/Make).
+   * The existing WebhookSubscription system is fully compatible with Zapier, IFTTT,
+   * n8n, and Make.com catchHook triggers. Partners register their endpoint URL via
+   * POST /webhooks, then receive signed payloads on their webhook.site or custom URL.
+   * No additional implementation required — standard WebhookSubscription covers it.
+   *
+   * Stub helper for Zapier-style dispatch (logs; real HTTP call done by dispatch()).
+   */
+  async dispatchToZapier(event: string, payload: Record<string, unknown>) {
+    // Stub: Zapier uses standard HTTP POST webhooks — just use the existing dispatch()
+    return this.dispatch(event, payload);
+  }
+
+  /**
    * Retries failed (undelivered) webhook deliveries with exponential backoff.
    * A delivery is "failed" when succeededAt is null and attempts > 0.
    */

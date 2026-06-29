@@ -13,10 +13,11 @@ import { WebhooksSubscriptionController } from "./webhooks.controller";
 import { ApiKeysService } from "../auth/api-keys.service";
 import { I18nController } from "./i18n.controller";
 import { LocaleService } from "./locale.service";
+import { TranslationManagementService } from "./translation-management.service";
 
 @Module({
   controllers: [UsersController, CookieConsentController, WebhooksSubscriptionController, I18nController],
-  providers: [UsersService, BlocksService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, FeatureFlagsService, WebhooksSubscriptionService, ApiKeysService, LocaleService],
-  exports: [UsersService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, WebhooksSubscriptionService, ApiKeysService, LocaleService],
+  providers: [UsersService, BlocksService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, FeatureFlagsService, WebhooksSubscriptionService, ApiKeysService, LocaleService, TranslationManagementService],
+  exports: [UsersService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, WebhooksSubscriptionService, ApiKeysService, LocaleService, TranslationManagementService],
 })
 export class UsersModule {}

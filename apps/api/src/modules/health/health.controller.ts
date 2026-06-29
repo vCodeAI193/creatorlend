@@ -1,11 +1,15 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Header } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { MetricsService } from "./metrics.service";
 
 const VERSION = process.env.npm_package_version ?? "0.1.0";
 
 @Controller("health")
 export class HealthController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly metricsService: MetricsService,
+  ) {}
 
   // GET /api/v1/health – no auth required
   @Get()
@@ -56,6 +60,24 @@ export class HealthController {
       version: '2.2',
       apiConformance: 'Partial',
       features: ['aria-labels', 'keyboard-navigation', 'high-contrast-mode', 'font-size-preferences', 'reduced-motion'],
+    };
+  }
+
+  // GET /metrics – Prometheus metrics endpoint (F-919)
+  @Get('/metrics')
+  @Header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
+  async metrics() { return this.metricsService.collect(); }
+
+  // GET /api/v1/health/changelog – API Changelog (F-882)
+  @Get('/changelog')
+  changelog() {
+    return {
+      currentVersion: '1.0.0',
+      versions: [
+        { version: '1.0.0', date: '2026-06-29', changes: ['Initial release', 'Core loan workflow', 'Artist payout system'] },
+      ],
+      deprecations: [],
+      policy: 'Endpoints deprecated with Deprecation + Sunset headers 90 days before removal.',
     };
   }
 }

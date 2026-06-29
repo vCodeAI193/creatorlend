@@ -10,6 +10,8 @@ import { DmcaService } from "./dmca.service";
 import { FeatureFlagsService } from "./feature-flags.service";
 import { AnalyticsService } from "./analytics.service";
 import { AbTestingService } from "./ab-testing.service";
+import { ContentModerationService } from "./content-moderation.service";
+import { TranslationManagementService } from "../users/translation-management.service";
 
 /** Admin-Backoffice (B-151, B-152, B-154, B-155). Nur für ADMIN-Rolle. */
 @ApiTags("admin")
@@ -23,6 +25,8 @@ export class AdminController {
     private readonly featureFlags: FeatureFlagsService,
     private readonly analytics: AnalyticsService,
     private readonly abTesting: AbTestingService,
+    private readonly contentModeration: ContentModerationService,
+    private readonly translationManagement: TranslationManagementService,
   ) {}
 
   // GET /api/v1/admin/stats – Plattform-Übersicht
@@ -331,5 +335,24 @@ export class AdminController {
   @Get("ab-tests/:testKey/results")
   getAbTestResults(@Param("testKey") testKey: string) {
     return this.abTesting.getTestResults(testKey);
+  }
+
+  // POST /api/v1/admin/works/:id/moderate-ai – AI Content Moderation stub (F-916)
+  @Post("works/:id/moderate-ai")
+  moderateWorkAi(@Param("id") id: string) {
+    return this.contentModeration.moderateWork(id);
+  }
+
+  // GET /api/v1/admin/translations/pending – Pending translations list (F-996)
+  @Get("translations/pending")
+  listPendingTranslations(@Query("lang") lang = 'en') {
+    return this.translationManagement.listPendingTranslations(lang);
+  }
+
+  // GET /api/v1/admin/translations/export.csv – Export pending translations as CSV (F-996)
+  @Get("translations/export.csv")
+  @Header("Content-Type", "text/csv")
+  async exportTranslationsCsv(@Query("lang") lang = 'en') {
+    return this.translationManagement.exportForTranslation(lang);
   }
 }

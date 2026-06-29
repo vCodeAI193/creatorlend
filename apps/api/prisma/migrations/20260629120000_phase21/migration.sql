@@ -1,0 +1,6 @@
+-- Phase 21: Prometheus metrics, API changelog, geo-blocking, auto-translate,
+-- AI content moderation, marketing automation, CCPA compliance, integration
+-- stubs, cover art generation, translation management (F-882/911/914/915/916/919/946/996/1000)
+-- No schema changes required; all new functionality is service-layer only.
+-- profilingOptOut was already added in Phase 16.
+-- This is an empty migration.

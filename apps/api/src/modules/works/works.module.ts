@@ -17,11 +17,13 @@ import { CollectionsService } from "./collections.service";
 import { SitemapService } from "./sitemap.service";
 import { SitemapController } from "./sitemap.controller";
 import { AiService } from "./ai.service";
+import { GeoService } from "./geo.service";
+import { AutoTranslateService } from "./auto-translate.service";
 
 @Module({
   imports: [NotificationsModule, EngagementModule],
   controllers: [WorksController, SeriesController, RecommendationsController, SitemapController],
-  providers: [WorksService, WorksScheduler, ChapterMarksService, SeriesService, TranscriptsService, RecommendationsService, SubtitlesService, LyricsService, WorkTranslationsService, CollectionsService, SitemapService, AiService],
-  exports: [WorksService, ChapterMarksService, SeriesService, TranscriptsService, RecommendationsService, SubtitlesService, LyricsService, WorkTranslationsService, CollectionsService, SitemapService, AiService],
+  providers: [WorksService, WorksScheduler, ChapterMarksService, SeriesService, TranscriptsService, RecommendationsService, SubtitlesService, LyricsService, WorkTranslationsService, CollectionsService, SitemapService, AiService, GeoService, AutoTranslateService],
+  exports: [WorksService, ChapterMarksService, SeriesService, TranscriptsService, RecommendationsService, SubtitlesService, LyricsService, WorkTranslationsService, CollectionsService, SitemapService, AiService, GeoService, AutoTranslateService],
 })
 export class WorksModule {}

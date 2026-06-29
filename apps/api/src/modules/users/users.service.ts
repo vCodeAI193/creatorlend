@@ -553,4 +553,15 @@ export class UsersService {
       select: { id: true, highContrast: true, fontSize: true, reducedMotion: true },
     });
   }
+
+  // ─── F-946: CCPA Compliance ──────────────────────────────────────────────
+
+  /** Do Not Sell My Data (CCPA F-946). */
+  async setDoNotSell(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { profilingOptOut: true },
+    });
+    return { doNotSell: true, userId };
+  }
 }
