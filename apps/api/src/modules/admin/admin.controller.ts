@@ -397,4 +397,45 @@ export class AdminController {
   getFeaturedWorks() {
     return this.admin.getFeaturedWorks();
   }
+
+  // POST /api/v1/admin/payouts/:id/flag – Betrug markieren (F-391)
+  @Post("payouts/:id/flag")
+  flagPayout(@Param("id") id: string) {
+    return this.admin.flagPayoutItem(id, true);
+  }
+
+  // Delete /api/v1/admin/payouts/:id/flag – Betrug-Flag entfernen (F-391)
+  @Delete("payouts/:id/flag")
+  unflagPayout(@Param("id") id: string) {
+    return this.admin.flagPayoutItem(id, false);
+  }
+
+  // GET /api/v1/admin/payouts/flagged – Verdächtige Auszahlungen (F-391)
+  @Get("payouts/flagged")
+  listFlaggedPayouts() {
+    return this.admin.listFlaggedPayouts();
+  }
+
+  // POST /api/v1/admin/reports/:id/assign – Meldung zuweisen (F-721)
+  @Post("reports/:id/assign")
+  assignReport(@Param("id") id: string, @Body("assigneeId") assigneeId: string) {
+    return this.admin.assignReport(id, assigneeId);
+  }
+
+  // PATCH /api/v1/admin/reports/:id/status – Meldungs-Status setzen (F-722)
+  @Patch("reports/:id/status")
+  updateReportStatus(
+    @CurrentUser() actorId: string,
+    @Param("id") id: string,
+    @Body("status") status: string,
+    @Body("reviewNote") reviewNote?: string,
+  ) {
+    return this.admin.updateReportStatus(id, status, actorId, reviewNote);
+  }
+
+  // GET /api/v1/admin/reports/queue – Meldungs-Queue (F-720)
+  @Get("reports/queue")
+  getReportQueue(@Query("status") status?: string) {
+    return this.admin.getReportQueue(status);
+  }
 }

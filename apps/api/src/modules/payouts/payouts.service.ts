@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { NotificationType } from "../notifications/notification-types";
@@ -458,5 +458,24 @@ export class PayoutsService {
         ? { id: topWork.id, title: topWork.title, borrowCount: topWork.borrowCount }
         : null,
     };
+  }
+
+  // F-391: Betrug-Verdacht markieren / aufheben
+  async flagPayoutItemForFraud(payoutItemId: string, flagged: boolean) {
+    const item = await this.prisma.payoutItem.findUnique({ where: { id: payoutItemId } });
+    if (!item) throw new NotFoundException('payout_item_not_found');
+    return this.prisma.payoutItem.update({
+      where: { id: payoutItemId },
+      data: { flaggedForFraud: flagged },
+    });
+  }
+
+  // F-391: Liste aller verdächtigen Auszahlungen
+  async listFlaggedPayoutItems() {
+    return this.prisma.payoutItem.findMany({
+      where: { flaggedForFraud: true },
+      include: { artist: { select: { id: true, email: true, displayName: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 }

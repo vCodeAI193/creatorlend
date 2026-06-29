@@ -644,6 +644,23 @@ export class LoansService {
     return loan;
   }
 
+  // F-317: Leihe-Verlauf anonymisieren / löschen
+  async clearLoanHistory(userId: string) {
+    const result = await this.prisma.loan.deleteMany({
+      where: { userId, status: { in: ['EXPIRED', 'EXCHANGED'] } },
+    });
+    return { cleared: result.count };
+  }
+
+  // F-318: Privater Hör-Modus ein-/ausschalten
+  async setPrivateListeningMode(userId: string, enabled: boolean) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { privateListeningMode: enabled },
+      select: { id: true, privateListeningMode: true },
+    });
+  }
+
   /**
    * 48-Stunden-Erinnerung vor Ablauf (F-262).
    */

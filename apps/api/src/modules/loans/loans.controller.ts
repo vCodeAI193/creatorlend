@@ -224,4 +224,16 @@ export class LoansController {
   ) {
     return this.loans.giftLoan(userId, workId, recipientEmail);
   }
+
+  // DELETE /api/v1/loans/history – Leihe-Verlauf löschen (F-317)
+  @Delete("history")
+  clearLoanHistory(@CurrentUser() userId: string) {
+    return this.loans.clearLoanHistory(userId);
+  }
+
+  // POST /api/v1/loans/private-mode – privaten Hör-Modus setzen (F-318)
+  @Post("private-mode")
+  setPrivateMode(@CurrentUser() userId: string, @Body("enabled") enabled: boolean) {
+    return this.loans.setPrivateListeningMode(userId, enabled);
+  }
 }

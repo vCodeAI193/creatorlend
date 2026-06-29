@@ -66,4 +66,15 @@ export class ArtistPostsController {
   unpin(@CurrentUser() userId: string, @Param('id') id: string) {
     return this.posts.unpinPost(userId, id);
   }
+
+  // POST /api/v1/posts/newsletter – Newsletter an Follower senden (F-443)
+  @Post('newsletter')
+  @Roles(UserRole.ARTIST)
+  sendNewsletter(
+    @CurrentUser() userId: string,
+    @Body('subject') subject: string,
+    @Body('body') body: string,
+  ) {
+    return this.posts.sendNewsletterToFollowers(userId, subject, body);
+  }
 }

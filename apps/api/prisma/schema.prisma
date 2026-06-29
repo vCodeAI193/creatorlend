@@ -98,6 +98,7 @@ model User {
   deletionRequestedAt   DateTime?                   // F-024
   isDeactivated         Boolean   @default(false)   // F-025
   ageVerified           Boolean   @default(false)   // F-115
+  privateListeningMode  Boolean   @default(false)   // F-318
 
   works         Work[]         @relation("ArtistWorks")
   loans         Loan[]
@@ -331,14 +332,15 @@ model Loan {
 }
 
 model PayoutItem {
-  id          String           @id @default(uuid())
-  artistId    String
-  artist      User             @relation("ArtistPayouts", fields: [artistId], references: [id])
-  loanId      String
-  loan        Loan             @relation(fields: [loanId], references: [id])
-  amountCents Int
-  status      PayoutItemStatus @default(PENDING)
-  createdAt   DateTime         @default(now())
+  id              String           @id @default(uuid())
+  artistId        String
+  artist          User             @relation("ArtistPayouts", fields: [artistId], references: [id])
+  loanId          String
+  loan            Loan             @relation(fields: [loanId], references: [id])
+  amountCents     Int
+  status          PayoutItemStatus @default(PENDING)
+  flaggedForFraud Boolean          @default(false) // F-391
+  createdAt       DateTime         @default(now())
 
   @@index([artistId, status])
 }
@@ -557,20 +559,24 @@ model PlaylistItem {
 
 // Inhaltsmeldungen (B-139, B-153)
 model Report {
-  id          String   @id @default(uuid())
-  reporterId  String
-  reporter    User     @relation("UserReports", fields: [reporterId], references: [id])
-  targetType  String
-  targetId    String
-  reason      String
-  description String?
-  status      String   @default("OPEN")
-  reviewedAt  DateTime?
-  createdAt   DateTime @default(now())
+  id           String    @id @default(uuid())
+  reporterId   String
+  reporter     User      @relation("UserReports", fields: [reporterId], references: [id])
+  targetType   String
+  targetId     String
+  reason       String
+  description  String?
+  status       String    @default("OPEN") // OPEN | IN_PROGRESS | RESOLVED | DISMISSED (F-722)
+  assigneeId   String?                    // Support-Agent ID (F-721)
+  resolvedBy   String?                    // Admin who resolved (F-722)
+  reviewNote   String?                    // Internal note on resolution
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
 
   @@index([reporterId])
   @@index([targetType, targetId])
   @@index([status])
+  @@index([assigneeId])
 }
 
 // Abo-Ereignis-Log / Abrechnungshistorie (B-090)

@@ -1,9 +1,13 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ArtistPostsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async create(artistId: string, input: { title: string; body: string; imageUrl?: string; linkUrl?: string; scheduledAt?: string }) {
     const scheduledAt = input.scheduledAt ? new Date(input.scheduledAt) : undefined;
@@ -83,5 +87,25 @@ export class ArtistPostsService {
       take: limit,
       include: { artist: { select: { id: true, displayName: true, avatarUrl: true } } },
     });
+  }
+
+  // F-443/444: Newsletter an alle Follower senden
+  async sendNewsletterToFollowers(artistId: string, subject: string, body: string) {
+    const artist = await this.prisma.user.findUnique({ where: { id: artistId }, select: { displayName: true } });
+    if (!artist) throw new NotFoundException('artist_not_found');
+    const followers = await this.prisma.follow.findMany({
+      where: { artistId },
+      select: { followerId: true },
+    });
+    for (const f of followers) {
+      await this.notifications.create({
+        userId: f.followerId,
+        type: 'ARTIST_NEWSLETTER',
+        title: subject,
+        body,
+        data: { artistId, artistName: artist.displayName },
+      });
+    }
+    return { sent: followers.length };
   }
 }

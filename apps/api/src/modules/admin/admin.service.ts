@@ -439,4 +439,54 @@ export class AdminService {
   async getFeaturedWorks() {
     return this.prisma.work.findMany({ where: { isFeatured: true }, orderBy: { featuredAt: 'desc' } });
   }
+
+  // F-391: Betrug-Verdacht auf PayoutItem markieren / aufheben
+  async flagPayoutItem(payoutItemId: string, flagged: boolean) {
+    const item = await this.prisma.payoutItem.findUnique({ where: { id: payoutItemId } });
+    if (!item) throw new NotFoundException('payout_item_not_found');
+    return this.prisma.payoutItem.update({
+      where: { id: payoutItemId },
+      data: { flaggedForFraud: flagged },
+    });
+  }
+
+  // F-391: Alle verdächtigen Auszahlungen auflisten
+  async listFlaggedPayouts() {
+    return this.prisma.payoutItem.findMany({
+      where: { flaggedForFraud: true },
+      include: { artist: { select: { id: true, email: true, displayName: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // F-721: Meldung einem Support-Agent zuweisen
+  async assignReport(reportId: string, assigneeId: string) {
+    return this.prisma.report.update({
+      where: { id: reportId },
+      data: { assigneeId, status: 'IN_PROGRESS' },
+    });
+  }
+
+  // F-722: Meldungs-Status aktualisieren
+  async updateReportStatus(reportId: string, status: string, resolvedBy?: string, reviewNote?: string) {
+    return this.prisma.report.update({
+      where: { id: reportId },
+      data: {
+        status,
+        resolvedBy: resolvedBy ?? undefined,
+        reviewNote: reviewNote ?? undefined,
+        reviewedAt: ['RESOLVED', 'DISMISSED'].includes(status) ? new Date() : undefined,
+      },
+    });
+  }
+
+  // F-720: Meldungs-Queue priorisiert abrufen
+  async getReportQueue(status?: string) {
+    const where = status ? { status } : { status: { in: ['OPEN', 'IN_PROGRESS'] } };
+    return this.prisma.report.findMany({
+      where,
+      orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
+      take: 100,
+    });
+  }
 }

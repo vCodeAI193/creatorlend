@@ -9,6 +9,11 @@ export const NotificationType = {
   SUBSCRIPTION_RENEWAL: "SUBSCRIPTION_RENEWAL", // an Hörer:in: Abo verlängert sich in 7 Tagen (F-418)
   LOAN_GIFT_RECEIVED: "LOAN_GIFT_RECEIVED", // an Empfänger:in: Leihe als Geschenk erhalten (F-259)
   NEW_FOLLOWER: "NEW_FOLLOWER",             // an Künstler:in: neuer Follower (F-610)
+  REVIEW_CREATED: "REVIEW_CREATED",         // an Künstler:in: neue Bewertung (F-493)
+  WORK_CURATED: "WORK_CURATED",             // an Künstler:in: Werk kuratiert (F-680)
+  MILESTONE_REACHED: "MILESTONE_REACHED",   // an Künstler:in: Meilenstein erreicht (F-681)
+  PAYOUT_FLAGGED: "PAYOUT_FLAGGED",         // an Admin: Betrug-Verdacht bei Auszahlung (F-391)
+  RE_ENGAGEMENT: "RE_ENGAGEMENT",           // an Hörer:in: Inaktivitätserinnerung (F-655)
 } as const;
 
 export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];
