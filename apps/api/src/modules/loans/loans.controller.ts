@@ -7,6 +7,7 @@ import { CurrentUser } from "../../common/current-user.decorator";
 import { LoansService } from "./loans.service";
 import { LoanGiftsService } from "./loan-gifts.service";
 import { SingleLoanService } from "./single-loan.service";
+import { DownloadService } from "./download.service";
 import { BorrowDto } from "./dto/borrow.dto";
 import { ExchangeDto } from "./dto/exchange.dto";
 
@@ -19,7 +20,14 @@ export class LoansController {
     private readonly loans: LoansService,
     private readonly loanGifts: LoanGiftsService,
     private readonly singleLoan: SingleLoanService,
+    private readonly download: DownloadService,
   ) {}
+
+  // GET /api/v1/loans/expired-check – prüfen welche Ausleihen abgelaufen sind (F-855)
+  @Get("expired-check")
+  checkExpiredDownloads(@CurrentUser() userId: string) {
+    return this.download.checkExpiredDownloads(userId);
+  }
 
   // POST /api/v1/loans – Werk leihen
   @Post()
@@ -55,6 +63,12 @@ export class LoansController {
   @Get("year-in-review")
   yearInReview(@CurrentUser() userId: string, @Query("year") year?: string) {
     return this.loans.getYearInReview(userId, year ? Number(year) : new Date().getFullYear());
+  }
+
+  // GET /api/v1/loans/:id/download – Download-URL für eine Leihe (F-852/F-853)
+  @Get(":id/download")
+  getDownloadUrl(@CurrentUser() userId: string, @Param("id") loanId: string) {
+    return this.download.getDownloadUrl(userId, loanId);
   }
 
   // GET /api/v1/loans/:id

@@ -6,6 +6,14 @@ import { BlocksService } from "../engagement/blocks.service";
 import { ConsentService } from "./consent.service";
 import { CookieConsentService } from "./cookie-consent.service";
 import { AbTestingService } from "../admin/ab-testing.service";
+import { ApiKeysService } from "../auth/api-keys.service";
+
+// Plan quota limits (stub)
+const PLAN_LIMITS: Record<string, { requestsPerMinute: number }> = {
+  FREE: { requestsPerMinute: 10 },
+  STANDARD: { requestsPerMinute: 60 },
+  PREMIUM: { requestsPerMinute: 300 },
+};
 
 @Controller("users")
 @UseGuards(JwtAuthGuard)
@@ -16,6 +24,7 @@ export class UsersController {
     private readonly consent: ConsentService,
     private readonly cookieConsent: CookieConsentService,
     private readonly abTests: AbTestingService,
+    private readonly apiKeys: ApiKeysService,
   ) {}
 
   // GET /api/v1/users/me – eigenes Profil
@@ -288,5 +297,35 @@ export class UsersController {
   @Patch("me/accessibility")
   setAccessibility(@CurrentUser() userId: string, @Body() body: { highContrast?: boolean; fontSize?: string; reducedMotion?: boolean }) {
     return this.users.setAccessibilityPrefs(userId, body);
+  }
+
+  // GET /api/v1/users/me/api-quota – API-Key-Nutzung (F-876)
+  @Get("me/api-quota")
+  async getApiQuota(@CurrentUser() userId: string) {
+    const keys = await this.apiKeys.list(userId);
+    const activeKeys = keys.filter((k) => !k.expiresAt || k.expiresAt > new Date());
+    return {
+      keyCount: activeKeys.length,
+      keys: activeKeys.map((k) => ({
+        id: k.id,
+        name: k.name,
+        prefix: k.prefix,
+        lastUsedAt: k.lastUsedAt,
+      })),
+    };
+  }
+
+  // GET /api/v1/users/me/quota – Rate-Limit-Info (F-875/F-876)
+  @Get("me/quota")
+  async getQuota(@CurrentUser() userId: string) {
+    const profile = await this.users.getProfile(userId);
+    const sub = (profile as Record<string, unknown>)?.subscription as { plan?: string } | undefined;
+    const plan = sub?.plan ?? 'FREE';
+    const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS['FREE'];
+    return {
+      plan,
+      requestsPerMinute: limits.requestsPerMinute,
+      used: 0, // Stub: would be populated from a rate-limit store
+    };
   }
 }

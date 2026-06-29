@@ -25,6 +25,7 @@ import { SubtitlesService } from "./subtitles.service";
 import { LyricsService } from "./lyrics.service";
 import { WorkTranslationsService } from "./translations.service";
 import { CollectionsService } from "./collections.service";
+import { AiService } from "./ai.service";
 import { CreateWorkDto } from "./dto/create-work.dto";
 import { UpdateWorkDto } from "./dto/update-work.dto";
 
@@ -40,6 +41,7 @@ export class WorksController {
     private readonly lyrics: LyricsService,
     private readonly translations: WorkTranslationsService,
     private readonly collections: CollectionsService,
+    private readonly ai: AiService,
   ) {}
 
   // POST /api/v1/works – Werk einstellen (ARTIST)
@@ -285,6 +287,18 @@ export class WorksController {
   @Get(":id/qr")
   getQrCode(@Param("id") id: string) {
     return this.works.getWorkQrCode(id);
+  }
+
+  // GET /api/v1/works/:id/summary – KI-Zusammenfassung (F-997, Stub)
+  @Get(":id/summary")
+  getSummary(@Param("id") id: string) {
+    return this.ai.summarize(id);
+  }
+
+  // GET /api/v1/works/:id/critique – KI-Kritik (F-998, Stub)
+  @Get(":id/critique")
+  getCritique(@Param("id") id: string) {
+    return this.ai.critique(id);
   }
 
   // GET /api/v1/works/:id – Detailansicht inkl. Vorschau-URL (öffentlich)

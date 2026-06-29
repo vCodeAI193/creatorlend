@@ -305,6 +305,7 @@ model Loan {
   payoutItems      PayoutItem[]
   playbackProgress PlaybackProgress?
   devices          LoanDevice[]
+  downloadTokens   DownloadToken[]
 
   @@index([userId, status])
   @@index([status, expiresAt])
@@ -1158,15 +1159,16 @@ model CollectionItem {
 }
 
 model WebhookDelivery {
-  id            String    @id @default(uuid())
-  event         String
-  payload       Json
-  targetUrl     String
-  statusCode    Int?
-  attempts      Int       @default(0)
-  lastAttemptAt DateTime?
-  succeededAt   DateTime?
-  createdAt     DateTime  @default(now())
+  id                     String    @id @default(uuid())
+  event                  String
+  payload                Json
+  targetUrl              String
+  statusCode             Int?
+  attempts               Int       @default(0)
+  lastAttemptAt          DateTime?
+  succeededAt            DateTime?
+  webhookSubscriptionId  String?   // Which subscription triggered this delivery
+  createdAt              DateTime  @default(now())
   @@index([event])
   @@index([createdAt])
 }
@@ -1181,6 +1183,19 @@ model WebhookSubscription {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   @@index([userId])
+}
+
+// Download-Tokens für zeitlich begrenzte Medien-Downloads (F-852/F-853)
+model DownloadToken {
+  id        String    @id @default(uuid())
+  loanId    String
+  loan      Loan      @relation(fields: [loanId], references: [id])
+  token     String    @unique @default(uuid())
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  @@index([token])
+  @@index([loanId])
 }
 
 // Site-weite Ankündigungen (F-390)

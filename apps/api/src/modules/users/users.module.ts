@@ -10,10 +10,11 @@ import { AbTestingService } from "../admin/ab-testing.service";
 import { FeatureFlagsService } from "../admin/feature-flags.service";
 import { WebhooksSubscriptionService } from "./webhooks.service";
 import { WebhooksSubscriptionController } from "./webhooks.controller";
+import { ApiKeysService } from "../auth/api-keys.service";
 
 @Module({
   controllers: [UsersController, CookieConsentController, WebhooksSubscriptionController],
-  providers: [UsersService, BlocksService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, FeatureFlagsService, WebhooksSubscriptionService],
-  exports: [UsersService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, WebhooksSubscriptionService],
+  providers: [UsersService, BlocksService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, FeatureFlagsService, WebhooksSubscriptionService, ApiKeysService],
+  exports: [UsersService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, WebhooksSubscriptionService, ApiKeysService],
 })
 export class UsersModule {}
