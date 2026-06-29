@@ -50,4 +50,21 @@ export class MessagesService {
     });
     return { read: true };
   }
+
+  async recommendWork(senderId: string, recipientId: string, workId: string, message?: string) {
+    const recipient = await this.prisma.user.findUnique({ where: { id: recipientId } });
+    if (!recipient) throw new NotFoundException('recipient_not_found');
+    const blocked = await this.prisma.block.findFirst({ where: { blockerId: recipientId, blockedId: senderId } });
+    if (blocked) throw new NotFoundException('recipient_not_found');
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work) throw new NotFoundException('work_not_found');
+    return this.prisma.directMessage.create({
+      data: {
+        senderId,
+        recipientId,
+        body: message ?? `Check out: ${work.title}`,
+        metadata: { type: 'WORK_RECOMMENDATION', workId },
+      },
+    });
+  }
 }

@@ -166,4 +166,10 @@ export class UsersController {
   listWorkNotes(@CurrentUser() userId: string) {
     return this.users.listWorkNotes(userId);
   }
+
+  // GET /api/v1/users/me/qr – QR-Code für eigenes Profil (F-140)
+  @Get("me/qr")
+  getQrCode(@CurrentUser() userId: string) {
+    return this.users.getProfileQrCode(userId);
+  }
 }

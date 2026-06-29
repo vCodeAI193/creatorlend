@@ -371,4 +371,10 @@ export class UsersService {
     ]);
     return { referralCode: user?.referralCode, referredCount };
   }
+
+  getProfileQrCode(userId: string) {
+    const url = `https://creatorlend.io/users/${userId}`;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+    return { url, qrImageUrl };
+  }
 }

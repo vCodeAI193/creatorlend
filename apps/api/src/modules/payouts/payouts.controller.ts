@@ -6,6 +6,7 @@ import { Roles } from "../auth/roles.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { PayoutsService } from "./payouts.service";
 import { TipsService } from "./tips.service";
+import { TaxStatementService } from "./tax-statement.service";
 
 /** Vergütung & Auszahlungen für Künstler:innen. */
 @Controller("payouts")
@@ -15,6 +16,7 @@ export class PayoutsController {
   constructor(
     private readonly payouts: PayoutsService,
     private readonly tips: TipsService,
+    private readonly taxStatement: TaxStatementService,
   ) {}
 
   // GET /api/v1/payouts/summary – aggregierte Vergütung
@@ -116,5 +118,17 @@ export class PayoutsController {
   @Get("tips/:artistId")
   tipsByArtist(@Param("artistId") artistId: string) {
     return this.tips.receivedTips(artistId);
+  }
+
+  // GET /api/v1/payouts/tax-statement – Jahressteuererklärung (F-368)
+  @Get("tax-statement")
+  getTaxStatement(@CurrentUser() userId: string, @Query("year") year?: string) {
+    return this.taxStatement.generate(userId, year ? Number(year) : new Date().getFullYear());
+  }
+
+  // GET /api/v1/payouts/tax-statement/years – verfügbare Jahre (F-368)
+  @Get("tax-statement/years")
+  getTaxStatementYears(@CurrentUser() userId: string) {
+    return this.taxStatement.listAvailableYears(userId);
   }
 }

@@ -484,6 +484,46 @@ export class WorksService {
     return this.prisma.workVersion.findMany({ where: { workId }, orderBy: { createdAt: 'desc' } });
   }
 
+  async getRandomWork(type?: string, language?: string) {
+    const where: Record<string, unknown> = { status: 'PUBLISHED' };
+    if (type) where.type = type;
+    if (language) where.language = language;
+    const count = await this.prisma.work.count({ where: where as never });
+    if (count === 0) return null;
+    const skip = Math.floor(Math.random() * count);
+    const works = await this.prisma.work.findMany({ where: where as never, take: 1, skip });
+    return works[0] ?? null;
+  }
+
+  async getRandomWorks(count = 5, type?: string, language?: string) {
+    const where: Record<string, unknown> = { status: 'PUBLISHED' };
+    if (type) where.type = type;
+    if (language) where.language = language;
+    const total = await this.prisma.work.count({ where: where as never });
+    if (total === 0) return [];
+    const works = await this.prisma.work.findMany({ where: where as never, take: Math.min(count, total) });
+    // Shuffle in memory for randomness
+    return works.sort(() => Math.random() - 0.5).slice(0, count);
+  }
+
+  async exportMetadata(artistId: string, format: 'json' | 'csv') {
+    const works = await this.prisma.work.findMany({
+      where: { artistId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (format === 'json') return works;
+    const fields = ['id', 'title', 'type', 'status', 'loanPriceCents', 'loanDays', 'language', 'category', 'borrowCount', 'createdAt'];
+    const header = fields.join(',');
+    const rows = works.map((w) => fields.map((f) => JSON.stringify((w as Record<string, unknown>)[f] ?? '')).join(','));
+    return [header, ...rows].join('\n');
+  }
+
+  getWorkQrCode(workId: string) {
+    const url = `https://creatorlend.io/works/${workId}`;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+    return { url, qrImageUrl };
+  }
+
   /**
    * Detaillierte Metriken je Werk für das Künstler-Dashboard (B-142).
    * Nur der Eigentümer darf seine eigenen Werke einsehen.

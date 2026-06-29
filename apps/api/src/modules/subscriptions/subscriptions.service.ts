@@ -307,6 +307,25 @@ export class SubscriptionsService {
     return { resumed: true };
   }
 
+  async purchaseAddon(userId: string, extraLoans: number) {
+    const amountCents = extraLoans * 99; // 99 cents per extra loan slot (MVP pricing)
+    const addon = await this.prisma.loanAddon.create({
+      data: { userId, extraLoans, amountCents, status: 'ACTIVE' },
+    });
+    await this.prisma.subscription.update({
+      where: { userId },
+      data: { loanQuotaPerPeriod: { increment: extraLoans } },
+    });
+    return addon;
+  }
+
+  async listAddons(userId: string) {
+    return this.prisma.loanAddon.findMany({
+      where: { userId, status: 'ACTIVE' },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   /**
    * Alle fälligen pausierten Abos automatisch wieder aktivieren.
    * Wird stündlich vom Scheduler aufgerufen.

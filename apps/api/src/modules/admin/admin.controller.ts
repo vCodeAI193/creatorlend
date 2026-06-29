@@ -7,6 +7,7 @@ import { CurrentUser } from "../../common/current-user.decorator";
 import { AdminService } from "./admin.service";
 import { DmcaService } from "./dmca.service";
 import { FeatureFlagsService } from "./feature-flags.service";
+import { AnalyticsService } from "./analytics.service";
 
 /** Admin-Backoffice (B-151, B-152, B-154, B-155). Nur für ADMIN-Rolle. */
 @Controller("admin")
@@ -17,6 +18,7 @@ export class AdminController {
     private readonly admin: AdminService,
     private readonly dmca: DmcaService,
     private readonly featureFlags: FeatureFlagsService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   // GET /api/v1/admin/stats – Plattform-Übersicht
@@ -155,5 +157,29 @@ export class AdminController {
   @Delete("feature-flags/:key")
   deleteFeatureFlag(@Param("key") key: string) {
     return this.featureFlags.delete(key);
+  }
+
+  // GET /api/v1/admin/analytics/cohort-retention – Kohorten-Retention (F-765)
+  @Get("analytics/cohort-retention")
+  cohortRetention(@Query("cohortMonths") cohortMonths?: string) {
+    return this.analytics.getCohortRetention(cohortMonths ? Number(cohortMonths) : 6);
+  }
+
+  // GET /api/v1/admin/analytics/retention-curve – Retention-Kurve (F-765)
+  @Get("analytics/retention-curve")
+  retentionCurve(@Query("daysMax") daysMax?: string) {
+    return this.analytics.getRetentionCurve(daysMax ? Number(daysMax) : 365);
+  }
+
+  // GET /api/v1/admin/analytics/user-growth – Nutzerwachstum (F-766)
+  @Get("analytics/user-growth")
+  userGrowth(@Query("period") period?: "daily" | "weekly" | "monthly") {
+    return this.analytics.getUserGrowth(period ?? "monthly");
+  }
+
+  // GET /api/v1/admin/analytics/revenue – Umsatz-Metriken (F-766)
+  @Get("analytics/revenue")
+  revenueMetrics(@Query("period") period?: "monthly" | "weekly" | "daily") {
+    return this.analytics.getRevenueMetrics(period ?? "monthly");
   }
 }

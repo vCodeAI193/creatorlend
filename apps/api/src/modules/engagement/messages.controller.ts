@@ -27,4 +27,12 @@ export class MessagesController {
   markRead(@CurrentUser() userId: string, @Param('userId') otherId: string) {
     return this.messages.markRead(userId, otherId);
   }
+
+  @Post('recommend')
+  recommend(
+    @CurrentUser() userId: string,
+    @Body() body: { recipientId: string; workId: string; message?: string },
+  ) {
+    return this.messages.recommendWork(userId, body.recipientId, body.workId, body.message);
+  }
 }

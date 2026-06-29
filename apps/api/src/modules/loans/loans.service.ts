@@ -372,6 +372,37 @@ export class LoansService {
     return { totalLoans, completedLoans, totalRenewals: totalRenewals._sum.renewalCount ?? 0, byMonth };
   }
 
+  /** Leihen ohne Abo-Check – für Pay-per-loan (F-321). */
+  async borrowWithoutSubscription(userId: string, workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.status !== 'PUBLISHED') {
+      throw new NotFoundException('work_not_found');
+    }
+    const now = new Date();
+    const loan = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.loan.create({
+        data: {
+          userId,
+          workId,
+          status: 'ACTIVE',
+          startedAt: now,
+          expiresAt: this.expiryFromNow(now, work.loanDays),
+        },
+      });
+      await tx.payoutItem.create({
+        data: {
+          artistId: work.artistId,
+          loanId: created.id,
+          amountCents: Math.round(work.loanPriceCents * (1 - this.platformFeePct)),
+          status: 'PENDING',
+        },
+      });
+      await tx.work.update({ where: { id: workId }, data: { borrowCount: { increment: 1 } } });
+      return created;
+    });
+    return this.withAccess(loan);
+  }
+
   /**
    * Jahresrückblick (F-271).
    */

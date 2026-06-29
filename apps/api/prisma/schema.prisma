@@ -117,6 +117,8 @@ model User {
   apiKeys             ApiKey[]
   sentGiftCodes       GiftCode[]         @relation("SentGiftCodes")
   receivedGiftCodes   GiftCode[]         @relation("ReceivedGiftCodes")
+  singleLoanPurchases SingleLoanPurchase[]
+  loanAddons          LoanAddon[]
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -181,20 +183,21 @@ model Work {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  loans         Loan[]
-  favorites     Favorite[]
-  wishlists     Wishlist[]
-  episodes      Episode[]      // mehrteilige Werke (B-033)
-  chapterMarks  ChapterMark[]  // Kapitelmarken (B-034)
-  ratings       Rating[]
-  reviews       Review[]
-  playlistItems PlaylistItem[]
-  seriesItems   SeriesItem[]
-  transcripts   Transcript[]
-  workVersions  WorkVersion[]
-  bookmarks     Bookmark[]
-  workNotes     WorkNote[]
-  dmcaTakedowns DmcaTakedown[]
+  loans               Loan[]
+  favorites           Favorite[]
+  wishlists           Wishlist[]
+  singleLoanPurchases SingleLoanPurchase[]
+  episodes            Episode[]      // mehrteilige Werke (B-033)
+  chapterMarks        ChapterMark[]  // Kapitelmarken (B-034)
+  ratings             Rating[]
+  reviews             Review[]
+  playlistItems       PlaylistItem[]
+  seriesItems         SeriesItem[]
+  transcripts         Transcript[]
+  workVersions        WorkVersion[]
+  bookmarks           Bookmark[]
+  workNotes           WorkNote[]
+  dmcaTakedowns       DmcaTakedown[]
 
   @@index([artistId])
   @@index([type, status])
@@ -646,6 +649,7 @@ model DirectMessage {
   recipientId String
   recipient   User      @relation("ReceivedMessages", fields: [recipientId], references: [id])
   body        String
+  metadata    Json?     // z. B. { type: "WORK_RECOMMENDATION", workId } (F-233)
   readAt      DateTime?
   createdAt   DateTime  @default(now())
 
@@ -877,3 +881,35 @@ model FeatureFlag {
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
 }
+
+// Einzelausleihe ohne Abo (F-321)
+model SingleLoanPurchase {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  workId        String
+  work          Work     @relation(fields: [workId], references: [id])
+  amountCents   Int
+  stripePiId    String?  @unique
+  status        String   @default("PENDING") // PENDING | COMPLETED | REFUNDED
+  loanId        String?  @unique
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([workId])
+}
+
+// Extra-Leih-Slots als Add-on (F-350)
+model LoanAddon {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  extraLoans   Int       @default(5)
+  amountCents  Int
+  status       String    @default("PENDING") // PENDING | ACTIVE
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+}
+

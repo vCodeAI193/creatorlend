@@ -5,6 +5,7 @@ import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { LoansService } from "./loans.service";
+import { SingleLoanService } from "./single-loan.service";
 import { BorrowDto } from "./dto/borrow.dto";
 import { ExchangeDto } from "./dto/exchange.dto";
 
@@ -13,12 +14,27 @@ import { ExchangeDto } from "./dto/exchange.dto";
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.LISTENER)
 export class LoansController {
-  constructor(private readonly loans: LoansService) {}
+  constructor(
+    private readonly loans: LoansService,
+    private readonly singleLoan: SingleLoanService,
+  ) {}
 
   // POST /api/v1/loans – Werk leihen
   @Post()
   create(@CurrentUser() userId: string, @Body() body: BorrowDto) {
     return this.loans.borrow(userId, body.workId);
+  }
+
+  // POST /api/v1/loans/purchase – Pay-per-loan: Kauf einleiten (F-321)
+  @Post("purchase")
+  initiatePurchase(@CurrentUser() userId: string, @Body("workId") workId: string) {
+    return this.singleLoan.initiatePurchase(userId, workId);
+  }
+
+  // POST /api/v1/loans/purchase/:id/complete – Pay-per-loan: Kauf abschließen (F-321)
+  @Post("purchase/:id/complete")
+  completePurchase(@Param("id") id: string) {
+    return this.singleLoan.completePurchase(id);
   }
 
   // GET /api/v1/loans?status=ACTIVE – eigene Ausleihen

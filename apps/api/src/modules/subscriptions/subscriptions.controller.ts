@@ -121,4 +121,16 @@ export class SubscriptionsController {
   ) {
     return this.giftCodes.redeemGiftCode(userId, code);
   }
+
+  // POST /api/v1/subscriptions/addon – Leih-Kontingent aufstocken (F-350)
+  @Post("addon")
+  purchaseAddon(@CurrentUser() userId: string, @Body("extraLoans") extraLoans: number) {
+    return this.subscriptions.purchaseAddon(userId, extraLoans);
+  }
+
+  // GET /api/v1/subscriptions/addon – eigene Addon-Käufe auflisten (F-350)
+  @Get("addon")
+  listAddons(@CurrentUser() userId: string) {
+    return this.subscriptions.listAddons(userId);
+  }
 }

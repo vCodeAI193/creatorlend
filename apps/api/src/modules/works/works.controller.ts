@@ -145,6 +145,43 @@ export class WorksController {
     return feed;
   }
 
+  // GET /api/v1/works/random – zufälliges Werk (F-201/F-202)
+  @Get("random")
+  random(@Query("type") type?: string, @Query("language") language?: string) {
+    return this.works.getRandomWork(type, language);
+  }
+
+  // GET /api/v1/works/random/many – mehrere zufällige Werke (F-201/F-202)
+  @Get("random/many")
+  randomMany(
+    @Query("count") count?: string,
+    @Query("type") type?: string,
+    @Query("language") language?: string,
+  ) {
+    return this.works.getRandomWorks(count ? Number(count) : 5, type, language);
+  }
+
+  // GET /api/v1/works/export – Metadaten-Export (F-093, F-140)
+  @Get("export")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async exportMetadata(
+    @CurrentUser() userId: string,
+    @Query("format") format: "json" | "csv" = "json",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    @Res() res?: any,
+  ) {
+    const data = await this.works.exportMetadata(userId, format);
+    if (format === "csv" && res) {
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", 'attachment; filename="works.csv"');
+      res.send(data);
+      return;
+    }
+    return data;
+  }
+
   // GET /api/v1/works – Suche / Discovery (öffentlich, B-036/B-038/B-061 facets)
   @Get()
   search(
@@ -209,6 +246,12 @@ export class WorksController {
       res.send(feed);
     }
     return feed;
+  }
+
+  // GET /api/v1/works/:id/qr – QR-Code-URL für das Werk (F-140)
+  @Get(":id/qr")
+  getQrCode(@Param("id") id: string) {
+    return this.works.getWorkQrCode(id);
   }
 
   // GET /api/v1/works/:id – Detailansicht inkl. Vorschau-URL (öffentlich)
@@ -363,5 +406,11 @@ export class WorksController {
   @Roles(UserRole.ARTIST)
   getVersionHistory(@CurrentUser() userId: string, @Param("id") workId: string) {
     return this.works.getVersionHistory(userId, workId);
+  }
+
+  // GET /api/v1/works/:id/qr – QR-Code für ein Werk (F-140)
+  @Get(":id/qr")
+  getWorkQrCode(@Param("id") id: string) {
+    return this.works.getWorkQrCode(id);
   }
 }
