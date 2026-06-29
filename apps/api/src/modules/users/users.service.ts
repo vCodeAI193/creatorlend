@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
@@ -58,8 +58,9 @@ export class UsersService {
   /**
    * Öffentliches Künstler-Profil (B-013): Bio, Avatar, Werke, Follower-Anzahl.
    * Gibt 404 zurück, wenn die ID keiner:m ARTIST gehört.
+   * F-059: Berücksichtigt profileVisibility.
    */
-  async getPublicProfile(artistId: string) {
+  async getPublicProfile(artistId: string, requesterId?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: artistId },
       select: {
@@ -71,6 +72,7 @@ export class UsersService {
         socialLinks: true,
         role: true,
         createdAt: true,
+        profileVisibility: true,
         works: {
           where: { status: "PUBLISHED" },
           select: { id: true, title: true, type: true, borrowCount: true, loanPriceCents: true },
@@ -81,6 +83,19 @@ export class UsersService {
       },
     });
     if (!user || user.role !== "ARTIST") throw new NotFoundException("artist_not_found");
+
+    // F-059: Profile visibility check
+    if (user.profileVisibility === "PRIVATE") {
+      throw new NotFoundException("artist_not_found");
+    }
+    if (user.profileVisibility === "FOLLOWERS_ONLY") {
+      if (!requesterId) throw new ForbiddenException("profile_followers_only");
+      const isFollowing = await this.prisma.follow.findUnique({
+        where: { followerId_artistId: { followerId: requesterId, artistId } },
+      });
+      if (!isFollowing) throw new ForbiddenException("profile_followers_only");
+    }
+
     return user;
   }
 
@@ -376,5 +391,56 @@ export class UsersService {
     const url = `https://creatorlend.io/users/${userId}`;
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
     return { url, qrImageUrl };
+  }
+
+  /**
+   * F-073/F-074: Inhaltspräferenzen aktualisieren.
+   */
+  async updatePreferences(
+    userId: string,
+    prefs: {
+      preferredTypes?: string[];
+      preferredLanguages?: string[];
+      excludedLanguages?: string[];
+    },
+  ) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(prefs.preferredTypes !== undefined ? { preferredTypes: prefs.preferredTypes } : {}),
+        ...(prefs.preferredLanguages !== undefined ? { preferredLanguages: prefs.preferredLanguages } : {}),
+        ...(prefs.excludedLanguages !== undefined ? { excludedLanguages: prefs.excludedLanguages } : {}),
+      },
+      select: { id: true, preferredTypes: true, preferredLanguages: true, excludedLanguages: true },
+    });
+  }
+
+  /**
+   * F-059: Profil-Sichtbarkeit aktualisieren.
+   */
+  async updateProfileVisibility(userId: string, visibility: string) {
+    const allowed = ["PUBLIC", "FOLLOWERS_ONLY", "PRIVATE"];
+    if (!allowed.includes(visibility)) {
+      throw new NotFoundException("invalid_visibility");
+    }
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { profileVisibility: visibility },
+      select: { id: true, profileVisibility: true },
+    });
+  }
+
+  /**
+   * F-241/F-242: Wunschlisten-Sichtbarkeit setzen.
+   */
+  async setWishlistVisibility(userId: string, isPublic: boolean, slug?: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        wishlistPublic: isPublic,
+        ...(slug !== undefined ? { wishlistSlug: slug || null } : {}),
+      },
+      select: { id: true, wishlistPublic: true, wishlistSlug: true },
+    });
   }
 }

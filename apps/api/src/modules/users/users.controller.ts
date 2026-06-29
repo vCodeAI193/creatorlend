@@ -73,8 +73,8 @@ export class UsersController {
 
   // GET /api/v1/users/:id/profile – öffentliches Künstler-Profil (B-013)
   @Get(":id/profile")
-  publicProfile(@Param("id") artistId: string) {
-    return this.users.getPublicProfile(artistId);
+  publicProfile(@CurrentUser() requesterId: string, @Param("id") artistId: string) {
+    return this.users.getPublicProfile(artistId, requesterId);
   }
 
   // GET /api/v1/users/slug/:slug – Profil per Slug (B-017)
@@ -171,5 +171,34 @@ export class UsersController {
   @Get("me/qr")
   getQrCode(@CurrentUser() userId: string) {
     return this.users.getProfileQrCode(userId);
+  }
+
+  // PATCH /api/v1/users/me/preferences – Inhaltspräferenzen (F-073/F-074)
+  @Patch("me/preferences")
+  updatePreferences(
+    @CurrentUser() userId: string,
+    @Body() body: {
+      preferredTypes?: string[];
+      preferredLanguages?: string[];
+      excludedLanguages?: string[];
+    },
+  ) {
+    return this.users.updatePreferences(userId, body);
+  }
+
+  // PATCH /api/v1/users/me/visibility – Profil-Sichtbarkeit (F-059)
+  @Patch("me/visibility")
+  updateVisibility(@CurrentUser() userId: string, @Body("visibility") visibility: string) {
+    return this.users.updateProfileVisibility(userId, visibility);
+  }
+
+  // PATCH /api/v1/users/me/wishlist-settings – Wunschlisten-Einstellungen (F-241/F-242)
+  @Patch("me/wishlist-settings")
+  setWishlistVisibility(
+    @CurrentUser() userId: string,
+    @Body("isPublic") isPublic: boolean,
+    @Body("slug") slug?: string,
+  ) {
+    return this.users.setWishlistVisibility(userId, isPublic, slug);
   }
 }

@@ -218,6 +218,18 @@ export class WorksController {
     return this.works.trending(limit ? Number(limit) : 20);
   }
 
+  // GET /api/v1/works/newcomers – Newcomer-Charts (F-217)
+  @Get("newcomers")
+  newcomerCharts(@Query("limit") limit?: string) {
+    return this.works.getNewcomerCharts(limit ? Number(limit) : 20);
+  }
+
+  // GET /api/v1/wishlist/:slug – öffentliche Wunschliste (F-241/F-242)
+  @Get("/wishlist/:slug")
+  publicWishlist(@Param("slug") slug: string) {
+    return this.works.getPublicWishlist(slug);
+  }
+
   // GET /api/v1/works/recommendations – Personalisierte Empfehlungen
   @Get("recommendations")
   @UseGuards(JwtAuthGuard)

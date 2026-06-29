@@ -33,4 +33,11 @@ export class RecommendationsController {
   trending(@Query('period') period?: 'day' | 'week' | 'month', @Query('limit') limit?: string) {
     return this.recs.getTrending(period ?? 'week', limit ? Number(limit) : 20);
   }
+
+  // GET /api/v1/recommendations/daily-mix – Tägliche Playlist (F-228)
+  @Get('daily-mix')
+  @UseGuards(JwtAuthGuard)
+  dailyMix(@CurrentUser() userId: string) {
+    return this.recs.getDailyMix(userId);
+  }
 }

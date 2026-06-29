@@ -74,6 +74,12 @@ model User {
   totpSecret      String?                // 2FA TOTP secret (F-005)
   totpEnabled     Boolean   @default(false) // 2FA aktiv (F-005)
   backupCodes     String[]  @default([]) // gehashte Backup-Codes (F-007)
+  wishlistPublic  Boolean   @default(false) // Öffentliche Wunschliste (F-241)
+  wishlistSlug    String?   @unique         // Slug für öffentliche Wunschliste (F-241)
+  preferredTypes      String[] @default([]) // Bevorzugte Inhaltstypen (F-073)
+  preferredLanguages  String[] @default([]) // Bevorzugte Sprachen (F-074)
+  excludedLanguages   String[] @default([]) // Ausgeschlossene Sprachen (F-074)
+  profileVisibility   String   @default("PUBLIC") // PUBLIC | FOLLOWERS_ONLY | PRIVATE (F-059)
 
   works         Work[]         @relation("ArtistWorks")
   loans         Loan[]
@@ -119,6 +125,9 @@ model User {
   receivedGiftCodes   GiftCode[]         @relation("ReceivedGiftCodes")
   singleLoanPurchases SingleLoanPurchase[]
   loanAddons          LoanAddon[]
+  sentLoanGifts       LoanGift[]         @relation("SentLoanGifts")
+  receivedLoanGifts   LoanGift[]         @relation("ReceivedLoanGifts")
+  loanReservations    LoanReservation[]
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -177,6 +186,7 @@ model Work {
   ageRating       String?    // "FSK_0" | "FSK_6" | "FSK_12" | "FSK_16" | "FSK_18" (F-115)
   contentWarnings String[]   @default([]) // Content-Warnungen (F-116)
   isExclusive     Boolean    @default(false) // Exklusiv-Inhalt (F-116)
+  earlyAccessDays Int        @default(0)    // Früher Zugang für PREMIUM (F-165/F-166)
   isbn            String?    // ISBN für Audiobücher (F-116)
   isrc            String?    // ISRC für Musik (F-116)
   status          WorkStatus @default(DRAFT)
@@ -198,6 +208,8 @@ model Work {
   bookmarks           Bookmark[]
   workNotes           WorkNote[]
   dmcaTakedowns       DmcaTakedown[]
+  loanGifts           LoanGift[]
+  loanReservations    LoanReservation[]
 
   @@index([artistId])
   @@index([type, status])
@@ -251,11 +263,14 @@ model Loan {
   startedAt    DateTime   @default(now())
   expiresAt    DateTime
   renewalCount Int        @default(0)
+  pausedAt     DateTime?  // Urlaubsmodus: Pausiert seit (F-267)
+  pausedUntil  DateTime?  // Urlaubsmodus: Pausiert bis (F-267)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
   payoutItems      PayoutItem[]
   playbackProgress PlaybackProgress?
+  devices          LoanDevice[]
 
   @@index([userId, status])
   @@index([status, expiresAt])
@@ -911,5 +926,54 @@ model LoanAddon {
   createdAt    DateTime  @default(now())
 
   @@index([userId])
+}
+
+// Multi-Device-Zugriff auf Ausleihen (F-251/F-252)
+model LoanDevice {
+  id         String   @id @default(uuid())
+  loanId     String
+  loan       Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  deviceId   String
+  userAgent  String?
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@unique([loanId, deviceId])
+  @@index([loanId])
+}
+
+// Leihe verschenken (F-259)
+model LoanGift {
+  id          String    @id @default(uuid())
+  senderId    String
+  sender      User      @relation("SentLoanGifts", fields: [senderId], references: [id])
+  recipientId String
+  recipient   User      @relation("ReceivedLoanGifts", fields: [recipientId], references: [id])
+  workId      String
+  work        Work      @relation(fields: [workId], references: [id])
+  message     String?
+  status      String    @default("PENDING") // PENDING | ACCEPTED | DECLINED
+  loanId      String?
+  createdAt   DateTime  @default(now())
+  acceptedAt  DateTime?
+
+  @@index([senderId])
+  @@index([recipientId])
+}
+
+// Geplante/reservierte Ausleihe (F-260)
+model LoanReservation {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  workId      String
+  work        Work     @relation(fields: [workId], references: [id])
+  scheduledAt DateTime
+  status      String   @default("PENDING") // PENDING | FULFILLED | CANCELLED
+  loanId      String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([scheduledAt])
 }
 

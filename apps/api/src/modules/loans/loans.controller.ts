@@ -5,6 +5,7 @@ import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { LoansService } from "./loans.service";
+import { LoanGiftsService } from "./loan-gifts.service";
 import { SingleLoanService } from "./single-loan.service";
 import { BorrowDto } from "./dto/borrow.dto";
 import { ExchangeDto } from "./dto/exchange.dto";
@@ -16,6 +17,7 @@ import { ExchangeDto } from "./dto/exchange.dto";
 export class LoansController {
   constructor(
     private readonly loans: LoansService,
+    private readonly loanGifts: LoanGiftsService,
     private readonly singleLoan: SingleLoanService,
   ) {}
 
@@ -97,5 +99,103 @@ export class LoansController {
   @Get(":id/progress")
   getProgress(@CurrentUser() userId: string, @Param("id") id: string) {
     return this.loans.getProgress(userId, id);
+  }
+
+  // ─── F-251/F-252: Multi-device loan access ─────────────────────────────
+
+  // POST /api/v1/loans/:id/devices – Gerät registrieren
+  @Post(":id/devices")
+  registerDevice(
+    @CurrentUser() userId: string,
+    @Param("id") id: string,
+    @Body("deviceId") deviceId: string,
+    @Body("userAgent") userAgent?: string,
+  ) {
+    return this.loans.registerDevice(userId, id, deviceId, userAgent);
+  }
+
+  // GET /api/v1/loans/:id/devices – Geräte auflisten
+  @Get(":id/devices")
+  getDevices(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.loans.getDevices(userId, id);
+  }
+
+  // ─── F-267: Loan Pause (Vacation Mode) ─────────────────────────────────
+
+  // POST /api/v1/loans/:id/pause – Leihe pausieren
+  @Post(":id/pause")
+  pause(
+    @CurrentUser() userId: string,
+    @Param("id") id: string,
+    @Body("days") days: number,
+  ) {
+    return this.loans.pause(userId, id, days);
+  }
+
+  // POST /api/v1/loans/:id/resume – Leihe-Pause beenden
+  @Post(":id/resume")
+  resume(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.loans.resume(userId, id);
+  }
+
+  // ─── F-260: Scheduled/Reserved Loan ────────────────────────────────────
+
+  // POST /api/v1/loans/reserve – Reservierung anlegen
+  @Post("reserve")
+  reserve(
+    @CurrentUser() userId: string,
+    @Body("workId") workId: string,
+    @Body("scheduledAt") scheduledAt: string,
+  ) {
+    return this.loans.reserve(userId, workId, new Date(scheduledAt));
+  }
+
+  // DELETE /api/v1/loans/reserve/:id – Reservierung stornieren
+  @Delete("reserve/:id")
+  cancelReservation(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.loans.cancelReservation(userId, id);
+  }
+
+  // GET /api/v1/loans/reservations – Reservierungen auflisten
+  @Get("reservations")
+  listReservations(@CurrentUser() userId: string) {
+    return this.loans.listReservations(userId);
+  }
+
+  // ─── F-259: Gift a Loan ─────────────────────────────────────────────────
+
+  // POST /api/v1/loans/gifts/send – Leihe verschenken
+  @Post("gifts/send")
+  sendGift(
+    @CurrentUser() userId: string,
+    @Body("recipientId") recipientId: string,
+    @Body("workId") workId: string,
+    @Body("message") message?: string,
+  ) {
+    return this.loanGifts.send(userId, recipientId, workId, message);
+  }
+
+  // POST /api/v1/loans/gifts/:id/accept – Geschenk annehmen
+  @Post("gifts/:id/accept")
+  acceptGift(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.loanGifts.accept(userId, id);
+  }
+
+  // POST /api/v1/loans/gifts/:id/decline – Geschenk ablehnen
+  @Post("gifts/:id/decline")
+  declineGift(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.loanGifts.decline(userId, id);
+  }
+
+  // GET /api/v1/loans/gifts/received – empfangene Geschenke
+  @Get("gifts/received")
+  listReceivedGifts(@CurrentUser() userId: string) {
+    return this.loanGifts.listReceived(userId);
+  }
+
+  // GET /api/v1/loans/gifts/sent – gesendete Geschenke
+  @Get("gifts/sent")
+  listSentGifts(@CurrentUser() userId: string) {
+    return this.loanGifts.listSent(userId);
   }
 }

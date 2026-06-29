@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MediaService } from "../media/media.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { NotificationType } from "../notifications/notification-types";
 
 interface CreateWorkInput {
   title: string;
@@ -16,6 +17,7 @@ interface CreateWorkInput {
   tags?: string[];
   explicit?: boolean;
   publishAt?: string; // ISO-Datetime für geplante Veröffentlichung (B-040)
+  earlyAccessDays?: number; // Früher Zugang nur für PREMIUM (F-165/F-166)
 }
 
 export interface SearchFilter {
@@ -59,6 +61,7 @@ export class WorksService {
         tags: input.tags ?? [],
         explicit: input.explicit ?? false,
         publishAt: input.publishAt ? new Date(input.publishAt) : null,
+        earlyAccessDays: input.earlyAccessDays ?? 0,
         status: "DRAFT",
       },
     });
@@ -95,14 +98,21 @@ export class WorksService {
     });
   }
 
-  async publish(artistId: string, id: string) {
+  async publish(artistId: string, id: string, earlyAccessDays?: number) {
     const work = await this.ownedWork(artistId, id);
     const updated = await this.prisma.work.update({
       where: { id },
-      data: { status: "PUBLISHED" },
+      data: {
+        status: "PUBLISHED",
+        ...(earlyAccessDays !== undefined ? { earlyAccessDays } : {}),
+      },
     });
 
-    // Follower:innen der Künstler:in benachrichtigen (B-126)
+    // Follower:innen der Künstler:in benachrichtigen (F-246/B-126)
+    const artist = await this.prisma.user.findUnique({
+      where: { id: artistId },
+      select: { displayName: true },
+    });
     const followers = await this.prisma.follow.findMany({
       where: { artistId },
       select: { followerId: true },
@@ -111,15 +121,20 @@ export class WorksService {
       await this.notifications.createMany(
         followers.map((f) => ({
           userId: f.followerId,
-          type: "NEW_WORK",
+          type: NotificationType.NEW_WORK,
           title: "Neues Werk verfügbar",
-          body: `„${work.title}" ist jetzt ausleihbar.`,
+          body: `${artist?.displayName ?? "Ein Künstler"} hat ein neues Werk veröffentlicht: „${work.title}"`,
           data: { workId: id, artistId },
         })),
       );
     }
 
     return updated;
+  }
+
+  /** F-165/F-166: Werk mit Early-Access-Zeitraum veröffentlichen. */
+  async publishWithEarlyAccess(artistId: string, id: string, earlyAccessDays: number) {
+    return this.publish(artistId, id, earlyAccessDays);
   }
 
   /** Werk depublizieren / archivieren (B-041). Aktive Leihen laufen aus. */
@@ -136,8 +151,11 @@ export class WorksService {
    * Beschreibung (B-059), Sortierung nach "new" (Standard) oder "popular".
    */
   search(filter: SearchFilter) {
+    const now = new Date();
     const where: Prisma.WorkWhereInput = {
       status: "PUBLISHED",
+      // F-113: Embargo-Filter – nur Werke ohne oder mit abgelaufenem Embargo
+      OR: [{ embargoUntil: null }, { embargoUntil: { lte: now } }],
       ...(filter.type ? { type: filter.type as never } : {}),
       ...(filter.language ? { language: filter.language } : {}),
       ...(filter.category ? { category: filter.category } : {}),
@@ -242,12 +260,25 @@ export class WorksService {
     });
   }
 
-  async get(id: string) {
+  async get(id: string, userId?: string) {
     const work = await this.prisma.work.findUnique({ where: { id } });
     if (!work) throw new NotFoundException("work_not_found");
     // F-113: Embargo check – treat embargoed work as not published
     if (work.embargoUntil && work.embargoUntil > new Date()) {
       throw new NotFoundException("work_not_found");
+    }
+    // F-165/F-166: Early access check
+    if (work.earlyAccessDays > 0 && work.status === "PUBLISHED") {
+      const earlyAccessEnd = new Date(work.createdAt.getTime() + work.earlyAccessDays * 24 * 60 * 60 * 1000);
+      if (new Date() < earlyAccessEnd && userId) {
+        const subscription = await this.prisma.subscription.findUnique({
+          where: { userId },
+          select: { plan: true, status: true },
+        });
+        if (!subscription || subscription.status !== "ACTIVE" || subscription.plan !== "PREMIUM") {
+          throw new ForbiddenException("early_access_premium_only");
+        }
+      }
     }
     return work;
   }
@@ -522,6 +553,77 @@ export class WorksService {
     const url = `https://creatorlend.io/works/${workId}`;
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
     return { url, qrImageUrl };
+  }
+
+  /**
+   * F-217: Newcomer-Charts – Künstler:innen aus den letzten 90 Tagen mit
+   * den meisten Ausleihen auf ihren Werken.
+   */
+  async getNewcomerCharts(limit = 20) {
+    const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const newArtists = await this.prisma.user.findMany({
+      where: { role: "ARTIST", createdAt: { gte: since }, deletedAt: null },
+      select: { id: true, displayName: true },
+    });
+    if (newArtists.length === 0) return [];
+
+    const results = await Promise.all(
+      newArtists.map(async (artist) => {
+        const agg = await this.prisma.work.aggregate({
+          where: { artistId: artist.id, status: "PUBLISHED" },
+          _sum: { borrowCount: true },
+          _count: { id: true },
+        });
+        return {
+          artistId: artist.id,
+          displayName: artist.displayName,
+          borrowCount: agg._sum.borrowCount ?? 0,
+          workCount: agg._count.id,
+        };
+      }),
+    );
+
+    return results
+      .filter((r) => r.workCount > 0)
+      .sort((a, b) => b.borrowCount - a.borrowCount)
+      .slice(0, limit);
+  }
+
+  /**
+   * F-241/F-242: Wunschlisten-Sichtbarkeit setzen.
+   */
+  async setWishlistVisibility(userId: string, isPublic: boolean, slug?: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        wishlistPublic: isPublic,
+        ...(slug !== undefined ? { wishlistSlug: slug || null } : {}),
+      },
+      select: { id: true, wishlistPublic: true, wishlistSlug: true },
+    });
+  }
+
+  /**
+   * F-241/F-242: Öffentliche Wunschliste per Slug abrufen.
+   */
+  async getPublicWishlist(wishlistSlug: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { wishlistSlug },
+      select: { id: true, displayName: true, wishlistPublic: true },
+    });
+    if (!user || !user.wishlistPublic) throw new NotFoundException("wishlist_not_found");
+
+    const wishlist = await this.prisma.wishlist.findMany({
+      where: { userId: user.id },
+      include: {
+        work: {
+          select: { id: true, title: true, type: true, loanPriceCents: true, borrowCount: true,
+            artist: { select: { displayName: true } } },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return { owner: { id: user.id, displayName: user.displayName }, items: wishlist };
   }
 
   /**

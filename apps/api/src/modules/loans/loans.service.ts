@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -417,5 +418,171 @@ export class LoansService {
     loans.forEach((l) => { byType[l.work.type] = (byType[l.work.type] ?? 0) + 1; });
     const favoriteType = Object.entries(byType).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
     return { year, totalLoans: loans.length, byType, favoriteType };
+  }
+
+  // ─── F-251/F-252: Multi-device loan access ───────────────────────────────
+
+  /** Gerät für eine Ausleihe registrieren oder lastSeenAt aktualisieren. */
+  async registerDevice(userId: string, loanId: string, deviceId: string, userAgent?: string) {
+    const loan = await this.prisma.loan.findFirst({ where: { id: loanId, userId } });
+    if (!loan) throw new NotFoundException("loan_not_found");
+    if (loan.status !== "ACTIVE" || loan.expiresAt.getTime() <= Date.now()) {
+      throw new BadRequestException("loan_not_active");
+    }
+
+    // Check device limit from FeatureFlag (default 3)
+    const flag = await this.prisma.featureFlag.findUnique({ where: { key: "max_devices_per_loan" } });
+    const maxDevices = flag ? (flag.rolloutPct > 0 ? 3 : 3) : 3; // default 3; could use rolloutPct as value
+
+    const existing = await this.prisma.loanDevice.findUnique({
+      where: { loanId_deviceId: { loanId, deviceId } },
+    });
+    if (!existing) {
+      const count = await this.prisma.loanDevice.count({ where: { loanId } });
+      if (count >= maxDevices) {
+        throw new ConflictException("device_limit_reached");
+      }
+      return this.prisma.loanDevice.create({
+        data: { loanId, deviceId, userAgent, lastSeenAt: new Date() },
+      });
+    }
+    return this.prisma.loanDevice.update({
+      where: { loanId_deviceId: { loanId, deviceId } },
+      data: { lastSeenAt: new Date(), ...(userAgent ? { userAgent } : {}) },
+    });
+  }
+
+  /** Geräte einer Ausleihe auflisten. */
+  async getDevices(userId: string, loanId: string) {
+    const loan = await this.prisma.loan.findFirst({ where: { id: loanId, userId } });
+    if (!loan) throw new NotFoundException("loan_not_found");
+    return this.prisma.loanDevice.findMany({ where: { loanId }, orderBy: { lastSeenAt: "desc" } });
+  }
+
+  // ─── F-267: Loan Pause (Vacation Mode) ───────────────────────────────────
+
+  /** Leihe pausieren (max. 30 Tage). */
+  async pause(userId: string, loanId: string, days: number) {
+    if (days < 1 || days > 30) throw new BadRequestException("pause_days_must_be_1_to_30");
+    const loan = await this.prisma.loan.findFirst({ where: { id: loanId, userId } });
+    if (!loan) throw new NotFoundException("loan_not_found");
+    if (loan.status !== "ACTIVE" || loan.expiresAt.getTime() <= Date.now()) {
+      throw new BadRequestException("loan_not_active");
+    }
+    if (loan.pausedAt) throw new ConflictException("loan_already_paused");
+    const now = new Date();
+    const pausedUntil = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    const newExpiresAt = new Date(loan.expiresAt.getTime() + days * 24 * 60 * 60 * 1000);
+    return this.prisma.loan.update({
+      where: { id: loanId },
+      data: { pausedAt: now, pausedUntil, expiresAt: newExpiresAt },
+    });
+  }
+
+  /** Leihe-Pause beenden. */
+  async resume(userId: string, loanId: string) {
+    const loan = await this.prisma.loan.findFirst({ where: { id: loanId, userId } });
+    if (!loan) throw new NotFoundException("loan_not_found");
+    if (!loan.pausedAt || !loan.pausedUntil) throw new BadRequestException("loan_not_paused");
+    const now = new Date();
+    // If resuming early, reduce expiresAt by remaining pause time
+    const remainingPauseMs = Math.max(0, loan.pausedUntil.getTime() - now.getTime());
+    const newExpiresAt = new Date(loan.expiresAt.getTime() - remainingPauseMs);
+    return this.prisma.loan.update({
+      where: { id: loanId },
+      data: { pausedAt: null, pausedUntil: null, expiresAt: newExpiresAt },
+    });
+  }
+
+  // ─── F-260: Scheduled/Reserved Loan ──────────────────────────────────────
+
+  /** Reservierung für ein zukünftiges Datum anlegen. */
+  async reserve(userId: string, workId: string, scheduledAt: Date) {
+    if (scheduledAt.getTime() <= Date.now()) {
+      throw new BadRequestException("scheduled_at_must_be_in_future");
+    }
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.status !== "PUBLISHED") throw new NotFoundException("work_not_found");
+    return this.prisma.loanReservation.create({
+      data: { userId, workId, scheduledAt, status: "PENDING" },
+    });
+  }
+
+  /** Reservierung stornieren. */
+  async cancelReservation(userId: string, reservationId: string) {
+    const reservation = await this.prisma.loanReservation.findFirst({
+      where: { id: reservationId, userId },
+    });
+    if (!reservation) throw new NotFoundException("reservation_not_found");
+    if (reservation.status !== "PENDING") throw new BadRequestException("reservation_not_pending");
+    return this.prisma.loanReservation.update({
+      where: { id: reservationId },
+      data: { status: "CANCELLED" },
+    });
+  }
+
+  /** Reservierungen des Nutzers auflisten. */
+  async listReservations(userId: string) {
+    return this.prisma.loanReservation.findMany({
+      where: { userId, status: "PENDING" },
+      include: { work: { select: { id: true, title: true, type: true } } },
+      orderBy: { scheduledAt: "asc" },
+    });
+  }
+
+  /** Scheduler: fällige Reservierungen erfüllen. */
+  async fulfillDueReservations(): Promise<{ fulfilled: number }> {
+    const now = new Date();
+    const due = await this.prisma.loanReservation.findMany({
+      where: { status: "PENDING", scheduledAt: { lte: now } },
+    });
+    let fulfilled = 0;
+    for (const r of due) {
+      try {
+        const loan = await this.borrowWithoutSubscription(r.userId, r.workId);
+        await this.prisma.loanReservation.update({
+          where: { id: r.id },
+          data: { status: "FULFILLED", loanId: (loan as { id: string }).id },
+        });
+        fulfilled += 1;
+      } catch {
+        // skip if work no longer available
+      }
+    }
+    return { fulfilled };
+  }
+
+  /**
+   * 48-Stunden-Erinnerung vor Ablauf (F-262).
+   */
+  async run48hReminders(): Promise<{ reminded: number }> {
+    const now = new Date();
+    const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    const in72h = new Date(now.getTime() + 72 * 60 * 60 * 1000);
+    const candidates = await this.prisma.loan.findMany({
+      where: { status: "ACTIVE", expiresAt: { gt: in48h, lte: in72h } },
+      select: { id: true, userId: true, workId: true },
+    });
+
+    let reminded = 0;
+    for (const l of candidates) {
+      const already = await this.prisma.notification.findFirst({
+        where: {
+          userId: l.userId,
+          type: NotificationType.LOAN_EXPIRING_48H,
+          data: { path: ["loanId"], equals: l.id },
+        },
+      });
+      if (already) continue;
+      await this.notifications.create({
+        userId: l.userId,
+        type: NotificationType.LOAN_EXPIRING_48H,
+        title: "Leihe läuft in 48 Stunden ab",
+        body: "Deine Leihe läuft in weniger als 48 Stunden ab.",
+        data: { loanId: l.id, workId: l.workId },
+      });
+      reminded += 1;
+    }
+    return { reminded };
   }
 }
