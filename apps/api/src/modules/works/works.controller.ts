@@ -21,6 +21,9 @@ import { ChapterMarksService } from "./chapter-marks.service";
 import { TranscriptsService } from "./transcripts.service";
 import { RatingsService } from "../engagement/ratings.service";
 import { ReviewsService } from "../engagement/reviews.service";
+import { SubtitlesService } from "./subtitles.service";
+import { LyricsService } from "./lyrics.service";
+import { WorkTranslationsService } from "./translations.service";
 import { CreateWorkDto } from "./dto/create-work.dto";
 import { UpdateWorkDto } from "./dto/update-work.dto";
 
@@ -32,6 +35,9 @@ export class WorksController {
     private readonly transcripts: TranscriptsService,
     private readonly ratings: RatingsService,
     private readonly reviews: ReviewsService,
+    private readonly subtitles: SubtitlesService,
+    private readonly lyrics: LyricsService,
+    private readonly translations: WorkTranslationsService,
   ) {}
 
   // POST /api/v1/works – Werk einstellen (ARTIST)
@@ -424,5 +430,103 @@ export class WorksController {
   @Get(":id/qr")
   getWorkQrCode(@Param("id") id: string) {
     return this.works.getWorkQrCode(id);
+  }
+
+  // GET /api/v1/works/:id/subtitles – Untertitel-Tracks auflisten
+  @Get(":id/subtitles")
+  listSubtitles(@Param("id") workId: string) {
+    return this.subtitles.list(workId);
+  }
+
+  // POST /api/v1/works/:id/subtitles – Untertitel-Track anlegen (ARTIST)
+  @Post(":id/subtitles")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  createSubtitle(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body() body: { language: string; format: string; url: string },
+  ) {
+    return this.subtitles.create(userId, workId, body.language, body.format, body.url);
+  }
+
+  // DELETE /api/v1/works/:id/subtitles/:trackId – Untertitel-Track löschen (ARTIST)
+  @Delete(":id/subtitles/:trackId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  deleteSubtitle(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Param("trackId") trackId: string,
+  ) {
+    return this.subtitles.delete(userId, workId, trackId);
+  }
+
+  // PATCH /api/v1/works/:id/subtitles/:trackId/default – Standard-Track setzen (ARTIST)
+  @Patch(":id/subtitles/:trackId/default")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setDefaultSubtitle(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Param("trackId") trackId: string,
+  ) {
+    return this.subtitles.setDefault(userId, workId, trackId);
+  }
+
+  // GET /api/v1/works/:id/lyrics – Liedtext abrufen
+  @Get(":id/lyrics")
+  getLyrics(@Param("id") workId: string) {
+    return this.lyrics.get(workId);
+  }
+
+  // POST /api/v1/works/:id/lyrics – Liedtext anlegen/aktualisieren (ARTIST)
+  @Post(":id/lyrics")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  upsertLyrics(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body() body: { content: string; format: string; language?: string },
+  ) {
+    return this.lyrics.upsert(userId, workId, body.content, body.format, body.language);
+  }
+
+  // DELETE /api/v1/works/:id/lyrics – Liedtext löschen (ARTIST)
+  @Delete(":id/lyrics")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  deleteLyrics(@CurrentUser() userId: string, @Param("id") workId: string) {
+    return this.lyrics.delete(userId, workId);
+  }
+
+  // GET /api/v1/works/:id/translations – Übersetzungen auflisten
+  @Get(":id/translations")
+  listTranslations(@Param("id") workId: string) {
+    return this.translations.list(workId);
+  }
+
+  // POST /api/v1/works/:id/translations – Übersetzung anlegen/aktualisieren (ARTIST)
+  @Post(":id/translations")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  upsertTranslation(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body() body: { language: string; title: string; description?: string },
+  ) {
+    return this.translations.upsert(userId, workId, body.language, body.title, body.description);
+  }
+
+  // DELETE /api/v1/works/:id/translations/:language – Übersetzung löschen (ARTIST)
+  @Delete(":id/translations/:language")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  deleteTranslation(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Param("language") language: string,
+  ) {
+    return this.translations.delete(userId, workId, language);
   }
 }

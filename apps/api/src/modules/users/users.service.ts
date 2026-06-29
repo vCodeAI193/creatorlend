@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
@@ -442,5 +442,37 @@ export class UsersService {
       },
       select: { id: true, wishlistPublic: true, wishlistSlug: true },
     });
+  }
+
+  async verifyAge(userId: string, birthYear: number, parentalConsent?: boolean) {
+    const age = new Date().getFullYear() - birthYear;
+    const isMinor = age < 13;
+    if (isMinor && !parentalConsent) throw new BadRequestException("minor_needs_parental_consent");
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { birthYear, isMinor: age < 18, ageVerifiedAt: new Date() },
+    });
+  }
+
+  async setKidsMode(userId: string, enabled: boolean) {
+    return this.prisma.user.update({ where: { id: userId }, data: { kidsModeEnabled: enabled } });
+  }
+
+  async setTrackingPreferences(userId: string, prefs: { trackingOptOut?: boolean; profilingOptOut?: boolean }) {
+    return this.prisma.user.update({ where: { id: userId }, data: { ...prefs } });
+  }
+
+  async getSearchHistory(userId: string, limit = 20) {
+    return this.prisma.searchHistory.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: limit });
+  }
+
+  async clearSearchHistory(userId: string) {
+    await this.prisma.searchHistory.deleteMany({ where: { userId } });
+    return { cleared: true };
+  }
+
+  async deleteSearchHistoryItem(userId: string, id: string) {
+    await this.prisma.searchHistory.deleteMany({ where: { id, userId } });
+    return { deleted: true };
   }
 }

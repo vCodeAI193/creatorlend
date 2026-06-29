@@ -16,6 +16,7 @@ import { Roles } from "../auth/roles.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { SubscriptionsService } from "./subscriptions.service";
 import { GiftCodesService } from "./gift-codes.service";
+import { StudentDiscountService } from "./student-discount.service";
 import { PlanDto } from "./dto/plan.dto";
 
 /** Abo-Verwaltung (Stripe Billing; Dev-Aktivierung ohne Stripe). */
@@ -26,6 +27,7 @@ export class SubscriptionsController {
   constructor(
     private readonly subscriptions: SubscriptionsService,
     private readonly giftCodes: GiftCodesService,
+    private readonly studentDiscount: StudentDiscountService,
   ) {}
 
   // POST /api/v1/subscriptions – Abo abschließen (Stripe Checkout)
@@ -132,5 +134,23 @@ export class SubscriptionsController {
   @Get("addon")
   listAddons(@CurrentUser() userId: string) {
     return this.subscriptions.listAddons(userId);
+  }
+
+  // POST /api/v1/subscriptions/student – Studentenrabatt beantragen (F-044)
+  @Post("student")
+  applyStudentDiscount(@CurrentUser() userId: string, @Body("eduEmail") eduEmail: string) {
+    return this.studentDiscount.applyForDiscount(userId, eduEmail);
+  }
+
+  // POST /api/v1/subscriptions/student/verify – Studentenstatus verifizieren (F-044)
+  @Post("student/verify")
+  verifyStudent(@CurrentUser() userId: string, @Body("token") token: string) {
+    return this.studentDiscount.verifyStudent(userId, token);
+  }
+
+  // GET /api/v1/subscriptions/student – Studentenstatus abrufen (F-044)
+  @Get("student")
+  studentStatus(@CurrentUser() userId: string) {
+    return this.studentDiscount.checkStudentStatus(userId);
   }
 }

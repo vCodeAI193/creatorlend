@@ -1,8 +1,10 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { UsersService } from "./users.service";
 import { BlocksService } from "../engagement/blocks.service";
+import { ConsentService } from "./consent.service";
+import { AbTestingService } from "../admin/ab-testing.service";
 
 @Controller("users")
 @UseGuards(JwtAuthGuard)
@@ -10,6 +12,8 @@ export class UsersController {
   constructor(
     private readonly users: UsersService,
     private readonly blocks: BlocksService,
+    private readonly consent: ConsentService,
+    private readonly abTests: AbTestingService,
   ) {}
 
   // GET /api/v1/users/me – eigenes Profil
@@ -200,5 +204,65 @@ export class UsersController {
     @Body("slug") slug?: string,
   ) {
     return this.users.setWishlistVisibility(userId, isPublic, slug);
+  }
+
+  // POST /api/v1/users/me/verify-age
+  @Post("me/verify-age")
+  verifyAge(@CurrentUser() userId: string, @Body() body: { birthYear: number; parentalConsent?: boolean }) {
+    return this.users.verifyAge(userId, body.birthYear, body.parentalConsent);
+  }
+
+  // PATCH /api/v1/users/me/kids-mode
+  @Patch("me/kids-mode")
+  setKidsMode(@CurrentUser() userId: string, @Body("enabled") enabled: boolean) {
+    return this.users.setKidsMode(userId, enabled);
+  }
+
+  // PATCH /api/v1/users/me/tracking
+  @Patch("me/tracking")
+  setTracking(@CurrentUser() userId: string, @Body() body: { trackingOptOut?: boolean; profilingOptOut?: boolean }) {
+    return this.users.setTrackingPreferences(userId, body);
+  }
+
+  // GET /api/v1/users/me/search-history
+  @Get("me/search-history")
+  getSearchHistory(@CurrentUser() userId: string, @Query("limit") limit?: string) {
+    return this.users.getSearchHistory(userId, limit ? Number(limit) : 20);
+  }
+
+  // DELETE /api/v1/users/me/search-history
+  @Delete("me/search-history")
+  clearSearchHistory(@CurrentUser() userId: string) {
+    return this.users.clearSearchHistory(userId);
+  }
+
+  // DELETE /api/v1/users/me/search-history/:id
+  @Delete("me/search-history/:id")
+  deleteSearchHistoryItem(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.users.deleteSearchHistoryItem(userId, id);
+  }
+
+  // POST /api/v1/users/me/consent
+  @Post("me/consent")
+  recordConsent(@CurrentUser() userId: string, @Body() body: { type: string; version: string; granted: boolean }, @Req() req: any) {
+    return this.consent.recordConsent(userId, body.type, body.version, body.granted, req.ip);
+  }
+
+  // GET /api/v1/users/me/consent
+  @Get("me/consent")
+  getConsent(@CurrentUser() userId: string) {
+    return this.consent.getHistory(userId);
+  }
+
+  // DELETE /api/v1/users/me/consent/:type
+  @Delete("me/consent/:type")
+  withdrawConsent(@CurrentUser() userId: string, @Param("type") type: string) {
+    return this.consent.withdraw(userId, type);
+  }
+
+  // GET /api/v1/users/me/ab-tests
+  @Get("me/ab-tests")
+  getAbTests(@CurrentUser() userId: string) {
+    return this.abTests.listAssignments(userId);
   }
 }

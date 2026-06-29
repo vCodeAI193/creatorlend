@@ -80,6 +80,14 @@ model User {
   preferredLanguages  String[] @default([]) // Bevorzugte Sprachen (F-074)
   excludedLanguages   String[] @default([]) // Ausgeschlossene Sprachen (F-074)
   profileVisibility   String   @default("PUBLIC") // PUBLIC | FOLLOWERS_ONLY | PRIVATE (F-059)
+  birthYear           Int?                             // Geburtsjahr für Altersverifikation (F-041)
+  isMinor             Boolean  @default(false)         // < 18 Jahre (F-041)
+  ageVerifiedAt       DateTime?                        // Zeitpunkt der Altersverifikation
+  parentalConsent     Boolean  @default(false)         // Elterliche Zustimmung (F-041)
+  kidsModeEnabled     Boolean  @default(false)         // Kinder-Modus (F-042)
+  trackingOptOut      Boolean  @default(false)         // Tracking opt-out (F-076)
+  profilingOptOut     Boolean  @default(false)         // Profiling-Widerspruch (F-080)
+  doNotTrack          Boolean  @default(false)         // Do Not Track (F-078)
 
   works         Work[]         @relation("ArtistWorks")
   loans         Loan[]
@@ -128,6 +136,10 @@ model User {
   sentLoanGifts       LoanGift[]         @relation("SentLoanGifts")
   receivedLoanGifts   LoanGift[]         @relation("ReceivedLoanGifts")
   loanReservations    LoanReservation[]
+  studentVerification StudentVerification?
+  consentRecords      ConsentRecord[]
+  abTests             AbTestAssignment[]
+  searchHistory       SearchHistory[]
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -210,6 +222,9 @@ model Work {
   dmcaTakedowns       DmcaTakedown[]
   loanGifts           LoanGift[]
   loanReservations    LoanReservation[]
+  subtitleTracks SubtitleTrack[]
+  lyrics Lyrics?
+  translations WorkTranslation[]
 
   @@index([artistId])
   @@index([type, status])
@@ -977,3 +992,97 @@ model LoanReservation {
   @@index([scheduledAt])
 }
 
+model StudentVerification {
+  id         String    @id @default(uuid())
+  userId     String    @unique
+  user       User      @relation(fields: [userId], references: [id])
+  eduEmail   String
+  verifiedAt DateTime?
+  expiresAt  DateTime?
+  status     String    @default("PENDING")
+  createdAt  DateTime  @default(now())
+}
+
+model CookieConsent {
+  id             String   @id @default(uuid())
+  userId         String?
+  sessionId      String?
+  analytics      Boolean  @default(false)
+  marketing      Boolean  @default(false)
+  functional     Boolean  @default(true)
+  consentVersion String   @default("1.0")
+  ip             String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([userId])
+  @@index([sessionId])
+}
+
+model ConsentRecord {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  version   String
+  granted   Boolean
+  ip        String?
+  createdAt DateTime @default(now())
+  @@index([userId, type])
+}
+
+model AbTestAssignment {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  testKey    String
+  variant    String
+  assignedAt DateTime @default(now())
+  @@unique([userId, testKey])
+  @@index([testKey])
+}
+
+model SubtitleTrack {
+  id        String   @id @default(uuid())
+  workId    String
+  work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  language  String
+  format    String
+  url       String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  @@index([workId])
+}
+
+model Lyrics {
+  id        String   @id @default(uuid())
+  workId    String   @unique
+  work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  content   String
+  format    String   @default("PLAIN")
+  language  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WorkTranslation {
+  id          String   @id @default(uuid())
+  workId      String
+  work        Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  language    String
+  title       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@unique([workId, language])
+  @@index([workId])
+}
+
+model SearchHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  query     String
+  createdAt DateTime @default(now())
+  @@index([userId])
+  @@index([createdAt])
+}
