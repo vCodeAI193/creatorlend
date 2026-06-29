@@ -564,4 +564,26 @@ export class UsersService {
     });
     return { doNotSell: true, userId };
   }
+
+  // ─── F-535: Interest Tags ────────────────────────────────────────────────
+
+  /** Get interest tags for a user (F-535). */
+  async getInterestTags(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { interestTags: true },
+    });
+    if (!user) throw new NotFoundException('user_not_found');
+    return { interestTags: user.interestTags };
+  }
+
+  /** Update interest tags for a user (F-535). */
+  async updateInterestTags(userId: string, tags: string[]) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { interestTags: tags },
+      select: { id: true, interestTags: true },
+    });
+    return user;
+  }
 }

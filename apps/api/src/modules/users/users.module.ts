@@ -14,10 +14,13 @@ import { ApiKeysService } from "../auth/api-keys.service";
 import { I18nController } from "./i18n.controller";
 import { LocaleService } from "./locale.service";
 import { TranslationManagementService } from "./translation-management.service";
+import { BillingAddressService } from "./billing-address.service";
+import { ReadingChallengeService } from "../engagement/reading-challenge.service";
+import { MarketingService } from "../mail/marketing.service";
 
 @Module({
   controllers: [UsersController, CookieConsentController, WebhooksSubscriptionController, I18nController],
-  providers: [UsersService, BlocksService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, FeatureFlagsService, WebhooksSubscriptionService, ApiKeysService, LocaleService, TranslationManagementService],
-  exports: [UsersService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, WebhooksSubscriptionService, ApiKeysService, LocaleService, TranslationManagementService],
+  providers: [UsersService, BlocksService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, FeatureFlagsService, WebhooksSubscriptionService, ApiKeysService, LocaleService, TranslationManagementService, BillingAddressService, ReadingChallengeService, MarketingService],
+  exports: [UsersService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, WebhooksSubscriptionService, ApiKeysService, LocaleService, TranslationManagementService, BillingAddressService, ReadingChallengeService],
 })
 export class UsersModule {}

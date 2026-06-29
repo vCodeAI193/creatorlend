@@ -355,4 +355,28 @@ export class AdminController {
   async exportTranslationsCsv(@Query("lang") lang = 'en') {
     return this.translationManagement.exportForTranslation(lang);
   }
+
+  // GET /api/v1/admin/vat-export – VAT data export stub (F-369)
+  @Get("vat-export")
+  vatExport(
+    @Query("year") year?: string,
+    @Query("quarter") quarter?: string,
+  ) {
+    const now = new Date();
+    const y = year ? Number(year) : now.getFullYear();
+    const q = quarter ? Number(quarter) : Math.ceil((now.getMonth() + 1) / 3);
+    return this.admin.exportVatData(y, q);
+  }
+
+  // PATCH /api/v1/admin/platform-fee – set platform fee percent (F-372)
+  @Patch("platform-fee")
+  setPlatformFee(@Body("percent") percent: number) {
+    return this.admin.setPlatformFee(percent);
+  }
+
+  // GET /api/v1/admin/analytics/geo – Geographic listener breakdown (F-428)
+  @Get("analytics/geo")
+  geoBreakdown(@Query("workId") workId?: string) {
+    return this.analytics.getGeoBreakdown(workId);
+  }
 }

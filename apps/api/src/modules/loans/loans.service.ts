@@ -5,7 +5,9 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import type { Loan } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -13,6 +15,7 @@ import { MediaService } from "../media/media.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { NotificationType } from "../notifications/notification-types";
 import { MailService } from "../mail/mail.service";
+import { ReadingChallengeService } from "../engagement/reading-challenge.service";
 
 /**
  * Kern-Logik des Leihmodells:
@@ -26,12 +29,14 @@ import { MailService } from "../mail/mail.service";
 export class LoansService {
   // F-372: Revenue share – platform keeps platformFeePct, artist gets the rest
   private readonly platformFeePct = parseInt(process.env.PLATFORM_FEE_PERCENT ?? "30", 10) / 100;
+  private readonly logger = new Logger(LoansService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
     private readonly notifications: NotificationsService,
     private readonly mail: MailService,
+    @Optional() private readonly readingChallenge?: ReadingChallengeService,
   ) {}
 
   private expiryFromNow(now: Date, days = 7): Date {
@@ -55,14 +60,20 @@ export class LoansService {
       throw new NotFoundException("work_not_found");
     }
 
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { userId },
-    });
-    if (!subscription || subscription.status !== "ACTIVE") {
-      throw new HttpException("no_active_subscription", HttpStatus.PAYMENT_REQUIRED);
-    }
-    if (subscription.loansUsedThisPeriod >= subscription.loanQuotaPerPeriod) {
-      throw new ConflictException("quota_exceeded");
+    // F-378: Free trial loan for new users (no prior loans, paid work)
+    const loanCount = await this.prisma.loan.count({ where: { userId } });
+    const isFreeTrialEligible = loanCount === 0 && work.loanPriceCents > 0;
+
+    if (!isFreeTrialEligible) {
+      const subscription = await this.prisma.subscription.findUnique({
+        where: { userId },
+      });
+      if (!subscription || subscription.status !== "ACTIVE") {
+        throw new HttpException("no_active_subscription", HttpStatus.PAYMENT_REQUIRED);
+      }
+      if (subscription.loansUsedThisPeriod >= subscription.loanQuotaPerPeriod) {
+        throw new ConflictException("quota_exceeded");
+      }
     }
 
     const now = new Date();
@@ -95,10 +106,12 @@ export class LoansService {
         },
       });
 
-      await tx.subscription.update({
-        where: { userId },
-        data: { loansUsedThisPeriod: { increment: 1 } },
-      });
+      if (!isFreeTrialEligible) {
+        await tx.subscription.update({
+          where: { userId },
+          data: { loansUsedThisPeriod: { increment: 1 } },
+        });
+      }
 
       await tx.work.update({
         where: { id: workId },
@@ -235,6 +248,7 @@ export class LoansService {
   /**
    * Hintergrund-Sweep: setzt alle fälligen ACTIVE-Leihen auf EXPIRED und
    * benachrichtigt die Hörer:innen (F-060, F-082). Gibt die Anzahl zurück.
+   * F-550: Ruft readingChallengeService.increment() für jeden Nutzer auf.
    */
   async runExpirySweep(): Promise<{ expired: number }> {
     const now = new Date();
@@ -258,6 +272,17 @@ export class LoansService {
         data: { loanId: l.id, workId: l.workId },
       })),
     );
+
+    // F-550: Increment reading challenge for each user whose loan expired
+    if (this.readingChallenge) {
+      for (const l of due) {
+        try {
+          await this.readingChallenge.increment(l.userId);
+        } catch (err) {
+          this.logger.warn(`Reading challenge increment failed for user ${l.userId}`, err);
+        }
+      }
+    }
 
     return { expired: due.length };
   }

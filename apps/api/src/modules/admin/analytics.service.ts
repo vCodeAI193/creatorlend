@@ -146,6 +146,22 @@ export class AnalyticsService {
     };
   }
 
+  /**
+   * F-428: Geographic listener breakdown.
+   * Stub: returns placeholder country data since IP/geo is not stored.
+   */
+  async getGeoBreakdown(workId?: string) {
+    // Stub: no geo data stored, return placeholder
+    return {
+      workId: workId ?? null,
+      breakdown: [
+        { country: 'US', count: 0 },
+        { country: 'DE', count: 0 },
+      ],
+      note: 'Geo breakdown is a stub — no IP data is stored',
+    };
+  }
+
   async getRevenueMetrics(period: 'monthly' | 'weekly' | 'daily' = 'monthly') {
     const truncFn = period === 'daily' ? 'day' : period === 'weekly' ? 'week' : 'month';
     const rows = await this.prisma.$queryRaw<

@@ -385,6 +385,19 @@ export class SubscriptionsService {
   }
 
   /**
+   * F-351: Rollover quota for a single subscription – resets loansUsedThisPeriod
+   * and sets currentPeriodEnd to now + 30 days.
+   */
+  async rolloverQuota(subscriptionId: string) {
+    const now = new Date();
+    const nextPeriodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    return this.prisma.subscription.update({
+      where: { id: subscriptionId },
+      data: { loansUsedThisPeriod: 0, currentPeriodEnd: nextPeriodEnd },
+    });
+  }
+
+  /**
    * Alle fälligen pausierten Abos automatisch wieder aktivieren.
    * Wird stündlich vom Scheduler aufgerufen.
    */

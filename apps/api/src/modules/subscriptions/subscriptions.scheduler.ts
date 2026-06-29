@@ -95,4 +95,29 @@ export class SubscriptionsScheduler {
       this.logger.log(`Dunning retry: processed ${result.processed} PAST_DUE subscriptions`);
     }
   }
+
+  /**
+   * F-351: Quota rollover – täglich Mitternacht: findet alle ACTIVE Abos,
+   * deren currentPeriodEnd < now, und setzt das Kontingent zurück.
+   */
+  @Cron('0 0 * * *')
+  async handleQuotaRollover() {
+    const now = new Date();
+    const expiredSubs = await this.prisma.subscription.findMany({
+      where: { status: 'ACTIVE', currentPeriodEnd: { lt: now } },
+      select: { id: true },
+    });
+    let rolledOver = 0;
+    for (const sub of expiredSubs) {
+      try {
+        await this.subscriptions.rolloverQuota(sub.id);
+        rolledOver += 1;
+      } catch (err) {
+        this.logger.error(`Quota rollover failed for subscription ${sub.id}`, err);
+      }
+    }
+    if (rolledOver > 0) {
+      this.logger.log(`Quota rollover: ${rolledOver} subscriptions reset`);
+    }
+  }
 }

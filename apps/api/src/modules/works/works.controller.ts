@@ -29,6 +29,8 @@ import { CollectionsService } from "./collections.service";
 import { AiService } from "./ai.service";
 import { GeoService } from "./geo.service";
 import { AutoTranslateService } from "./auto-translate.service";
+import { DiscountCodesService } from "./discount-codes.service";
+import { UtmService } from "./utm.service";
 import { CreateWorkDto } from "./dto/create-work.dto";
 import { UpdateWorkDto } from "./dto/update-work.dto";
 
@@ -48,6 +50,8 @@ export class WorksController {
     private readonly ai: AiService,
     private readonly geo: GeoService,
     private readonly autoTranslate: AutoTranslateService,
+    private readonly discountCodes: DiscountCodesService,
+    private readonly utm: UtmService,
   ) {}
 
   // POST /api/v1/works – Werk einstellen (ARTIST)
@@ -394,10 +398,17 @@ export class WorksController {
     return this.ratings.summary(id);
   }
 
-  // GET /api/v1/works/:id/reviews – Rezensionen (B-130)
+  // GET /api/v1/works/:id/reviews – Rezensionen (B-130, F-529/F-530)
   @Get(":id/reviews")
-  getReviews(@Param("id") id: string) {
-    return this.reviews.list(id);
+  getReviews(
+    @Param("id") id: string,
+    @Query("sort") sort?: 'recent' | 'helpful' | 'top',
+    @Query("rating") rating?: string,
+  ) {
+    return this.reviews.list(id, {
+      sort,
+      rating: rating !== undefined ? Number(rating) : undefined,
+    });
   }
 
   // GET /api/v1/works/:id/chapters – Kapitelmarken (B-034)
@@ -695,5 +706,55 @@ export class WorksController {
     @Body("style") style?: string,
   ) {
     return this.ai.generateCoverArt(id, style);
+  }
+
+  // ─── F-383: Discount codes ───────────────────────────────────────────────
+
+  // POST /api/v1/works/discount-codes – Rabattcode erstellen (ARTIST)
+  @Post("discount-codes")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  createDiscountCode(
+    @CurrentUser() userId: string,
+    @Body() body: { code: string; discountPercent: number; maxUses?: number; expiresAt?: string },
+  ) {
+    return this.discountCodes.create(userId, body);
+  }
+
+  // GET /api/v1/works/discount-codes – eigene Rabattcodes auflisten (ARTIST)
+  @Get("discount-codes")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  listDiscountCodes(@CurrentUser() userId: string) {
+    return this.discountCodes.list(userId);
+  }
+
+  // DELETE /api/v1/works/discount-codes/:id – Rabattcode löschen (ARTIST)
+  @Delete("discount-codes/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  deleteDiscountCode(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.discountCodes.delete(userId, id);
+  }
+
+  // POST /api/v1/works/discount-codes/apply – Rabattcode anwenden
+  @Post("discount-codes/apply")
+  @UseGuards(JwtAuthGuard)
+  applyDiscountCode(
+    @CurrentUser() userId: string,
+    @Body("code") code: string,
+    @Body("workId") workId: string,
+  ) {
+    return this.discountCodes.apply(code, workId, userId);
+  }
+
+  // ─── F-441: UTM Tracking ─────────────────────────────────────────────────
+
+  // POST /api/v1/works/utm-track – UTM-Klick erfassen (public, no auth)
+  @Post("utm-track")
+  trackUtm(
+    @Body() body: { source: string; medium?: string; campaign?: string; workId?: string; userId?: string },
+  ) {
+    return this.utm.track(body);
   }
 }

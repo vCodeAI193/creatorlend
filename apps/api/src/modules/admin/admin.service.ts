@@ -374,6 +374,30 @@ export class AdminService {
     return ['workId,title,type,artistName,borrowCount,totalEarningsCents,avgRating', ...rows].join('\n');
   }
 
+  /**
+   * F-369: Export VAT data stub (ELSTER format).
+   */
+  exportVatData(year: number, quarter: number) {
+    return {
+      year,
+      quarter,
+      format: 'ELSTER',
+      data: [],
+      generatedAt: new Date(),
+    };
+  }
+
+  /**
+   * F-372: Set platform fee percent via AppSetting.
+   */
+  async setPlatformFee(percent: number) {
+    return this.prisma.appSetting.upsert({
+      where: { key: 'platform_fee_percent' },
+      create: { key: 'platform_fee_percent', value: String(percent) },
+      update: { value: String(percent) },
+    });
+  }
+
   /** Globale Plattform-Statistiken für das Dashboard (B-151). */
   async platformStats() {
     const [users, works, loans, pendingPayouts] = await Promise.all([

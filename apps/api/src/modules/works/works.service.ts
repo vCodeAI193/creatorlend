@@ -1,9 +1,13 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MediaService } from "../media/media.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { NotificationType } from "../notifications/notification-types";
+
+// F-329: Price floor/ceiling
+export const MIN_PRICE = 50;   // 50 cents minimum
+export const MAX_PRICE = 9999; // $99.99 maximum
 
 interface CreateWorkInput {
   title: string;
@@ -18,6 +22,7 @@ interface CreateWorkInput {
   explicit?: boolean;
   publishAt?: string; // ISO-Datetime für geplante Veröffentlichung (B-040)
   earlyAccessDays?: number; // Früher Zugang nur für PREMIUM (F-165/F-166)
+  coAuthorIds?: string[]; // Mitautoren (F-472)
 }
 
 export interface SearchFilter {
@@ -48,6 +53,14 @@ export class WorksService {
    * über eine signierte Upload-URL (MediaService).
    */
   async create(artistId: string, input: CreateWorkInput) {
+    // F-329: Price floor/ceiling enforcement
+    if (input.loanPriceCents < MIN_PRICE) {
+      throw new BadRequestException(`price_below_minimum:${MIN_PRICE}`);
+    }
+    if (input.loanPriceCents > MAX_PRICE) {
+      throw new BadRequestException(`price_above_maximum:${MAX_PRICE}`);
+    }
+
     const work = await this.prisma.work.create({
       data: {
         artistId,
@@ -63,6 +76,7 @@ export class WorksService {
         explicit: input.explicit ?? false,
         publishAt: input.publishAt ? new Date(input.publishAt) : null,
         earlyAccessDays: input.earlyAccessDays ?? 0,
+        coAuthorIds: input.coAuthorIds ?? [],
         status: "DRAFT",
       },
     });
@@ -82,6 +96,17 @@ export class WorksService {
 
   async update(artistId: string, id: string, input: Partial<CreateWorkInput>) {
     await this.ownedWork(artistId, id);
+
+    // F-329: Price floor/ceiling enforcement when price is being updated
+    if (input.loanPriceCents !== undefined) {
+      if (input.loanPriceCents < MIN_PRICE) {
+        throw new BadRequestException(`price_below_minimum:${MIN_PRICE}`);
+      }
+      if (input.loanPriceCents > MAX_PRICE) {
+        throw new BadRequestException(`price_above_maximum:${MAX_PRICE}`);
+      }
+    }
+
     return this.prisma.work.update({
       where: { id },
       data: {
@@ -95,6 +120,7 @@ export class WorksService {
         ...(input.explicit !== undefined ? { explicit: input.explicit } : {}),
         ...(input.publishAt !== undefined ? { publishAt: input.publishAt ? new Date(input.publishAt) : null } : {}),
         ...(input.type ? { type: input.type as never } : {}),
+        ...(input.coAuthorIds !== undefined ? { coAuthorIds: input.coAuthorIds } : {}),
       },
     });
   }

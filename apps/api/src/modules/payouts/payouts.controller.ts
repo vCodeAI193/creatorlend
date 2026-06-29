@@ -7,6 +7,7 @@ import { CurrentUser } from "../../common/current-user.decorator";
 import { PayoutsService } from "./payouts.service";
 import { TipsService } from "./tips.service";
 import { TaxStatementService } from "./tax-statement.service";
+import { InvoiceService } from "./invoice.service";
 
 /** Vergütung & Auszahlungen für Künstler:innen. */
 @Controller("payouts")
@@ -17,6 +18,7 @@ export class PayoutsController {
     private readonly payouts: PayoutsService,
     private readonly tips: TipsService,
     private readonly taxStatement: TaxStatementService,
+    private readonly invoice: InvoiceService,
   ) {}
 
   // GET /api/v1/payouts/summary – aggregierte Vergütung
@@ -189,5 +191,21 @@ export class PayoutsController {
   @Get("dashboard")
   artistDashboard(@CurrentUser() userId: string) {
     return this.payouts.artistDashboard(userId);
+  }
+
+  // GET /api/v1/payouts/invoices – invoice archive (F-345)
+  @Get("invoices")
+  listInvoices(@CurrentUser() userId: string) {
+    return this.invoice.listInvoices(userId);
+  }
+
+  // GET /api/v1/payouts/:id/invoice – invoice PDF download (F-344)
+  @Get(":id/invoice")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async downloadInvoice(@Param("id") id: string, @Res() res: any) {
+    const pdfBuffer = await this.invoice.generateInvoicePdf(id);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="invoice-${id}.pdf"`);
+    res.send(pdfBuffer);
   }
 }

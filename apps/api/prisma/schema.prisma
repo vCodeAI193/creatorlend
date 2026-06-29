@@ -56,6 +56,7 @@ model User {
   avatarUrl    String?  // Profilbild-URL (B-013, B-014)
   slug         String?  @unique // individuelle Profil-URL (B-017)
   socialLinks  Json?    // externe Links { website, twitter, instagram, ... } (B-016)
+  interestTags String[] @default([]) // Interesse-Tags (F-535)
   emailVerified Boolean @default(false)
   stripeConnectAccountId String? // Stripe-Connect-Konto für Auszahlungen
   createdAt    DateTime @default(now())
@@ -151,6 +152,9 @@ model User {
   faqs                  ArtistFaq[]
   collections           Collection[]
   webhookSubscriptions  WebhookSubscription[]
+  billingAddress        BillingAddress?       // F-341
+  discountCodes         DiscountCode[]        @relation("ArtistDiscountCodes") // F-383
+  readingChallenge      ReadingChallenge?     // F-550
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -216,6 +220,7 @@ model Work {
   promoEndsAt     DateTime?  // Promo-Ablauf (F-455)
   viewCount       Int        @default(0) // Seitenaufrufe (F-458)
   earningsGoalCents Int?     // Einnahmenziel in Cents (F-460)
+  coAuthorIds     String[]   @default([]) // Mitautor-IDs (F-472)
   status          WorkStatus @default(DRAFT)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
@@ -448,7 +453,9 @@ model Review {
   workId          String
   work            Work        @relation(fields: [workId], references: [id])
   body            String
+  rating          Int?        // 1-5 Sterne (F-529/F-530)
   hidden          Boolean     @default(false) // moderiert (B-131)
+  isVerifiedBuyer Boolean     @default(false) // F-524: verifizierter Käufer
   artistReply     String?
   artistRepliedAt DateTime?
   createdAt       DateTime    @default(now())
@@ -457,6 +464,8 @@ model Review {
 
   @@unique([userId, workId])
   @@index([workId])
+  @@index([workId, createdAt])
+  @@index([workId, rating])
 }
 
 // Audit-Log für Admin-Aktionen (B-155)
@@ -1197,6 +1206,74 @@ model DownloadToken {
   createdAt DateTime  @default(now())
   @@index([token])
   @@index([loanId])
+}
+
+// Rechnungsadresse (F-341)
+model BillingAddress {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  line1      String
+  line2      String?
+  city       String
+  state      String?
+  postalCode String
+  country    String
+  vatNumber  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// Rabattcodes für Künstler:innen (F-383)
+model DiscountCode {
+  id              String    @id @default(cuid())
+  artistId        String
+  artist          User      @relation("ArtistDiscountCodes", fields: [artistId], references: [id])
+  code            String    @unique
+  discountPercent Int       // 1-100
+  maxUses         Int       @default(1)
+  usedCount       Int       @default(0)
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([artistId])
+  @@index([code])
+}
+
+// UTM-Klick-Tracking (F-441)
+model UtmClick {
+  id        String   @id @default(cuid())
+  source    String
+  medium    String?
+  campaign  String?
+  workId    String?
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([source])
+  @@index([workId])
+}
+
+// Lese-/Hör-Challenge (F-550)
+model ReadingChallenge {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalCount      Int
+  completedCount Int      @default(0)
+  year           Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// App-Einstellungen (F-372)
+model AppSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
 }
 
 // Site-weite Ankündigungen (F-390)

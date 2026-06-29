@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Request, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, Request, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser } from "../../common/current-user.decorator";
@@ -9,6 +9,8 @@ import { CookieConsentService } from "./cookie-consent.service";
 import { AbTestingService } from "../admin/ab-testing.service";
 import { ApiKeysService } from "../auth/api-keys.service";
 import { MarketingService } from "../mail/marketing.service";
+import { BillingAddressService } from "./billing-address.service";
+import { ReadingChallengeService } from "../engagement/reading-challenge.service";
 
 // Plan quota limits (stub)
 const PLAN_LIMITS: Record<string, { requestsPerMinute: number }> = {
@@ -29,6 +31,8 @@ export class UsersController {
     private readonly abTests: AbTestingService,
     private readonly apiKeys: ApiKeysService,
     private readonly marketing: MarketingService,
+    private readonly billingAddress: BillingAddressService,
+    private readonly readingChallenge: ReadingChallengeService,
   ) {}
 
   // GET /api/v1/users/me – eigenes Profil
@@ -365,5 +369,60 @@ export class UsersController {
   @Get("me/ccpa/data-request")
   ccpaDataRequest(@CurrentUser() userId: string) {
     return this.users.exportData(userId); // reuse existing GDPR export
+  }
+
+  // GET /api/v1/users/billing-address – Rechnungsadresse abrufen (F-341)
+  @Get("billing-address")
+  getBillingAddress(@CurrentUser() userId: string) {
+    return this.billingAddress.get(userId);
+  }
+
+  // PUT /api/v1/users/billing-address – Rechnungsadresse speichern (F-341)
+  @Put("billing-address")
+  upsertBillingAddress(
+    @CurrentUser() userId: string,
+    @Body() body: {
+      name: string;
+      line1: string;
+      line2?: string;
+      city: string;
+      state?: string;
+      postalCode: string;
+      country: string;
+      vatNumber?: string;
+    },
+  ) {
+    return this.billingAddress.upsert(userId, body);
+  }
+
+  // PATCH /api/v1/users/interest-tags – Interessens-Tags setzen (F-535)
+  @Patch("interest-tags")
+  updateInterestTags(
+    @CurrentUser() userId: string,
+    @Body("tags") tags: string[],
+  ) {
+    return this.users.updateInterestTags(userId, tags);
+  }
+
+  // GET /api/v1/users/interest-tags – Interessens-Tags abrufen (F-535)
+  @Get("interest-tags")
+  getInterestTags(@CurrentUser() userId: string) {
+    return this.users.getInterestTags(userId);
+  }
+
+  // POST /api/v1/users/reading-challenge – Leseherausforderung setzen (F-550)
+  @Post("reading-challenge")
+  setReadingChallenge(
+    @CurrentUser() userId: string,
+    @Body("goalCount") goalCount: number,
+    @Body("year") year?: number,
+  ) {
+    return this.readingChallenge.setGoal(userId, goalCount, year ?? new Date().getFullYear());
+  }
+
+  // GET /api/v1/users/reading-challenge – Leseherausforderung abrufen (F-550)
+  @Get("reading-challenge")
+  getReadingChallenge(@CurrentUser() userId: string) {
+    return this.readingChallenge.getChallenge(userId);
   }
 }
