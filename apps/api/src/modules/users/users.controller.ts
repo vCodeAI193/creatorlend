@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Request, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { UsersService } from "./users.service";
 import { BlocksService } from "../engagement/blocks.service";
 import { ConsentService } from "./consent.service";
+import { CookieConsentService } from "./cookie-consent.service";
 import { AbTestingService } from "../admin/ab-testing.service";
 
 @Controller("users")
@@ -13,6 +14,7 @@ export class UsersController {
     private readonly users: UsersService,
     private readonly blocks: BlocksService,
     private readonly consent: ConsentService,
+    private readonly cookieConsent: CookieConsentService,
     private readonly abTests: AbTestingService,
   ) {}
 
@@ -220,7 +222,7 @@ export class UsersController {
 
   // PATCH /api/v1/users/me/tracking
   @Patch("me/tracking")
-  setTracking(@CurrentUser() userId: string, @Body() body: { trackingOptOut?: boolean; profilingOptOut?: boolean }) {
+  setTracking(@CurrentUser() userId: string, @Body() body: { trackingOptOut?: boolean; profilingOptOut?: boolean; doNotTrack?: boolean }) {
     return this.users.setTrackingPreferences(userId, body);
   }
 
@@ -244,20 +246,24 @@ export class UsersController {
 
   // POST /api/v1/users/me/consent
   @Post("me/consent")
-  recordConsent(@CurrentUser() userId: string, @Body() body: { type: string; version: string; granted: boolean }, @Req() req: any) {
-    return this.consent.recordConsent(userId, body.type, body.version, body.granted, req.ip);
+  recordConsent(
+    @CurrentUser() userId: string,
+    @Body() body: { type: string; version: string; granted: boolean },
+    @Request() req: any,
+  ) {
+    return this.consent.recordConsent(userId, body.type, body.version, body.granted, req.ip as string | undefined);
   }
 
   // GET /api/v1/users/me/consent
   @Get("me/consent")
   getConsent(@CurrentUser() userId: string) {
-    return this.consent.getHistory(userId);
+    return this.consent.getConsentHistory(userId);
   }
 
   // DELETE /api/v1/users/me/consent/:type
   @Delete("me/consent/:type")
   withdrawConsent(@CurrentUser() userId: string, @Param("type") type: string) {
-    return this.consent.withdraw(userId, type);
+    return this.consent.withdrawConsent(userId, type);
   }
 
   // GET /api/v1/users/me/ab-tests
