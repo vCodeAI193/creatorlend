@@ -540,4 +540,17 @@ export class UsersService {
       select: { id: true, fcmToken: true },
     });
   }
+
+  /** F-652: Accessibility preferences. */
+  async setAccessibilityPrefs(userId: string, prefs: { highContrast?: boolean; fontSize?: string; reducedMotion?: boolean }) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(prefs.highContrast !== undefined ? { highContrast: prefs.highContrast } : {}),
+        ...(prefs.fontSize !== undefined ? { fontSize: prefs.fontSize } : {}),
+        ...(prefs.reducedMotion !== undefined ? { reducedMotion: prefs.reducedMotion } : {}),
+      },
+      select: { id: true, highContrast: true, fontSize: true, reducedMotion: true },
+    });
+  }
 }

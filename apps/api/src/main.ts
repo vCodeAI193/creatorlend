@@ -3,6 +3,8 @@ import { ValidationPipe } from "@nestjs/common";
 import { AppModule } from "./app.module";
 import { initTelemetry } from "./common/telemetry";
 import { initSentry } from "./common/sentry";
+import { DeprecationInterceptor } from "./common/deprecation.interceptor";
+import { HttpLoggerInterceptor } from "./common/http-logger.interceptor";
 
 async function bootstrap() {
   initTelemetry();
@@ -11,6 +13,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
   app.setGlobalPrefix("api/v1");
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalInterceptors(new HttpLoggerInterceptor(), new DeprecationInterceptor());
 
   // B-188: Sicherheits-Header via helmet (inline, ohne npm-Dep)
   app.use((_req: unknown, res: { setHeader: (k: string, v: string) => void }, next: () => void) => {

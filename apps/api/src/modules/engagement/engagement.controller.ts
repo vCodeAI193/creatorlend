@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -19,6 +20,7 @@ import { WishlistService } from "./wishlist.service";
 import { RatingsService } from "./ratings.service";
 import { ReviewsService } from "./reviews.service";
 import { BookmarksService } from "./bookmarks.service";
+import { FaqsService } from "./faqs.service";
 import { FavoriteDto } from "./dto/favorite.dto";
 import { FollowDto } from "./dto/follow.dto";
 
@@ -34,6 +36,7 @@ export class EngagementController {
     private readonly ratings: RatingsService,
     private readonly reviews: ReviewsService,
     private readonly bookmarks: BookmarksService,
+    private readonly faqs: FaqsService,
   ) {}
 
   // POST /api/v1/favorites
@@ -165,5 +168,69 @@ export class EngagementController {
   @Delete("bookmarks/:id")
   removeBookmark(@CurrentUser() userId: string, @Param("id") id: string) {
     return this.bookmarks.remove(userId, id);
+  }
+
+  // POST /api/v1/reviews/:id/reply – Künstler:in antwortet auf Rezension (F-601)
+  @Post("reviews/:id/reply")
+  addArtistReply(
+    @CurrentUser() userId: string,
+    @Param("id") reviewId: string,
+    @Body("reply") reply: string,
+  ) {
+    return this.reviews.addArtistReply(userId, reviewId, reply);
+  }
+
+  // POST /api/v1/reviews/:id/vote – Rezension bewerten (F-602)
+  @Post("reviews/:id/vote")
+  voteReview(
+    @CurrentUser() userId: string,
+    @Param("id") reviewId: string,
+    @Body("helpful") helpful: boolean,
+  ) {
+    return this.reviews.voteReview(userId, reviewId, helpful);
+  }
+
+  // GET /api/v1/reviews/:id – Rezension mit Votes (F-602)
+  @Get("reviews/:id")
+  getReview(@Param("id") reviewId: string) {
+    return this.reviews.getReviewWithVotes(reviewId);
+  }
+
+  // GET /api/v1/faqs/:artistId – FAQs eines Künstlers (F-603)
+  @Get("faqs/:artistId")
+  listFaqs(@Param("artistId") artistId: string) {
+    return this.faqs.list(artistId);
+  }
+
+  // POST /api/v1/faqs – FAQ erstellen (F-603)
+  @Post("faqs")
+  createFaq(
+    @CurrentUser() userId: string,
+    @Body("question") question: string,
+    @Body("answer") answer?: string,
+  ) {
+    return this.faqs.create(userId, question, answer);
+  }
+
+  // PATCH /api/v1/faqs/:id – FAQ aktualisieren (F-603)
+  @Patch("faqs/:id")
+  updateFaq(
+    @CurrentUser() userId: string,
+    @Param("id") id: string,
+    @Body() body: { question?: string; answer?: string; sortOrder?: number },
+  ) {
+    return this.faqs.update(userId, id, body);
+  }
+
+  // DELETE /api/v1/faqs/:id – FAQ löschen (F-603)
+  @Delete("faqs/:id")
+  deleteFaq(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.faqs.delete(userId, id);
+  }
+
+  // POST /api/v1/faqs/reorder – FAQs neu ordnen (F-603)
+  @Post("faqs/reorder")
+  reorderFaqs(@CurrentUser() userId: string, @Body("orderedIds") orderedIds: string[]) {
+    return this.faqs.reorder(userId, orderedIds);
   }
 }

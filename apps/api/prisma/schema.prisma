@@ -144,7 +144,13 @@ model User {
   studentVerification StudentVerification?
   consentRecords      ConsentRecord[]
   abTests             AbTestAssignment[]
-  searchHistory       SearchHistory[]
+  searchHistory         SearchHistory[]
+  highContrast          Boolean   @default(false)
+  fontSize              String    @default("MEDIUM")
+  reducedMotion         Boolean   @default(false)
+  faqs                  ArtistFaq[]
+  collections           Collection[]
+  webhookSubscriptions  WebhookSubscription[]
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -231,9 +237,13 @@ model Work {
   dmcaTakedowns       DmcaTakedown[]
   loanGifts           LoanGift[]
   loanReservations    LoanReservation[]
-  subtitleTracks SubtitleTrack[]
-  lyrics Lyrics?
-  translations WorkTranslation[]
+  subtitleTracks      SubtitleTrack[]
+  lyrics              Lyrics?
+  translations        WorkTranslation[]
+  hasTranscript       Boolean         @default(false)
+  hasAudioDescription Boolean         @default(false)
+  hasCaptions         Boolean         @default(false)
+  collectionItems     CollectionItem[]
 
   @@index([artistId])
   @@index([type, status])
@@ -431,15 +441,18 @@ model Rating {
 
 // Textrezensionen für Werke (B-130)
 model Review {
-  id        String    @id @default(uuid())
-  userId    String
-  user      User      @relation("ReviewerReviews", fields: [userId], references: [id])
-  workId    String
-  work      Work      @relation(fields: [workId], references: [id])
-  body      String
-  hidden    Boolean   @default(false) // moderiert (B-131)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id              String      @id @default(uuid())
+  userId          String
+  user            User        @relation("ReviewerReviews", fields: [userId], references: [id])
+  workId          String
+  work            Work        @relation(fields: [workId], references: [id])
+  body            String
+  hidden          Boolean     @default(false) // moderiert (B-131)
+  artistReply     String?
+  artistRepliedAt DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  votes           ReviewVote[]
 
   @@unique([userId, workId])
   @@index([workId])
@@ -645,6 +658,7 @@ model ArtistPost {
   linkUrl     String?
   publishedAt DateTime?
   scheduledAt DateTime?
+  isPinned    Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -1094,6 +1108,79 @@ model SearchHistory {
   createdAt DateTime @default(now())
   @@index([userId])
   @@index([createdAt])
+}
+
+model ReviewVote {
+  id       String  @id @default(uuid())
+  reviewId String
+  review   Review  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId   String
+  helpful  Boolean
+  @@unique([reviewId, userId])
+  @@index([reviewId])
+}
+
+model ArtistFaq {
+  id        String   @id @default(uuid())
+  artistId  String
+  artist    User     @relation(fields: [artistId], references: [id])
+  question  String
+  answer    String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([artistId])
+}
+
+model Collection {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  title       String
+  description String?
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  items       CollectionItem[]
+  @@index([userId])
+}
+
+model CollectionItem {
+  id           String     @id @default(uuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  workId       String
+  work         Work       @relation(fields: [workId], references: [id])
+  sortOrder    Int        @default(0)
+  addedAt      DateTime   @default(now())
+  @@unique([collectionId, workId])
+  @@index([collectionId])
+}
+
+model WebhookDelivery {
+  id            String    @id @default(uuid())
+  event         String
+  payload       Json
+  targetUrl     String
+  statusCode    Int?
+  attempts      Int       @default(0)
+  lastAttemptAt DateTime?
+  succeededAt   DateTime?
+  createdAt     DateTime  @default(now())
+  @@index([event])
+  @@index([createdAt])
+}
+
+model WebhookSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  url       String
+  events    String[] @default([])
+  secret    String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  @@index([userId])
 }
 
 // Site-weite Ankündigungen (F-390)

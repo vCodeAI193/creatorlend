@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Put, Query, UseGuards } from "@nestjs/common";
 import { UserRole } from "@creatorlend/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -233,6 +233,48 @@ export class AdminController {
   @Delete("feature-flags/:key")
   deleteFeatureFlag(@Param("key") key: string) {
     return this.featureFlags.delete(key);
+  }
+
+  // GET /api/v1/admin/webhooks – Webhook-Deliveries auflisten (F-701)
+  @Get("webhooks")
+  listWebhookDeliveries(
+    @Query("event") event?: string,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
+    @Query("failed") failed?: string,
+  ) {
+    return this.admin.listWebhookDeliveries({ event, from, to, failed: failed === 'true' });
+  }
+
+  // POST /api/v1/admin/webhooks/:id/retry – Webhook-Delivery wiederholen (F-701)
+  @Post("webhooks/:id/retry")
+  retryWebhookDelivery(@Param("id") id: string) {
+    return this.admin.retryWebhookDelivery(id);
+  }
+
+  // GET /api/v1/admin/reports/works.csv – Werke-CSV-Export (F-751)
+  @Get("reports/works.csv")
+  @Header("Content-Type", "text/csv")
+  async exportWorksCsv(@Query("from") from?: string, @Query("to") to?: string) {
+    return this.admin.exportWorksCsv(from, to);
+  }
+
+  // GET /api/v1/admin/analytics/heatmap – Aktivitäts-Heatmap (F-755)
+  @Get("analytics/heatmap")
+  activityHeatmap(@Query("year") year?: string) {
+    return this.analytics.getActivityHeatmap(year ? Number(year) : undefined);
+  }
+
+  // GET /api/v1/admin/analytics/funnel – Conversion-Funnel (F-760)
+  @Get("analytics/funnel")
+  conversionFunnel() {
+    return this.analytics.getConversionFunnel();
+  }
+
+  // GET /api/v1/admin/analytics/churn – Churn-Analyse (F-762)
+  @Get("analytics/churn")
+  churnAnalysis(@Query("period") period?: string) {
+    return this.analytics.getChurnAnalysis(period);
   }
 
   // GET /api/v1/admin/analytics/cohort-retention – Kohorten-Retention (F-765)

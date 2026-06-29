@@ -283,4 +283,10 @@ export class UsersController {
   setFcmToken(@CurrentUser() userId: string, @Body("token") token: string) {
     return this.users.setFcmToken(userId, token);
   }
+
+  // PATCH /api/v1/users/me/accessibility – Barrierefreiheits-Einstellungen (F-652)
+  @Patch("me/accessibility")
+  setAccessibility(@CurrentUser() userId: string, @Body() body: { highContrast?: boolean; fontSize?: string; reducedMotion?: boolean }) {
+    return this.users.setAccessibilityPrefs(userId, body);
+  }
 }

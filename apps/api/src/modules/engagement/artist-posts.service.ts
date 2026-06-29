@@ -60,6 +60,20 @@ export class ArtistPostsService {
     return this.prisma.artistPostComment.update({ where: { id: commentId }, data: { hidden: true } });
   }
 
+  async pinPost(artistId: string, postId: string) {
+    const post = await this.prisma.artistPost.findUnique({ where: { id: postId } });
+    if (!post || post.artistId !== artistId) throw new ForbiddenException('not_your_post');
+    // Unpin all first
+    await this.prisma.artistPost.updateMany({ where: { artistId, isPinned: true }, data: { isPinned: false } });
+    return this.prisma.artistPost.update({ where: { id: postId }, data: { isPinned: true } });
+  }
+
+  async unpinPost(artistId: string, postId: string) {
+    const post = await this.prisma.artistPost.findUnique({ where: { id: postId } });
+    if (!post || post.artistId !== artistId) throw new ForbiddenException('not_your_post');
+    return this.prisma.artistPost.update({ where: { id: postId }, data: { isPinned: false } });
+  }
+
   async feedForFollower(followerId: string, limit = 20) {
     const follows = await this.prisma.follow.findMany({ where: { followerId }, select: { artistId: true } });
     const artistIds = follows.map(f => f.artistId);

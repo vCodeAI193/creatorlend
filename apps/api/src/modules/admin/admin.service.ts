@@ -299,6 +299,66 @@ export class AdminService {
     return { deleted: true };
   }
 
+  /** F-701: Webhook-Delivery-Log auflisten. */
+  async listWebhookDeliveries(filters: { event?: string; from?: string; to?: string; failed?: boolean } = {}) {
+    const where: any = {};
+    if (filters.event) where.event = filters.event;
+    if (filters.from || filters.to) {
+      where.createdAt = {};
+      if (filters.from) where.createdAt.gte = new Date(filters.from);
+      if (filters.to) where.createdAt.lte = new Date(filters.to);
+    }
+    if (filters.failed === true) where.succeededAt = null;
+    const [items, total] = await Promise.all([
+      this.prisma.webhookDelivery.findMany({ where, orderBy: { createdAt: 'desc' }, take: 50 }),
+      this.prisma.webhookDelivery.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  /** F-701: Webhook-Delivery wiederholen. */
+  async retryWebhookDelivery(id: string) {
+    const delivery = await this.prisma.webhookDelivery.findUnique({ where: { id } });
+    if (!delivery) throw new NotFoundException('delivery_not_found');
+    await this.prisma.webhookDelivery.update({ where: { id }, data: { attempts: { increment: 1 }, lastAttemptAt: new Date() } });
+    return { retried: true, id };
+  }
+
+  /** F-751: Werke-CSV-Export. */
+  async exportWorksCsv(from?: string, to?: string): Promise<string> {
+    const where: any = {};
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(from);
+      if (to) where.createdAt.lte = new Date(to);
+    }
+    const works = await this.prisma.work.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        borrowCount: true,
+        artist: { select: { displayName: true } },
+        ratings: { select: { value: true } },
+        loans: {
+          select: {
+            payoutItems: { where: { status: 'PAID' }, select: { amountCents: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const rows = works.map(w => {
+      const totalEarnings = w.loans.flatMap(l => l.payoutItems).reduce((s: number, p: { amountCents: number }) => s + p.amountCents, 0);
+      const avgRating = w.ratings.length > 0
+        ? (w.ratings.reduce((s: number, r: { value: number }) => s + r.value, 0) / w.ratings.length).toFixed(2)
+        : '';
+      return [w.id, w.title.replace(/,/g, ';'), w.type, w.artist.displayName.replace(/,/g, ';'), w.borrowCount, totalEarnings, avgRating].join(',');
+    });
+    return ['workId,title,type,artistName,borrowCount,totalEarningsCents,avgRating', ...rows].join('\n');
+  }
+
   /** Globale Plattform-Statistiken für das Dashboard (B-151). */
   async platformStats() {
     const [users, works, loans, pendingPayouts] = await Promise.all([

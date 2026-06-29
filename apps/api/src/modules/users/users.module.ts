@@ -8,10 +8,12 @@ import { CookieConsentController } from "./cookie-consent.controller";
 import { ConsentService } from "./consent.service";
 import { AbTestingService } from "../admin/ab-testing.service";
 import { FeatureFlagsService } from "../admin/feature-flags.service";
+import { WebhooksSubscriptionService } from "./webhooks.service";
+import { WebhooksSubscriptionController } from "./webhooks.controller";
 
 @Module({
-  controllers: [UsersController, CookieConsentController],
-  providers: [UsersService, BlocksService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, FeatureFlagsService],
-  exports: [UsersService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService],
+  controllers: [UsersController, CookieConsentController, WebhooksSubscriptionController],
+  providers: [UsersService, BlocksService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, FeatureFlagsService, WebhooksSubscriptionService],
+  exports: [UsersService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, WebhooksSubscriptionService],
 })
 export class UsersModule {}

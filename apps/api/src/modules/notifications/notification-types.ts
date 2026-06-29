@@ -8,6 +8,7 @@ export const NotificationType = {
   NEW_WORK: "NEW_WORK",                  // an Follower:innen: neues Werk von gefolgter Künstler:in (B-126)
   SUBSCRIPTION_RENEWAL: "SUBSCRIPTION_RENEWAL", // an Hörer:in: Abo verlängert sich in 7 Tagen (F-418)
   LOAN_GIFT_RECEIVED: "LOAN_GIFT_RECEIVED", // an Empfänger:in: Leihe als Geschenk erhalten (F-259)
+  NEW_FOLLOWER: "NEW_FOLLOWER",             // an Künstler:in: neuer Follower (F-610)
 } as const;
 
 export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];

@@ -13,11 +13,14 @@ import { LyricsService } from "./lyrics.service";
 import { WorkTranslationsService } from "./translations.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { EngagementModule } from "../engagement/engagement.module";
+import { CollectionsService } from "./collections.service";
+import { SitemapService } from "./sitemap.service";
+import { SitemapController } from "./sitemap.controller";
 
 @Module({
   imports: [NotificationsModule, EngagementModule],
-  controllers: [WorksController, SeriesController, RecommendationsController],
-  providers: [WorksService, WorksScheduler, ChapterMarksService, SeriesService, TranscriptsService, RecommendationsService, SubtitlesService, LyricsService, WorkTranslationsService],
-  exports: [WorksService, ChapterMarksService, SeriesService, TranscriptsService, RecommendationsService, SubtitlesService, LyricsService, WorkTranslationsService],
+  controllers: [WorksController, SeriesController, RecommendationsController, SitemapController],
+  providers: [WorksService, WorksScheduler, ChapterMarksService, SeriesService, TranscriptsService, RecommendationsService, SubtitlesService, LyricsService, WorkTranslationsService, CollectionsService, SitemapService],
+  exports: [WorksService, ChapterMarksService, SeriesService, TranscriptsService, RecommendationsService, SubtitlesService, LyricsService, WorkTranslationsService, CollectionsService, SitemapService],
 })
 export class WorksModule {}

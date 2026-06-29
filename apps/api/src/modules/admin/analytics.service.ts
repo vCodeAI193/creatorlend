@@ -93,6 +93,59 @@ export class AnalyticsService {
     };
   }
 
+  /** F-755: Aktivitäts-Heatmap nach Tag. */
+  async getActivityHeatmap(year?: number) {
+    const y = year ?? new Date().getFullYear();
+    const rows = await this.prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
+      SELECT TO_CHAR("createdAt", 'YYYY-MM-DD') AS date, COUNT(*) AS count
+      FROM "Loan"
+      WHERE EXTRACT(YEAR FROM "createdAt") = ${y}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `;
+    return { year: y, days: rows.map(r => ({ date: r.date, count: Number(r.count) })) };
+  }
+
+  /** F-760: Conversion-Funnel. */
+  async getConversionFunnel() {
+    const [registered, emailVerified, subscribed, firstLoanUsers, returnedUsers] = await Promise.all([
+      this.prisma.user.count({ where: { deletedAt: null } }),
+      this.prisma.user.count({ where: { deletedAt: null, emailVerified: true } }),
+      this.prisma.subscription.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.$queryRaw<[{ cnt: bigint }]>`SELECT COUNT(DISTINCT "userId") AS cnt FROM "Loan"`,
+      this.prisma.$queryRaw<[{ cnt: bigint }]>`SELECT COUNT(*) AS cnt FROM (SELECT "userId" FROM "Loan" GROUP BY "userId" HAVING COUNT(*) > 1) sub`,
+    ]);
+    return {
+      registered,
+      emailVerified,
+      subscribed,
+      firstLoan: Number(firstLoanUsers[0].cnt),
+      returned: Number(returnedUsers[0].cnt),
+    };
+  }
+
+  /** F-762: Churn-Analyse. */
+  async getChurnAnalysis(period?: string) {
+    const rows = await this.prisma.$queryRaw<Array<{ month: string; churned: bigint; total: bigint }>>`
+      SELECT
+        TO_CHAR(se."createdAt", 'YYYY-MM') AS month,
+        COUNT(*) FILTER (WHERE se.event = 'SUBSCRIPTION_CANCELLED') AS churned,
+        COUNT(DISTINCT s."userId") AS total
+      FROM "SubscriptionEvent" se
+      JOIN "Subscription" s ON s."userId" = se."userId"
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `;
+    return {
+      months: rows.map(r => ({
+        month: r.month,
+        churned: Number(r.churned),
+        total: Number(r.total),
+        rate: Number(r.total) > 0 ? Number(r.churned) / Number(r.total) : 0,
+      })),
+    };
+  }
+
   async getRevenueMetrics(period: 'monthly' | 'weekly' | 'daily' = 'monthly') {
     const truncFn = period === 'daily' ? 'day' : period === 'weekly' ? 'week' : 'month';
     const rows = await this.prisma.$queryRaw<

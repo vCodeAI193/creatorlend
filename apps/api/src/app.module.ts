@@ -1,4 +1,6 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import { LanguageMiddleware } from "./common/language.middleware";
+import { RequestIdMiddleware } from "./common/request-id.middleware";
 import { ConfigModule } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
@@ -46,4 +48,8 @@ import { HealthModule } from "./modules/health/health.module";
     HealthModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestIdMiddleware, LanguageMiddleware).forRoutes('*');
+  }
+}

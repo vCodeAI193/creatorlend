@@ -24,6 +24,7 @@ import { ReviewsService } from "../engagement/reviews.service";
 import { SubtitlesService } from "./subtitles.service";
 import { LyricsService } from "./lyrics.service";
 import { WorkTranslationsService } from "./translations.service";
+import { CollectionsService } from "./collections.service";
 import { CreateWorkDto } from "./dto/create-work.dto";
 import { UpdateWorkDto } from "./dto/update-work.dto";
 
@@ -38,6 +39,7 @@ export class WorksController {
     private readonly subtitles: SubtitlesService,
     private readonly lyrics: LyricsService,
     private readonly translations: WorkTranslationsService,
+    private readonly collections: CollectionsService,
   ) {}
 
   // POST /api/v1/works – Werk einstellen (ARTIST)
@@ -572,5 +574,80 @@ export class WorksController {
     @Param("language") language: string,
   ) {
     return this.translations.delete(userId, workId, language);
+  }
+
+  // PATCH /api/v1/works/:id/accessibility – Barrierefreiheits-Flags setzen (F-651)
+  @Patch(":id/accessibility")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  updateAccessibility(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body() body: { hasTranscript?: boolean; hasAudioDescription?: boolean; hasCaptions?: boolean },
+  ) {
+    return this.works.updateAccessibility(userId, workId, body);
+  }
+
+  // GET /api/v1/works/collections – eigene Sammlungen (F-606)
+  @Get("collections")
+  @UseGuards(JwtAuthGuard)
+  listCollections(@CurrentUser() userId: string) {
+    return this.collections.list(userId);
+  }
+
+  // POST /api/v1/works/collections – Sammlung erstellen (F-606)
+  @Post("collections")
+  @UseGuards(JwtAuthGuard)
+  createCollection(
+    @CurrentUser() userId: string,
+    @Body() body: { title: string; description?: string; isPublic?: boolean },
+  ) {
+    return this.collections.create(userId, body.title, body.description, body.isPublic);
+  }
+
+  // GET /api/v1/works/collections/:id – Sammlung abrufen (F-606)
+  @Get("collections/:id")
+  getCollection(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.collections.getPublic(id, userId);
+  }
+
+  // PATCH /api/v1/works/collections/:id – Sammlung bearbeiten (F-606)
+  @Patch("collections/:id")
+  @UseGuards(JwtAuthGuard)
+  updateCollection(
+    @CurrentUser() userId: string,
+    @Param("id") id: string,
+    @Body() body: { title?: string; description?: string; isPublic?: boolean },
+  ) {
+    return this.collections.update(userId, id, body);
+  }
+
+  // DELETE /api/v1/works/collections/:id – Sammlung löschen (F-606)
+  @Delete("collections/:id")
+  @UseGuards(JwtAuthGuard)
+  deleteCollection(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.collections.delete(userId, id);
+  }
+
+  // POST /api/v1/works/collections/:id/works – Werk zu Sammlung hinzufügen (F-606)
+  @Post("collections/:id/works")
+  @UseGuards(JwtAuthGuard)
+  addToCollection(
+    @CurrentUser() userId: string,
+    @Param("id") collectionId: string,
+    @Body("workId") workId: string,
+  ) {
+    return this.collections.addWork(userId, collectionId, workId);
+  }
+
+  // DELETE /api/v1/works/collections/:id/works/:workId – Werk aus Sammlung entfernen (F-606)
+  @Delete("collections/:id/works/:workId")
+  @UseGuards(JwtAuthGuard)
+  removeFromCollection(
+    @CurrentUser() userId: string,
+    @Param("id") collectionId: string,
+    @Param("workId") workId: string,
+  ) {
+    return this.collections.removeWork(userId, collectionId, workId);
   }
 }

@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MailService } from "../mail/mail.service";
+import { NotificationType } from "../notifications/notification-types";
 
 @Injectable()
 export class FollowsService {
@@ -23,8 +24,22 @@ export class FollowsService {
       throw new NotFoundException("artist_not_found");
     }
     try {
-      return await this.prisma.follow.create({ data: { followerId, artistId } });
-    } catch {
+      const follow = await this.prisma.follow.create({ data: { followerId, artistId } });
+      // F-610: Notify artist of new follower
+      await this.prisma.notification.create({
+        data: {
+          userId: artistId,
+          type: NotificationType.NEW_FOLLOWER,
+          title: 'Neuer Follower',
+          body: 'Jemand folgt dir jetzt.',
+          data: { followerId },
+        },
+      }).catch(() => { /* non-critical */ });
+      return follow;
+    } catch (err: unknown) {
+      if (err instanceof ConflictException) throw err;
+      const prismaErr = err as { code?: string };
+      if (prismaErr?.code === 'P2002') throw new ConflictException("already_following");
       throw new ConflictException("already_following");
     }
   }
