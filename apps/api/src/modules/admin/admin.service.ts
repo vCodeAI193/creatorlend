@@ -418,4 +418,25 @@ export class AdminService {
       pendingPayoutItems: pendingPayouts._count,
     };
   }
+
+  // ─── F-133: Featured works ────────────────────────────────────────────────
+
+  /** Werk als Featured markieren (F-133). */
+  async featureWork(workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work) throw new NotFoundException('work_not_found');
+    return this.prisma.work.update({ where: { id: workId }, data: { isFeatured: true, featuredAt: new Date() } });
+  }
+
+  /** Featured-Markierung entfernen (F-133). */
+  async unfeatureWork(workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work) throw new NotFoundException('work_not_found');
+    return this.prisma.work.update({ where: { id: workId }, data: { isFeatured: false, featuredAt: null } });
+  }
+
+  /** Featured-Werke auflisten (F-133). */
+  async getFeaturedWorks() {
+    return this.prisma.work.findMany({ where: { isFeatured: true }, orderBy: { featuredAt: 'desc' } });
+  }
 }

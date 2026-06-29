@@ -485,4 +485,24 @@ export class UsersController {
   getReadingChallenge(@CurrentUser() userId: string) {
     return this.readingChallenge.getChallenge(userId);
   }
+
+  // ─── F-199: Saved searches ────────────────────────────────────────────────
+
+  // POST /api/v1/users/saved-searches – Suche speichern (F-199)
+  @Post("saved-searches")
+  saveSearch(@CurrentUser() userId: string, @Body() body: { name: string; query: string; filters?: object }) {
+    return this.users.saveSearch(userId, body.name, body.query, body.filters);
+  }
+
+  // GET /api/v1/users/saved-searches – gespeicherte Suchen auflisten (F-199)
+  @Get("saved-searches")
+  listSavedSearches(@CurrentUser() userId: string) {
+    return this.users.listSavedSearches(userId);
+  }
+
+  // DELETE /api/v1/users/saved-searches/:id – gespeicherte Suche löschen (F-199)
+  @Delete("saved-searches/:id")
+  deleteSavedSearch(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.users.deleteSavedSearch(userId, id);
+  }
 }

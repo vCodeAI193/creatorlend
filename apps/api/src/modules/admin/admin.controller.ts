@@ -379,4 +379,22 @@ export class AdminController {
   geoBreakdown(@Query("workId") workId?: string) {
     return this.analytics.getGeoBreakdown(workId);
   }
+
+  // POST /api/v1/admin/works/:id/feature – Werk featuren (F-133)
+  @Post("works/:id/feature")
+  featureWork(@Param("id") id: string) {
+    return this.admin.featureWork(id);
+  }
+
+  // DELETE /api/v1/admin/works/:id/feature – Featured-Status entfernen (F-133)
+  @Delete("works/:id/feature")
+  unfeatureWork(@Param("id") id: string) {
+    return this.admin.unfeatureWork(id);
+  }
+
+  // GET /api/v1/admin/featured-works – Featured-Werke auflisten (F-133)
+  @Get("featured-works")
+  getFeaturedWorks() {
+    return this.admin.getFeaturedWorks();
+  }
 }

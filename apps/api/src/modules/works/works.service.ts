@@ -980,4 +980,70 @@ export class WorksService {
       .map((w: { id: string; title: string; type: string; loanPriceCents: number; borrowCount: number; artist: { id: string; displayName: string } }) => ({ ...w, loanCount: countMap.get(w.id) ?? 0 }))
       .sort((a: { loanCount: number }, b: { loanCount: number }) => b.loanCount - a.loanCount);
   }
+  // ─── F-129: Work stats ────────────────────────────────────────────────────
+
+  async getWorkStats(artistId: string, workId: string) {
+    await this.ownedWork(artistId, workId);
+    const [totalLoans, activeLoans, renewals, exchanges, totalRevenue] = await Promise.all([
+      this.prisma.loan.count({ where: { workId } }),
+      this.prisma.loan.count({ where: { workId, status: 'ACTIVE' } }),
+      this.prisma.loan.aggregate({ where: { workId }, _sum: { renewalCount: true } }),
+      this.prisma.loan.count({ where: { workId, status: 'EXCHANGED' } }),
+      this.prisma.payoutItem.aggregate({ where: { loan: { workId } }, _sum: { amountCents: true } }),
+    ]);
+    return {
+      totalLoans,
+      activeLoans,
+      totalRenewals: renewals._sum.renewalCount ?? 0,
+      totalExchanges: exchanges,
+      totalRevenueCents: totalRevenue._sum.amountCents ?? 0,
+    };
+  }
+
+  // ─── F-131: Conversion rate ───────────────────────────────────────────────
+
+  async getConversionRate(workId: string) {
+    const loans = await this.prisma.loan.count({ where: { workId } });
+    return { previewPlays: 0, loans, conversionRate: 0 };
+  }
+
+  // ─── F-234/F-235: Share info ──────────────────────────────────────────────
+
+  async getShareInfo(workId: string) {
+    const work = await this.prisma.work.findUnique({
+      where: { id: workId },
+      select: { title: true, description: true, coverKey: true },
+    });
+    if (!work) throw new NotFoundException('work_not_found');
+    return {
+      deepLink: `creatorlend://works/${workId}`,
+      webUrl: `https://creatorlend.io/works/${workId}`,
+      ogTitle: work.title,
+      ogDescription: work.description?.slice(0, 160) ?? null,
+      ogImage: work.coverKey,
+    };
+  }
+
+  // ─── F-144: Tag suggestions ───────────────────────────────────────────────
+
+  suggestTags(title: string, description: string) {
+    // AI stub
+    return { tags: ['audiobook', 'fiction', 'literature'] };
+  }
+
+  // ─── F-112: Update license type ───────────────────────────────────────────
+
+  async updateLicenseType(artistId: string, workId: string, licenseType: string) {
+    await this.ownedWork(artistId, workId);
+    return this.prisma.work.update({ where: { id: workId }, data: { licenseType } });
+  }
+
+  // ─── F-133: Featured works ────────────────────────────────────────────────
+
+  async getFeaturedWorks() {
+    return this.prisma.work.findMany({
+      where: { isFeatured: true, status: 'PUBLISHED' },
+      orderBy: { featuredAt: 'desc' },
+    });
+  }
 }

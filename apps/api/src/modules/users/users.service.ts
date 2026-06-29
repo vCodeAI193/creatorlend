@@ -648,4 +648,18 @@ export class UsersService {
   async exportUserData(userId: string) {
     return this.exportData(userId);
   }
+
+  // ─── F-199: Saved searches ────────────────────────────────────────────────
+
+  async saveSearch(userId: string, name: string, query: string, filters: object = {}) {
+    return this.prisma.savedSearch.create({ data: { userId, name, query: { searchQuery: query, filters } } });
+  }
+
+  async listSavedSearches(userId: string) {
+    return this.prisma.savedSearch.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+  }
+
+  async deleteSavedSearch(userId: string, id: string) {
+    return this.prisma.savedSearch.deleteMany({ where: { id, userId } });
+  }
 }

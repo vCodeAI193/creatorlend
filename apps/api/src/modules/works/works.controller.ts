@@ -30,6 +30,7 @@ import { AiService } from "./ai.service";
 import { GeoService } from "./geo.service";
 import { AutoTranslateService } from "./auto-translate.service";
 import { DiscountCodesService } from "./discount-codes.service";
+import { CategoriesService } from "./categories.service";
 import { UtmService } from "./utm.service";
 import { CreateWorkDto } from "./dto/create-work.dto";
 import { UpdateWorkDto } from "./dto/update-work.dto";
@@ -52,6 +53,7 @@ export class WorksController {
     private readonly autoTranslate: AutoTranslateService,
     private readonly discountCodes: DiscountCodesService,
     private readonly utm: UtmService,
+    private readonly categories: CategoriesService,
   ) {}
 
   // POST /api/v1/works – Werk einstellen (ARTIST)
@@ -300,6 +302,25 @@ export class WorksController {
       res.send(feed);
     }
     return feed;
+  }
+
+  // GET /api/v1/works/categories – Kategorien auflisten (F-146/F-147)
+  @Get("categories")
+  listCategories() {
+    return this.categories.listCategories();
+  }
+
+  // POST /api/v1/works/suggest-tags – Tag-Vorschläge (F-144)
+  @Post("suggest-tags")
+  @UseGuards(JwtAuthGuard)
+  suggestTags(@Body("title") title: string, @Body("description") description: string) {
+    return this.works.suggestTags(title, description);
+  }
+
+  // GET /api/v1/works/featured – Featured works (F-133)
+  @Get("featured")
+  getFeaturedWorks() {
+    return this.works.getFeaturedWorks();
   }
 
   // GET /api/v1/works/:id/qr – QR-Code-URL für das Werk (F-140)
@@ -765,5 +786,57 @@ export class WorksController {
     @Body() body: { source: string; medium?: string; campaign?: string; workId?: string; userId?: string },
   ) {
     return this.utm.track(body);
+  }
+
+  // GET /api/v1/works/:id/stats – Work-Statistiken (F-129)
+  @Get(":id/stats")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getWorkStats(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.works.getWorkStats(userId, id);
+  }
+
+  // GET /api/v1/works/:id/conversion-rate – Konversionsrate (F-131)
+  @Get(":id/conversion-rate")
+  getConversionRate(@Param("id") id: string) {
+    return this.works.getConversionRate(id);
+  }
+
+  // GET /api/v1/works/:id/share – Share-Informationen (F-234/F-235)
+  @Get(":id/share")
+  getShareInfo(@Param("id") id: string) {
+    return this.works.getShareInfo(id);
+  }
+
+  // GET /api/v1/works/:id/qr-code – QR-Code (F-140, alternate path)
+  @Get(":id/qr-code")
+  getWorkQrCodeAlt(@Param("id") id: string) {
+    return this.works.getWorkQrCode(id);
+  }
+
+  // PATCH /api/v1/works/:id/license – Lizenztyp setzen (F-112)
+  @Patch(":id/license")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  updateLicense(
+    @CurrentUser() userId: string,
+    @Param("id") id: string,
+    @Body("licenseType") licenseType: string,
+  ) {
+    return this.works.updateLicenseType(userId, id, licenseType);
+  }
+
+  // POST /api/v1/works/:id/categories – Kategorie zuweisen (F-146/F-147)
+  @Post(":id/categories")
+  @UseGuards(JwtAuthGuard)
+  assignCategory(@Param("id") workId: string, @Body("categoryId") categoryId: string) {
+    return this.categories.assignCategory(workId, categoryId);
+  }
+
+  // DELETE /api/v1/works/:id/categories/:categoryId – Kategorie entfernen (F-146/F-147)
+  @Delete(":id/categories/:categoryId")
+  @UseGuards(JwtAuthGuard)
+  removeCategory(@Param("id") workId: string, @Param("categoryId") categoryId: string) {
+    return this.categories.removeCategory(workId, categoryId);
   }
 }

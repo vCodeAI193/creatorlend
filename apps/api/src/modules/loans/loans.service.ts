@@ -594,6 +594,56 @@ export class LoansService {
     return { fulfilled };
   }
 
+  // ─── F-239: Gift loan ────────────────────────────────────────────────────
+
+  /**
+   * Werk an eine andere Person verschenken (F-239).
+   * Verschenker braucht ein aktives Abo; Empfänger erhält die Leihe.
+   */
+  async giftLoan(gifterId: string, workId: string, recipientEmail: string) {
+    const recipient = await this.prisma.user.findUnique({ where: { email: recipientEmail } });
+    if (!recipient) throw new NotFoundException('recipient_not_found');
+
+    const subscription = await this.prisma.subscription.findUnique({ where: { userId: gifterId } });
+    if (!subscription || subscription.status !== 'ACTIVE') {
+      throw new HttpException('no_active_subscription', HttpStatus.PAYMENT_REQUIRED);
+    }
+    if (subscription.loansUsedThisPeriod >= subscription.loanQuotaPerPeriod) {
+      throw new ConflictException('quota_exceeded');
+    }
+
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.status !== 'PUBLISHED') throw new NotFoundException('work_not_found');
+
+    const now = new Date();
+    const loan = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.loan.create({
+        data: {
+          userId: recipient.id,
+          workId,
+          status: 'ACTIVE',
+          startedAt: now,
+          expiresAt: this.expiryFromNow(now, work.loanDays),
+        },
+      });
+      await tx.payoutItem.create({
+        data: {
+          artistId: work.artistId,
+          loanId: created.id,
+          amountCents: Math.round(work.loanPriceCents * (1 - this.platformFeePct)),
+          status: 'PENDING',
+        },
+      });
+      await tx.subscription.update({
+        where: { userId: gifterId },
+        data: { loansUsedThisPeriod: { increment: 1 } },
+      });
+      await tx.work.update({ where: { id: workId }, data: { borrowCount: { increment: 1 } } });
+      return created;
+    });
+    return loan;
+  }
+
   /**
    * 48-Stunden-Erinnerung vor Ablauf (F-262).
    */

@@ -232,6 +232,8 @@ model Work {
   status          WorkStatus @default(DRAFT)
   availableFrom DateTime?  // F-113: availability window start
   availableTo   DateTime?  // F-113: availability window end
+  isFeatured    Boolean    @default(false) // F-133: Featured work
+  featuredAt    DateTime?  // F-133: When featured
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
@@ -260,6 +262,7 @@ model Work {
   hasCaptions         Boolean         @default(false)
   collectionItems     CollectionItem[]
   playbackPositions PlaybackPosition[]
+  categories      WorkCategoryAssignment[]   // F-146/F-147
 
   @@index([artistId])
   @@index([type, status])
@@ -1329,6 +1332,25 @@ model PlaybackPosition {
 
   @@unique([userId, workId])
   @@index([userId])
+}
+
+// Werk-Kategorien (F-146/F-147)
+model WorkCategory {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  parentId    String?
+  parent      WorkCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    WorkCategory[] @relation("CategoryHierarchy")
+  works       WorkCategoryAssignment[]
+}
+
+model WorkCategoryAssignment {
+  workId      String
+  categoryId  String
+  work        Work         @relation(fields: [workId], references: [id], onDelete: Cascade)
+  category    WorkCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  @@id([workId, categoryId])
 }
 
 // App-Einstellungen (F-372)

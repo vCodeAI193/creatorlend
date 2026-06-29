@@ -214,4 +214,14 @@ export class LoansController {
   listSentGifts(@CurrentUser() userId: string) {
     return this.loanGifts.listSent(userId);
   }
+
+  // POST /api/v1/loans/gift – Leihe verschenken (F-239)
+  @Post("gift")
+  giftLoan(
+    @CurrentUser() userId: string,
+    @Body("workId") workId: string,
+    @Body("recipientEmail") recipientEmail: string,
+  ) {
+    return this.loans.giftLoan(userId, workId, recipientEmail);
+  }
 }
