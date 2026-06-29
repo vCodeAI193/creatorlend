@@ -190,4 +190,114 @@ export class AnalyticsService {
       }),
     };
   }
+
+  // F-767: Churn-Rate je Abo-Plan
+  async getChurnByPlan() {
+    const plans = ['STANDARD', 'PREMIUM', 'CREATOR'];
+    const results: Record<string, unknown>[] = [];
+    for (const plan of plans) {
+      const total = await this.prisma.subscription.count({ where: { plan } });
+      const cancelled = await this.prisma.subscription.count({ where: { plan, status: 'CANCELED' } });
+      results.push({ plan, total, cancelled, churnRate: total > 0 ? (cancelled / total) * 100 : 0 });
+    }
+    return results;
+  }
+
+  // F-768: LTV je Abo-Plan
+  async getLtvByPlan() {
+    const rows = await this.prisma.$queryRaw<Array<{ plan: string; avg_months: number; avg_total_cents: bigint }>>`
+      SELECT
+        s.plan,
+        AVG(EXTRACT(EPOCH FROM (NOW() - s."createdAt")) / 2592000.0) AS avg_months,
+        AVG(COALESCE(pi_totals.total_cents, 0)) AS avg_total_cents
+      FROM "Subscription" s
+      LEFT JOIN (
+        SELECT l."userId", SUM(pi."amountCents") AS total_cents
+        FROM "PayoutItem" pi JOIN "Loan" l ON l.id = pi."loanId"
+        GROUP BY l."userId"
+      ) pi_totals ON pi_totals."userId" = s."userId"
+      GROUP BY s.plan
+    `;
+    return rows.map((r) => ({
+      plan: r.plan,
+      avgMonths: Number(r.avg_months ?? 0),
+      avgLtvCents: Number(r.avg_total_cents ?? 0),
+    }));
+  }
+
+  // F-771: Umsatz nach Künstler:in (Top 10)
+  async getRevenueByArtist(limit = 10) {
+    const rows = await this.prisma.$queryRaw<Array<{ artistId: string; displayName: string; total_cents: bigint }>>`
+      SELECT pi."artistId", u."displayName", SUM(pi."amountCents") AS total_cents
+      FROM "PayoutItem" pi
+      JOIN "User" u ON u.id = pi."artistId"
+      GROUP BY pi."artistId", u."displayName"
+      ORDER BY total_cents DESC
+      LIMIT ${limit}
+    `;
+    return rows.map((r) => ({ artistId: r.artistId, displayName: r.displayName, totalCents: Number(r.total_cents) }));
+  }
+
+  // F-772: Umsatz nach Kategorie
+  async getRevenueByCategory() {
+    const rows = await this.prisma.$queryRaw<Array<{ category: string; total_cents: bigint }>>`
+      SELECT w.category, SUM(pi."amountCents") AS total_cents
+      FROM "PayoutItem" pi
+      JOIN "Loan" l ON l.id = pi."loanId"
+      JOIN "Work" w ON w.id = l."workId"
+      WHERE w.category IS NOT NULL
+      GROUP BY w.category
+      ORDER BY total_cents DESC
+    `;
+    return rows.map((r) => ({ category: r.category, totalCents: Number(r.total_cents) }));
+  }
+
+  // F-777: Engagement-Score (kombinierter Index)
+  async getEngagementScore(userId: string) {
+    const [loanCount, reviewCount, followCount, notifCount] = await Promise.all([
+      this.prisma.loan.count({ where: { userId } }),
+      this.prisma.review.count({ where: { userId } }),
+      this.prisma.follow.count({ where: { followerId: userId } }),
+      this.prisma.notification.count({ where: { userId, readAt: { not: null } } }),
+    ]);
+    const score = loanCount * 3 + reviewCount * 5 + followCount * 2 + Math.min(notifCount, 20);
+    return { userId, score, components: { loanCount, reviewCount, followCount, readNotifications: notifCount } };
+  }
+
+  // F-779: Sticky factor (DAU/MAU)
+  async getStickyFactor() {
+    const now = new Date();
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const [dau, mau] = await Promise.all([
+      this.prisma.loan.groupBy({ by: ['userId'], where: { createdAt: { gte: dayAgo } }, _count: true }).then((r) => r.length),
+      this.prisma.loan.groupBy({ by: ['userId'], where: { createdAt: { gte: monthAgo } }, _count: true }).then((r) => r.length),
+    ]);
+    return { dau, mau, stickyFactor: mau > 0 ? (dau / mau) * 100 : 0 };
+  }
+
+  // F-784: Suchterm-Popularität
+  async getSearchTermPopularity(limit = 20) {
+    const rows = await this.prisma.$queryRaw<Array<{ query: string; cnt: bigint }>>`
+      SELECT query, COUNT(*) AS cnt
+      FROM "SearchHistory"
+      GROUP BY query
+      ORDER BY cnt DESC
+      LIMIT ${limit}
+    `;
+    return rows.map((r) => ({ query: r.query, count: Number(r.cnt) }));
+  }
+
+  // F-785: Null-Treffer-Suchen – Queries die sehr selten vorkommen (Proxy für no-results)
+  async getNullResultSearches(limit = 20) {
+    const rows = await this.prisma.$queryRaw<Array<{ query: string; cnt: bigint }>>`
+      SELECT query, COUNT(*) AS cnt
+      FROM "SearchHistory"
+      GROUP BY query
+      HAVING COUNT(*) = 1
+      ORDER BY cnt ASC
+      LIMIT ${limit}
+    `;
+    return rows.map((r) => ({ query: r.query, count: Number(r.cnt) }));
+  }
 }

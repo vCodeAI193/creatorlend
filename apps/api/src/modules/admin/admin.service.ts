@@ -683,4 +683,108 @@ export class AdminService {
     ];
     return lines.join('\n');
   }
+
+  // F-724: Meldung eskalieren
+  async escalateReport(id: string, level: number, adminId: string) {
+    const report = await this.prisma.report.findUnique({ where: { id } });
+    if (!report) throw new NotFoundException('report_not_found');
+    await this.prisma.auditLog.create({
+      data: { actorId: adminId, action: 'ESCALATE_REPORT', targetId: id, targetType: 'Report', meta: { level } },
+    });
+    return this.prisma.report.update({ where: { id }, data: { escalationLevel: level } });
+  }
+
+  // F-725: Content-Moderations-Warteschlange (Werke mit explicit-Flag oder ageRating in Review)
+  async contentModerationQueue() {
+    return this.prisma.work.findMany({
+      where: { status: 'DRAFT', explicit: true },
+      select: { id: true, title: true, artistId: true, createdAt: true, explicit: true, ageRating: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  // F-726 stub: hash-based image check (stub)
+  async hashCheckWork(workId: string) {
+    return { workId, checked: true, match: false, stub: true };
+  }
+
+  // F-732: Verstoß verarbeiten (3 strikes → suspend)
+  async processViolation(adminId: string, userId: string, reason: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { strikeCount: true, suspendedAt: true } });
+    if (!user) throw new NotFoundException('user_not_found');
+    const newCount = user.strikeCount + 1;
+    const updates: { strikeCount: number; suspendedAt?: Date } = { strikeCount: newCount };
+    if (newCount >= 3 && !user.suspendedAt) {
+      updates.suspendedAt = new Date();
+    }
+    await this.prisma.user.update({ where: { id: userId }, data: updates });
+    await this.prisma.auditLog.create({
+      data: { actorId: adminId, action: 'PROCESS_VIOLATION', targetId: userId, targetType: 'User', meta: { reason, strikeCount: newCount } },
+    });
+    return { userId, strikeCount: newCount, suspended: newCount >= 3 };
+  }
+
+  // F-733: Verwarnung ausstellen
+  async issueWarning(adminId: string, userId: string, reason: string, deadlineHours?: number) {
+    const deadline = deadlineHours ? new Date(Date.now() + deadlineHours * 60 * 60 * 1000) : undefined;
+    const warning = await this.prisma.userWarning.create({
+      data: { userId, reason, adminId, deadline },
+    });
+    await this.prisma.auditLog.create({
+      data: { actorId: adminId, action: 'ISSUE_WARNING', targetId: userId, targetType: 'User', meta: { reason, deadlineHours } },
+    });
+    return warning;
+  }
+
+  async listWarnings(userId: string) {
+    return this.prisma.userWarning.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+  }
+
+  // F-734: Appeal-Prozess
+  async submitAppeal(userId: string, reason: string) {
+    return this.prisma.appealRequest.create({ data: { userId, reason } });
+  }
+
+  async listAppeals(status?: string) {
+    return this.prisma.appealRequest.findMany({
+      where: status ? { status } : {},
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async processAppeal(adminId: string, id: string, status: 'APPROVED' | 'REJECTED', adminNote?: string) {
+    const appeal = await this.prisma.appealRequest.findUnique({ where: { id } });
+    if (!appeal) throw new NotFoundException('appeal_not_found');
+    if (status === 'APPROVED') {
+      await this.prisma.user.update({ where: { id: appeal.userId }, data: { suspendedAt: null, strikeCount: 0 } });
+    }
+    await this.prisma.auditLog.create({
+      data: { actorId: adminId, action: 'PROCESS_APPEAL', targetId: id, targetType: 'AppealRequest', meta: { status, adminNote } },
+    });
+    return this.prisma.appealRequest.update({ where: { id }, data: { status, adminNote } });
+  }
+
+  // F-736: Geo-Block
+  async geoBlockWork(adminId: string, workId: string, countries: string[]) {
+    await this.prisma.auditLog.create({
+      data: { actorId: adminId, action: 'GEO_BLOCK_WORK', targetId: workId, targetType: 'Work', meta: { countries } },
+    });
+    return this.prisma.work.update({ where: { id: workId }, data: { geoBlock: countries } });
+  }
+
+  // F-739: Chargebacks-Report
+  async getChargebacksReport() {
+    const items = await this.prisma.payoutItem.findMany({
+      where: { flaggedForFraud: true },
+      include: { artist: { select: { email: true, displayName: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const totalCents = items.reduce((s, i) => s + i.amountCents, 0);
+    return { count: items.length, totalCents, items };
+  }
+
+  // F-740 stub: PEP/Sanctions screening
+  async pepSanctionsCheck(userId: string) {
+    return { userId, matched: false, stub: true, checkedAt: new Date() };
+  }
 }

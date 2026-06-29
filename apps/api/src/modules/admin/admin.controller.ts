@@ -533,4 +533,140 @@ export class AdminController {
   exportPlatformStatsCsv() {
     return this.admin.exportPlatformStatsCsv();
   }
+
+  // POST /api/v1/admin/reports/:id/escalate – Meldung eskalieren (F-724)
+  @Post("reports/:id/escalate")
+  escalateReport(
+    @CurrentUser() adminId: string,
+    @Param("id") id: string,
+    @Body("level") level: number,
+  ) {
+    return this.admin.escalateReport(id, level, adminId);
+  }
+
+  // GET /api/v1/admin/content-moderation-queue – Inhalte in Review (F-725)
+  @Get("content-moderation-queue")
+  contentModerationQueue() {
+    return this.admin.contentModerationQueue();
+  }
+
+  // POST /api/v1/admin/works/:id/hash-check – Hash-Prüfung (F-726)
+  @Post("works/:id/hash-check")
+  hashCheckWork(@Param("id") id: string) {
+    return this.admin.hashCheckWork(id);
+  }
+
+  // POST /api/v1/admin/users/:id/violation – Verstoß verarbeiten (F-732)
+  @Post("users/:id/violation")
+  processViolation(
+    @CurrentUser() adminId: string,
+    @Param("id") id: string,
+    @Body("reason") reason: string,
+  ) {
+    return this.admin.processViolation(adminId, id, reason);
+  }
+
+  // POST /api/v1/admin/users/:id/warning – Verwarnung ausstellen (F-733)
+  @Post("users/:id/warning")
+  issueWarning(
+    @CurrentUser() adminId: string,
+    @Param("id") id: string,
+    @Body("reason") reason: string,
+    @Body("deadlineHours") deadlineHours?: number,
+  ) {
+    return this.admin.issueWarning(adminId, id, reason, deadlineHours);
+  }
+
+  // GET /api/v1/admin/users/:id/warnings – Verwarnungen abrufen (F-733)
+  @Get("users/:id/warnings")
+  listWarnings(@Param("id") id: string) {
+    return this.admin.listWarnings(id);
+  }
+
+  // GET /api/v1/admin/appeals – Appeal-Anfragen (F-734)
+  @Get("appeals")
+  listAppeals(@Query("status") status?: string) {
+    return this.admin.listAppeals(status);
+  }
+
+  // PATCH /api/v1/admin/appeals/:id – Appeal bearbeiten (F-734)
+  @Patch("appeals/:id")
+  processAppeal(
+    @CurrentUser() adminId: string,
+    @Param("id") id: string,
+    @Body("status") status: 'APPROVED' | 'REJECTED',
+    @Body("adminNote") adminNote?: string,
+  ) {
+    return this.admin.processAppeal(adminId, id, status, adminNote);
+  }
+
+  // PUT /api/v1/admin/works/:id/geo-block – Geo-Block setzen (F-736)
+  @Put("works/:id/geo-block")
+  geoBlockWork(
+    @CurrentUser() adminId: string,
+    @Param("id") id: string,
+    @Body("countries") countries: string[],
+  ) {
+    return this.admin.geoBlockWork(adminId, id, countries);
+  }
+
+  // GET /api/v1/admin/chargebacks – Chargebacks-Report (F-739)
+  @Get("chargebacks")
+  getChargebacksReport() {
+    return this.admin.getChargebacksReport();
+  }
+
+  // POST /api/v1/admin/users/:id/pep-check – PEP/Sanktionslisten (F-740)
+  @Post("users/:id/pep-check")
+  pepSanctionsCheck(@Param("id") id: string) {
+    return this.admin.pepSanctionsCheck(id);
+  }
+
+  // GET /api/v1/admin/analytics/churn-by-plan – Churn-Rate je Plan (F-767)
+  @Get("analytics/churn-by-plan")
+  churnByPlan() {
+    return this.analytics.getChurnByPlan();
+  }
+
+  // GET /api/v1/admin/analytics/ltv-by-plan – LTV je Plan (F-768)
+  @Get("analytics/ltv-by-plan")
+  ltvByPlan() {
+    return this.analytics.getLtvByPlan();
+  }
+
+  // GET /api/v1/admin/analytics/revenue-by-artist – Umsatz nach Künstler:in (F-771)
+  @Get("analytics/revenue-by-artist")
+  revenueByArtist(@Query("limit") limit?: string) {
+    return this.analytics.getRevenueByArtist(limit ? Number(limit) : undefined);
+  }
+
+  // GET /api/v1/admin/analytics/revenue-by-category – Umsatz nach Kategorie (F-772)
+  @Get("analytics/revenue-by-category")
+  revenueByCategory() {
+    return this.analytics.getRevenueByCategory();
+  }
+
+  // GET /api/v1/admin/analytics/engagement-score/:userId – Engagement-Score (F-777)
+  @Get("analytics/engagement-score/:userId")
+  engagementScore(@Param("userId") userId: string) {
+    return this.analytics.getEngagementScore(userId);
+  }
+
+  // GET /api/v1/admin/analytics/sticky-factor – Sticky Factor (F-779)
+  @Get("analytics/sticky-factor")
+  stickyFactor() {
+    return this.analytics.getStickyFactor();
+  }
+
+  // GET /api/v1/admin/analytics/search-terms – Suchterm-Popularität (F-784)
+  @Get("analytics/search-terms")
+  searchTermPopularity(@Query("limit") limit?: string) {
+    return this.analytics.getSearchTermPopularity(limit ? Number(limit) : undefined);
+  }
+
+  // GET /api/v1/admin/analytics/null-searches – Null-Treffer-Suchen (F-785)
+  @Get("analytics/null-searches")
+  nullResultSearches(@Query("limit") limit?: string) {
+    return this.analytics.getNullResultSearches(limit ? Number(limit) : undefined);
+  }
 }

@@ -101,6 +101,7 @@ model User {
   privateListeningMode  Boolean   @default(false)   // F-318
   fraudScore            Int       @default(0)       // F-738: interner Betrugs-Score (0-100)
   adminTags             String[]  @default([])      // F-717: VIP, At-Risk, Flagged
+  strikeCount           Int       @default(0)       // F-732: Anzahl Verstöße
 
   works         Work[]         @relation("ArtistWorks")
   loans         Loan[]
@@ -167,6 +168,9 @@ model User {
   passwordHistory   PasswordHistory[]
   playbackPositions PlaybackPosition[]
   supportTickets    SupportTicket[]
+  userWarnings      UserWarning[]
+  appealRequests    AppealRequest[]
+  gdprDataRequests  GdprDataRequest[]
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -576,6 +580,7 @@ model Report {
   assigneeId   String?                    // Support-Agent ID (F-721)
   resolvedBy   String?                    // Admin who resolved (F-722)
   reviewNote   String?                    // Internal note on resolution
+  escalationLevel Int       @default(0)        // F-724: 0=Normal,1=Senior,2=Legal
   reviewedAt   DateTime?
   createdAt    DateTime  @default(now())
 
@@ -1386,6 +1391,50 @@ model Announcement {
   createdAt DateTime  @default(now())
 
   @@index([active])
+}
+
+// Verwarnung (F-733)
+model UserWarning {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  reason    String
+  deadline  DateTime?
+  adminId   String
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// Appeal-Anfrage für gesperrte Accounts (F-734)
+model AppealRequest {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  reason    String
+  status    String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  adminNote String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// DSGVO-Datenanfrage (F-747/748)
+model GdprDataRequest {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  type        String    // EXPORT | DELETE
+  status      String    @default("PENDING") // PENDING | PROCESSING | COMPLETED
+  requestedAt DateTime  @default(now())
+  completedAt DateTime?
+  adminId     String?
+  downloadUrl String?
+
+  @@index([userId])
+  @@index([status])
 }
 
 // Support-Ticket (F-693/694/700)

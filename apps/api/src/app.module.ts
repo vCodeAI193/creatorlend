@@ -26,6 +26,7 @@ import { PlaylistsModule } from "./modules/playlists/playlists.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { HealthModule } from "./modules/health/health.module";
 import { SupportModule } from "./modules/support/support.module";
+import { GdprModule } from "./modules/gdpr/gdpr.module";
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { SupportModule } from "./modules/support/support.module";
     ReportsModule,
     HealthModule,
     SupportModule,
+    GdprModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: HttpLoggerInterceptor },
