@@ -71,6 +71,9 @@ model User {
   notifDigestMode String?    // Benachrichtigungsdigest-Modus (F-642)
   quietHoursStart Int?       // Stille Stunden: Beginn (0-23) (F-643)
   quietHoursEnd   Int?       // Stille Stunden: Ende (0-23) (F-643)
+  totpSecret      String?                // 2FA TOTP secret (F-005)
+  totpEnabled     Boolean   @default(false) // 2FA aktiv (F-005)
+  backupCodes     String[]  @default([]) // gehashte Backup-Codes (F-007)
 
   works         Work[]         @relation("ArtistWorks")
   loans         Loan[]
@@ -109,6 +112,11 @@ model User {
   workNotes           WorkNote[]
   adminNotes          AdminNote[]
   authoredNotes       AdminNote[]        @relation("AuthoredNotes")
+  oauthAccounts       OAuthAccount[]
+  magicLinks          MagicLink[]
+  apiKeys             ApiKey[]
+  sentGiftCodes       GiftCode[]         @relation("SentGiftCodes")
+  receivedGiftCodes   GiftCode[]         @relation("ReceivedGiftCodes")
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -160,6 +168,15 @@ model Work {
   coverKey        String? // Cover-Bild-Schlüssel im Object Storage (B-056)
   publishAt       DateTime?  // Geplante Veröffentlichung (B-040)
   archivedAt      DateTime?  // Archiviert (F-097)
+  deletedAt       DateTime?  // Soft-Delete (F-098)
+  licenseType     String?    // z. B. "CC_BY", "ALL_RIGHTS_RESERVED" (F-111)
+  embargoUntil    DateTime?  // Veröffentlichungs-Embargo bis (F-113)
+  geoBlock        String[]   @default([]) // gesperrte Länder ISO 3166-1 alpha-2 (F-114)
+  ageRating       String?    // "FSK_0" | "FSK_6" | "FSK_12" | "FSK_16" | "FSK_18" (F-115)
+  contentWarnings String[]   @default([]) // Content-Warnungen (F-116)
+  isExclusive     Boolean    @default(false) // Exklusiv-Inhalt (F-116)
+  isbn            String?    // ISBN für Audiobücher (F-116)
+  isrc            String?    // ISRC für Musik (F-116)
   status          WorkStatus @default(DRAFT)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
@@ -177,6 +194,7 @@ model Work {
   workVersions  WorkVersion[]
   bookmarks     Bookmark[]
   workNotes     WorkNote[]
+  dmcaTakedowns DmcaTakedown[]
 
   @@index([artistId])
   @@index([type, status])
@@ -766,4 +784,96 @@ model Tip {
 
   @@index([senderId])
   @@index([artistId])
+}
+
+// OAuth-Verknüpfungen (F-002/F-003)
+model OAuthAccount {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider   String   // "google" | "apple"
+  providerId String
+  email      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([provider, providerId])
+  @@index([userId])
+}
+
+// Magic-Links für passwortloses Login (F-014)
+model MagicLink {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String    @unique @default(uuid())
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// API-Keys für Nutzer:innen (F-031)
+model ApiKey {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  keyHash    String    @unique
+  prefix     String
+  scopes     String[]  @default([])
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// Geschenk-Codes / Gift Loans (F-239/F-240)
+model GiftCode {
+  id             String    @id @default(uuid())
+  code           String    @unique @default(uuid())
+  senderId       String
+  sender         User      @relation("SentGiftCodes", fields: [senderId], references: [id])
+  recipientEmail String?
+  recipientId    String?
+  recipient      User?     @relation("ReceivedGiftCodes", fields: [recipientId], references: [id])
+  planId         String    // "STANDARD" | "PREMIUM"
+  durationDays   Int       @default(30)
+  redeemedAt     DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([code])
+}
+
+// DMCA-Takedown-Workflow (F-730)
+model DmcaTakedown {
+  id            String    @id @default(uuid())
+  workId        String
+  work          Work      @relation(fields: [workId], references: [id])
+  reporterId    String?
+  reporterEmail String
+  reason        String
+  status        String    @default("PENDING") // PENDING | REVIEWED | TAKEN_DOWN | DISMISSED
+  adminNote     String?
+  createdAt     DateTime  @default(now())
+  resolvedAt    DateTime?
+
+  @@index([workId])
+  @@index([status])
+}
+
+// Feature Flags (F-743)
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  enabled     Boolean  @default(false)
+  description String?
+  rolloutPct  Int      @default(100) // 0-100
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
 }

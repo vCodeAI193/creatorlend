@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   Patch,
   Post,
@@ -91,6 +92,57 @@ export class WorksController {
   @Roles(UserRole.ARTIST)
   clone(@CurrentUser() userId: string, @Param("id") id: string) {
     return this.works.clone(userId, id);
+  }
+
+  // DELETE /api/v1/works/:id – Soft-Delete (ARTIST, F-098)
+  @Delete(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  softDelete(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.works.softDelete(userId, id);
+  }
+
+  // POST /api/v1/works/:id/recover – gelöschtes Werk wiederherstellen (ARTIST, F-098)
+  @Post(":id/recover")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  recover(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.works.restoreDeleted(userId, id);
+  }
+
+  // PATCH /api/v1/works/:id/metadata – Metadaten-Felder aktualisieren (ARTIST, F-111..F-116)
+  @Patch(":id/metadata")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  updateMetadata(
+    @CurrentUser() userId: string,
+    @Param("id") id: string,
+    @Body()
+    body: {
+      licenseType?: string;
+      embargoUntil?: string | null;
+      geoBlock?: string[];
+      ageRating?: string;
+      contentWarnings?: string[];
+      isExclusive?: boolean;
+      isbn?: string;
+      isrc?: string;
+    },
+  ) {
+    return this.works.updateMetadata(userId, id, body);
+  }
+
+  // GET /api/v1/works/rss/:artistId – RSS-Feed eines Künstlers (F-137)
+  @Get("rss/:artistId")
+  @Header("Content-Type", "application/rss+xml")
+  async rssFeedByArtistId(@Param("artistId") artistId: string, @Res() res?: any) {
+    const feed = await this.works.getRssFeed(artistId);
+    if (res) {
+      res.setHeader("Content-Type", "application/rss+xml");
+      res.send(feed);
+      return;
+    }
+    return feed;
   }
 
   // GET /api/v1/works – Suche / Discovery (öffentlich, B-036/B-038/B-061 facets)

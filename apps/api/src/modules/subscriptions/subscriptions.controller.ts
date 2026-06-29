@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Patch,
   Post,
   Query,
@@ -14,6 +15,7 @@ import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { SubscriptionsService } from "./subscriptions.service";
+import { GiftCodesService } from "./gift-codes.service";
 import { PlanDto } from "./dto/plan.dto";
 
 /** Abo-Verwaltung (Stripe Billing; Dev-Aktivierung ohne Stripe). */
@@ -21,7 +23,10 @@ import { PlanDto } from "./dto/plan.dto";
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.LISTENER)
 export class SubscriptionsController {
-  constructor(private readonly subscriptions: SubscriptionsService) {}
+  constructor(
+    private readonly subscriptions: SubscriptionsService,
+    private readonly giftCodes: GiftCodesService,
+  ) {}
 
   // POST /api/v1/subscriptions – Abo abschließen (Stripe Checkout)
   @Post()
@@ -84,5 +89,36 @@ export class SubscriptionsController {
   @Post("me/resume")
   resume(@CurrentUser() userId: string) {
     return this.subscriptions.resumeSubscription(userId);
+  }
+
+  // POST /api/v1/subscriptions/gift – Geschenk-Code erstellen (F-239)
+  @Post("gift")
+  createGiftCode(
+    @CurrentUser() userId: string,
+    @Body()
+    body: {
+      planId: string;
+      durationDays?: number;
+      recipientEmail?: string;
+      expiresAt?: string;
+    },
+  ) {
+    return this.giftCodes.createGiftCode(
+      userId,
+      body.planId,
+      body.durationDays ?? 30,
+      body.recipientEmail,
+      body.expiresAt ? new Date(body.expiresAt) : undefined,
+    );
+  }
+
+  // POST /api/v1/subscriptions/gift/redeem – Geschenk-Code einlösen (F-240)
+  @Post("gift/redeem")
+  @HttpCode(200)
+  redeemGiftCode(
+    @CurrentUser() userId: string,
+    @Body("code") code: string,
+  ) {
+    return this.giftCodes.redeemGiftCode(userId, code);
   }
 }

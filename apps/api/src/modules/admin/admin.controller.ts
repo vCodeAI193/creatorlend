@@ -1,17 +1,23 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from "@nestjs/common";
 import { UserRole } from "@creatorlend/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { AdminService } from "./admin.service";
+import { DmcaService } from "./dmca.service";
+import { FeatureFlagsService } from "./feature-flags.service";
 
 /** Admin-Backoffice (B-151, B-152, B-154, B-155). Nur für ADMIN-Rolle. */
 @Controller("admin")
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly dmca: DmcaService,
+    private readonly featureFlags: FeatureFlagsService,
+  ) {}
 
   // GET /api/v1/admin/stats – Plattform-Übersicht
   @Get("stats")
@@ -113,5 +119,41 @@ export class AdminController {
     @Body("type") type: string,
   ) {
     return this.admin.awardBadge(actorId, id, type);
+  }
+
+  // GET /api/v1/admin/dmca – DMCA-Anträge auflisten (ADMIN)
+  @Get("dmca")
+  dmcaList(@Query("status") status?: string) {
+    return this.dmca.listRequests(status);
+  }
+
+  // PATCH /api/v1/admin/dmca/:id – DMCA-Antrag bearbeiten (ADMIN)
+  @Patch("dmca/:id")
+  dmcaResolve(
+    @Param("id") id: string,
+    @Body() body: { action: "TAKE_DOWN" | "DISMISS"; adminNote?: string },
+  ) {
+    return this.dmca.resolveRequest(id, body.action, body.adminNote);
+  }
+
+  // GET /api/v1/admin/feature-flags – Feature-Flags auflisten (ADMIN)
+  @Get("feature-flags")
+  listFeatureFlags() {
+    return this.featureFlags.list();
+  }
+
+  // PUT /api/v1/admin/feature-flags/:key – Feature-Flag erstellen/aktualisieren (ADMIN)
+  @Put("feature-flags/:key")
+  upsertFeatureFlag(
+    @Param("key") key: string,
+    @Body() body: { enabled: boolean; description?: string; rolloutPct?: number },
+  ) {
+    return this.featureFlags.upsert(key, body.enabled, body.description, body.rolloutPct);
+  }
+
+  // DELETE /api/v1/admin/feature-flags/:key – Feature-Flag löschen (ADMIN)
+  @Delete("feature-flags/:key")
+  deleteFeatureFlag(@Param("key") key: string) {
+    return this.featureFlags.delete(key);
   }
 }

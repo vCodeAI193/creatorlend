@@ -63,4 +63,18 @@ export class AuthController {
   resetPassword(@Body() body: ResetPasswordDto) {
     return this.auth.resetPassword(body.token, body.newPassword);
   }
+
+  // POST /api/v1/auth/magic/send – Magic-Link senden (F-014)
+  @Post("magic/send")
+  @HttpCode(200)
+  magicSend(@Body("email") email: string) {
+    return this.auth.sendMagicLink(email);
+  }
+
+  // POST /api/v1/auth/magic/verify – Magic-Link verifizieren (F-014)
+  @Post("magic/verify")
+  @HttpCode(200)
+  magicVerify(@Body("token") token: string) {
+    return this.auth.verifyMagicLink(token);
+  }
 }

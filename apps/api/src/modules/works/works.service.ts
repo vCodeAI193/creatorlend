@@ -245,6 +245,10 @@ export class WorksService {
   async get(id: string) {
     const work = await this.prisma.work.findUnique({ where: { id } });
     if (!work) throw new NotFoundException("work_not_found");
+    // F-113: Embargo check – treat embargoed work as not published
+    if (work.embargoUntil && work.embargoUntil > new Date()) {
+      throw new NotFoundException("work_not_found");
+    }
     return work;
   }
 
@@ -295,17 +299,130 @@ export class WorksService {
     return this.prisma.work.update({ where: { id: workId }, data: { archivedAt: new Date(), status: 'DRAFT' } });
   }
 
-  async restore(artistId: string, workId: string) {
+  async restoreFromArchive(artistId: string, workId: string) {
     const work = await this.prisma.work.findUnique({ where: { id: workId } });
     if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
     return this.prisma.work.update({ where: { id: workId }, data: { archivedAt: null } });
   }
 
+  /** @deprecated use restoreFromArchive */
+  async restore(artistId: string, workId: string) {
+    return this.restoreFromArchive(artistId, workId);
+  }
+
   async clone(artistId: string, workId: string) {
     const work = await this.prisma.work.findUnique({ where: { id: workId } });
     if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
-    const { id, createdAt, updatedAt, borrowCount, publishAt, archivedAt, ...rest } = work;
+    const { id, createdAt, updatedAt, borrowCount, publishAt, archivedAt, deletedAt, ...rest } = work;
     return this.prisma.work.create({ data: { ...rest, title: `${work.title} (Kopie)`, status: 'DRAFT', borrowCount: 0 } });
+  }
+
+  /** Soft-delete a work (F-098). */
+  async softDelete(artistId: string, workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
+    return this.prisma.work.update({ where: { id: workId }, data: { deletedAt: new Date(), status: 'DRAFT' } });
+  }
+
+  /** Restore a soft-deleted work within 30 days (F-098). */
+  async restoreDeleted(artistId: string, workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
+    if (!work.deletedAt) throw new NotFoundException('work_not_deleted');
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    if (work.deletedAt < thirtyDaysAgo) {
+      throw new NotFoundException('restore_window_expired');
+    }
+    return this.prisma.work.update({ where: { id: workId }, data: { deletedAt: null } });
+  }
+
+  /** Update metadata fields (F-111..F-116). */
+  async updateMetadata(
+    artistId: string,
+    workId: string,
+    fields: {
+      licenseType?: string;
+      embargoUntil?: string | null;
+      geoBlock?: string[];
+      ageRating?: string;
+      contentWarnings?: string[];
+      isExclusive?: boolean;
+      isbn?: string;
+      isrc?: string;
+    },
+  ) {
+    await this.ownedWork(artistId, workId);
+    return this.prisma.work.update({
+      where: { id: workId },
+      data: {
+        ...(fields.licenseType !== undefined ? { licenseType: fields.licenseType } : {}),
+        ...(fields.embargoUntil !== undefined
+          ? { embargoUntil: fields.embargoUntil ? new Date(fields.embargoUntil) : null }
+          : {}),
+        ...(fields.geoBlock !== undefined ? { geoBlock: fields.geoBlock } : {}),
+        ...(fields.ageRating !== undefined ? { ageRating: fields.ageRating } : {}),
+        ...(fields.contentWarnings !== undefined ? { contentWarnings: fields.contentWarnings } : {}),
+        ...(fields.isExclusive !== undefined ? { isExclusive: fields.isExclusive } : {}),
+        ...(fields.isbn !== undefined ? { isbn: fields.isbn } : {}),
+        ...(fields.isrc !== undefined ? { isrc: fields.isrc } : {}),
+      },
+    });
+  }
+
+  /** RSS 2.0 feed for an artist's published works (F-137). */
+  async getRssFeed(artistId: string): Promise<string> {
+    const artist = await this.prisma.user.findUnique({
+      where: { id: artistId },
+      select: { displayName: true },
+    });
+    const works = await this.prisma.work.findMany({
+      where: { artistId, status: 'PUBLISHED', deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        createdAt: true,
+        mediaKey: true,
+      },
+    });
+
+    const escapeXml = (s: string) =>
+      s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+
+    const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
+
+    const items = works
+      .map((w) => {
+        const enclosure = w.mediaKey
+          ? `<enclosure url="${escapeXml(`${appUrl}/media/${w.mediaKey}`)}" type="audio/mpeg" />`
+          : '';
+        return `<item>
+  <title>${escapeXml(w.title)}</title>
+  <description>${escapeXml(w.description ?? '')}</description>
+  <pubDate>${w.createdAt.toUTCString()}</pubDate>
+  <link>${appUrl}/works/${w.id}</link>
+  <guid>${w.id}</guid>
+  ${enclosure}
+</item>`;
+      })
+      .join('\n');
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>${escapeXml(artist?.displayName ?? artistId)}</title>
+    <link>${appUrl}/artists/${artistId}</link>
+    <description>Werke von ${escapeXml(artist?.displayName ?? artistId)}</description>
+    ${items}
+  </channel>
+</rss>`;
   }
 
   async recommendations(userId: string, limit = 20) {

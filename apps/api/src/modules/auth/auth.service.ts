@@ -147,7 +147,58 @@ export class AuthService {
     return { reset: true };
   }
 
+  // --- Magic-Link Passwordless Login (F-014) ---
+
+  async sendMagicLink(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    // Always return 200 to prevent email enumeration
+    if (!user) return { sent: true };
+
+    const token = generateToken();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    await this.prisma.magicLink.create({
+      data: { userId: user.id, token, expiresAt },
+    });
+
+    const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+    await this.mail.sendEmail(
+      email,
+      "Dein Magic-Link für CreatorLend",
+      `Melde dich an mit diesem Link: ${appUrl}/auth/magic?token=${token}\n\nDer Link läuft in 15 Minuten ab.`,
+    );
+
+    return { sent: true };
+  }
+
+  async verifyMagicLink(token: string) {
+    const link = await this.prisma.magicLink.findUnique({ where: { token } });
+
+    if (!link) {
+      throw new UnauthorizedException("invalid_magic_link");
+    }
+    if (link.usedAt) {
+      throw new UnauthorizedException("magic_link_already_used");
+    }
+    if (link.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException("magic_link_expired");
+    }
+
+    await this.prisma.magicLink.update({
+      where: { id: link.id },
+      data: { usedAt: new Date() },
+    });
+
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: link.userId } });
+    return this.issueTokens(user.id, user.role, generateToken());
+  }
+
   // --- intern ---
+
+  /** Public alias for use by OAuth / MagicLink controllers. */
+  async issueTokensPub(userId: string, role: string, family: string) {
+    return this.issueTokens(userId, role, family);
+  }
 
   private async issueTokens(userId: string, role: string, family: string) {
     const accessToken = this.jwt.sign({ sub: userId, role });
