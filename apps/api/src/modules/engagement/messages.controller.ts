@@ -35,4 +35,13 @@ export class MessagesController {
   ) {
     return this.messages.recommendWork(userId, body.recipientId, body.workId, body.message);
   }
+
+  // POST /api/v1/messages/encrypted – E2E-verschlüsselte DM senden (F-940)
+  @Post('encrypted')
+  sendEncrypted(
+    @CurrentUser() userId: string,
+    @Body() body: { recipientId: string; encryptedBody: string },
+  ) {
+    return this.messages.sendEncrypted(userId, body.recipientId, body.encryptedBody);
+  }
 }

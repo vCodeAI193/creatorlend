@@ -51,6 +51,12 @@ export class MessagesService {
     return { read: true };
   }
 
+  async sendEncrypted(senderId: string, recipientId: string, encryptedBody: string) {
+    return this.prisma.directMessage.create({
+      data: { senderId, recipientId, body: '[encrypted]', encryptedBody } as never,
+    });
+  }
+
   async recommendWork(senderId: string, recipientId: string, workId: string, message?: string) {
     const recipient = await this.prisma.user.findUnique({ where: { id: recipientId } });
     if (!recipient) throw new NotFoundException('recipient_not_found');

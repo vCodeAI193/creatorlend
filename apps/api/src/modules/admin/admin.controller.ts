@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Put, Query, UseGuards } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { UserRole } from "@creatorlend/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -11,6 +12,7 @@ import { AnalyticsService } from "./analytics.service";
 import { AbTestingService } from "./ab-testing.service";
 
 /** Admin-Backoffice (B-151, B-152, B-154, B-155). Nur für ADMIN-Rolle. */
+@ApiTags("admin")
 @Controller("admin")
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
@@ -135,6 +137,16 @@ export class AdminController {
   @Get("audit-log")
   auditLog(@Query("page") page = "1", @Query("limit") limit = "50") {
     return this.admin.listAuditLogs(Number(page), Number(limit));
+  }
+
+  // GET /api/v1/admin/users/:id/audit-log – Nutzer:in Audit-Log (F-936)
+  @Get("users/:id/audit-log")
+  userAuditLog(
+    @Param("id") id: string,
+    @Query("page") page = "1",
+    @Query("limit") limit = "50",
+  ) {
+    return this.admin.listUserAuditLog(id, Number(page), Number(limit));
   }
 
   // POST /api/v1/admin/reviews/:id/hide – Rezension ausblenden (B-131)

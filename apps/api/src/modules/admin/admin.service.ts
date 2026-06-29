@@ -62,6 +62,21 @@ export class AdminService {
     await this.prisma.auditLog.create({ data: { actorId, action, targetType, targetId, meta } });
   }
 
+  /** Audit-Log für einen bestimmten Nutzer auflisten (F-936). */
+  async listUserAuditLog(userId: string, page = 1, limit = 50) {
+    const [entries, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        where: { targetId: userId },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { actor: { select: { id: true, displayName: true, email: true } } },
+      }),
+      this.prisma.auditLog.count({ where: { targetId: userId } }),
+    ]);
+    return { entries, meta: { page, total } };
+  }
+
   /** Audit-Log auflisten (B-155). */
   async listAuditLogs(page = 1, limit = 50) {
     const [entries, total] = await Promise.all([

@@ -4,6 +4,7 @@ import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { OAuthController } from "./oauth.controller";
 import { OAuthService } from "./oauth.service";
+import { OAuthServerService } from "./oauth-server.service";
 import { TotpController } from "./totp.controller";
 import { TotpService } from "./totp.service";
 import { ApiKeysController } from "./api-keys.controller";
@@ -18,7 +19,7 @@ import { ApiKeysService } from "./api-keys.service";
     }),
   ],
   controllers: [AuthController, OAuthController, TotpController, ApiKeysController],
-  providers: [AuthService, OAuthService, TotpService, ApiKeysService],
-  exports: [AuthService, OAuthService, TotpService, ApiKeysService],
+  providers: [AuthService, OAuthService, OAuthServerService, TotpService, ApiKeysService],
+  exports: [AuthService, OAuthService, OAuthServerService, TotpService, ApiKeysService],
 })
 export class AuthModule {}

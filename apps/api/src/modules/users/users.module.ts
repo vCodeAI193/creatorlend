@@ -11,10 +11,12 @@ import { FeatureFlagsService } from "../admin/feature-flags.service";
 import { WebhooksSubscriptionService } from "./webhooks.service";
 import { WebhooksSubscriptionController } from "./webhooks.controller";
 import { ApiKeysService } from "../auth/api-keys.service";
+import { I18nController } from "./i18n.controller";
+import { LocaleService } from "./locale.service";
 
 @Module({
-  controllers: [UsersController, CookieConsentController, WebhooksSubscriptionController],
-  providers: [UsersService, BlocksService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, FeatureFlagsService, WebhooksSubscriptionService, ApiKeysService],
-  exports: [UsersService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, WebhooksSubscriptionService, ApiKeysService],
+  controllers: [UsersController, CookieConsentController, WebhooksSubscriptionController, I18nController],
+  providers: [UsersService, BlocksService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, FeatureFlagsService, WebhooksSubscriptionService, ApiKeysService, LocaleService],
+  exports: [UsersService, ActivitySummaryService, CookieConsentService, ConsentService, AbTestingService, WebhooksSubscriptionService, ApiKeysService, LocaleService],
 })
 export class UsersModule {}

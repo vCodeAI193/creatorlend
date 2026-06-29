@@ -11,6 +11,7 @@ import {
   Res,
   UseGuards,
 } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { UserRole } from "@creatorlend/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -29,6 +30,7 @@ import { AiService } from "./ai.service";
 import { CreateWorkDto } from "./dto/create-work.dto";
 import { UpdateWorkDto } from "./dto/update-work.dto";
 
+@ApiTags("works")
 @Controller("works")
 export class WorksController {
   constructor(

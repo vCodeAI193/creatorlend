@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Request, UseGuards } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { UsersService } from "./users.service";
@@ -15,6 +16,7 @@ const PLAN_LIMITS: Record<string, { requestsPerMinute: number }> = {
   PREMIUM: { requestsPerMinute: 300 },
 };
 
+@ApiTags("users")
 @Controller("users")
 @UseGuards(JwtAuthGuard)
 export class UsersController {

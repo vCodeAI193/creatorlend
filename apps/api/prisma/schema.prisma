@@ -697,15 +697,16 @@ model ArtistPostComment {
 
 // Direktnachrichten (F-580)
 model DirectMessage {
-  id          String    @id @default(uuid())
-  senderId    String
-  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
-  recipientId String
-  recipient   User      @relation("ReceivedMessages", fields: [recipientId], references: [id])
-  body        String
-  metadata    Json?     // z. B. { type: "WORK_RECOMMENDATION", workId } (F-233)
-  readAt      DateTime?
-  createdAt   DateTime  @default(now())
+  id             String    @id @default(uuid())
+  senderId       String
+  sender         User      @relation("SentMessages", fields: [senderId], references: [id])
+  recipientId    String
+  recipient      User      @relation("ReceivedMessages", fields: [recipientId], references: [id])
+  body           String
+  encryptedBody  String?   // ECDH-verschlüsselter Inhalt (F-940)
+  metadata       Json?     // z. B. { type: "WORK_RECOMMENDATION", workId } (F-233)
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
 
   @@index([senderId, recipientId])
   @@index([recipientId])

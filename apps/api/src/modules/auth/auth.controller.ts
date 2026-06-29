@@ -1,6 +1,8 @@
-import { Body, Controller, HttpCode, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Post, Query, UseGuards } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import { AuthService } from "./auth.service";
+import { OAuthServerService } from "./oauth-server.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshDto } from "./dto/refresh.dto";
@@ -8,9 +10,13 @@ import { VerifyEmailDto } from "./dto/verify-email.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 
+@ApiTags("auth")
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly oauthServer: OAuthServerService,
+  ) {}
 
   // POST /api/v1/auth/register
   @Post("register")
@@ -76,5 +82,23 @@ export class AuthController {
   @HttpCode(200)
   magicVerify(@Body("token") token: string) {
     return this.auth.verifyMagicLink(token);
+  }
+
+  // GET /api/v1/auth/oauth/authorize – OAuth2 Authorization Code (F-877)
+  @Get("oauth/authorize")
+  oauthAuthorize(
+    @Query("client_id") clientId: string,
+    @Query("redirect_uri") redirectUri: string,
+    @Query("scope") scope: string,
+    @Query("user_id") userId: string,
+  ) {
+    return this.oauthServer.authorize(clientId, redirectUri, scope, userId);
+  }
+
+  // POST /api/v1/auth/oauth/token – OAuth2 Token Exchange (F-877)
+  @Post("oauth/token")
+  @HttpCode(200)
+  oauthToken(@Body("code") code: string) {
+    return this.oauthServer.token(code);
   }
 }

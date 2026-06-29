@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { UserRole } from "@creatorlend/shared";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -12,6 +13,7 @@ import { BorrowDto } from "./dto/borrow.dto";
 import { ExchangeDto } from "./dto/exchange.dto";
 
 /** Endpunkte rund um das Leihen von Werken (nur Hörer:innen). */
+@ApiTags("loans")
 @Controller("loans")
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.LISTENER)

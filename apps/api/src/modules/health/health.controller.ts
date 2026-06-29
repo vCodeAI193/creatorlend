@@ -36,4 +36,26 @@ export class HealthController {
       version: VERSION,
     };
   }
+
+  // GET /api/v1/health/migration – Migration status (F-971)
+  @Get("migration")
+  async migrationStatus() {
+    try {
+      const result = await this.prisma.$queryRaw`SELECT COUNT(*) FROM "_prisma_migrations" WHERE "finished_at" IS NOT NULL`;
+      return { status: 'ok', appliedMigrations: Number((result as any)[0].count) };
+    } catch {
+      return { status: 'error' };
+    }
+  }
+
+  // GET /api/v1/health/accessibility – WCAG compliance claims (F-982)
+  @Get("accessibility")
+  accessibilityStatus() {
+    return {
+      wcagLevel: 'AA',
+      version: '2.2',
+      apiConformance: 'Partial',
+      features: ['aria-labels', 'keyboard-navigation', 'high-contrast-mode', 'font-size-preferences', 'reduced-motion'],
+    };
+  }
 }
