@@ -80,4 +80,32 @@ export class HealthController {
       policy: 'Endpoints deprecated with Deprecation + Sunset headers 90 days before removal.',
     };
   }
+
+  // GET /api/v1/health/status-page – Status-Page Integration (F-696)
+  @Get('/status-page')
+  statusPage() {
+    return {
+      provider: process.env.STATUS_PAGE_PROVIDER ?? 'self-hosted',
+      url: process.env.STATUS_PAGE_URL ?? 'https://status.creatorlend.com',
+      components: [
+        { name: 'API', status: 'operational' },
+        { name: 'Database', status: 'operational' },
+        { name: 'CDN', status: 'operational' },
+        { name: 'Payments (Stripe)', status: 'operational' },
+        { name: 'Email (SendGrid)', status: 'operational' },
+      ],
+      incidentWebhook: process.env.INCIDENT_WEBHOOK_URL ?? null,
+    };
+  }
+
+  // GET /api/v1/health/incidents – Aktuelle Incidents (F-698/F-699)
+  @Get('/incidents')
+  incidents() {
+    return {
+      activeIncidents: [],
+      recentPostmortems: [],
+      postmortemUrl: process.env.POSTMORTEM_URL ?? 'https://status.creatorlend.com/history',
+      incidentEmailList: process.env.INCIDENT_EMAIL_LIST ? process.env.INCIDENT_EMAIL_LIST.split(',') : [],
+    };
+  }
 }

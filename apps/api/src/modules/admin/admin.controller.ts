@@ -753,4 +753,28 @@ export class AdminController {
   featureRequests() {
     return this.analytics.getFeatureRequestVoting();
   }
+
+  // GET /api/v1/admin/analytics/synthetic-monitoring – Synthetic Monitoring (F-758)
+  @Get("analytics/synthetic-monitoring")
+  syntheticMonitoring() {
+    return this.analytics.getSyntheticMonitoring();
+  }
+
+  // GET /api/v1/admin/analytics/core-web-vitals – Core Web Vitals (F-783)
+  @Get("analytics/core-web-vitals")
+  coreWebVitals() {
+    return this.analytics.getCoreWebVitals();
+  }
+
+  // GET /api/v1/admin/analytics/privacy-config – Privacy-konforme Analytics (F-797/F-798)
+  @Get("analytics/privacy-config")
+  privacyAnalytics() {
+    return this.analytics.getPrivacyAnalyticsConfig();
+  }
+
+  // GET /api/v1/admin/analytics/cdn-bandwidth – CDN-Bandbreiten-Nutzung (F-819)
+  @Get("analytics/cdn-bandwidth")
+  cdnBandwidth() {
+    return this.analytics.getCdnBandwidthUsage();
+  }
 }
