@@ -337,6 +337,18 @@ export class UsersController {
     };
   }
 
+  // PUT /api/v1/users/me/newsletter – Newsletter opt-in/out (F-629)
+  @Put("me/newsletter")
+  setNewsletter(@CurrentUser() userId: string, @Body("optIn") optIn: boolean) {
+    return this.marketing.newsletterOptIn(userId, optIn ?? false);
+  }
+
+  // GET /api/v1/users/me/newsletter – Newsletter-Status abrufen (F-629)
+  @Get("me/newsletter")
+  getNewsletter(@CurrentUser() userId: string) {
+    return this.marketing.getNewsletterStatus(userId);
+  }
+
   // POST /api/v1/users/me/marketing/sync – Mailchimp sync stub (F-911)
   @Post("me/marketing/sync")
   marketingSync(@CurrentUser() userId: string) {

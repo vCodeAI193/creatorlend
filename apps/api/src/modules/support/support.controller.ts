@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -65,6 +65,17 @@ export class SupportController {
   voteFeatureRequest(@CurrentUser() userId: string, @Param('id') id: string) {
     return this.support.voteFeatureRequest(userId, id);
   }
+
+  // POST /api/v1/support/bug-report – Bug-Report einreichen (F-607)
+  @Post('bug-report')
+  createBugReport(
+    @CurrentUser() userId: string,
+    @Body('title') title: string,
+    @Body('description') description: string,
+    @Body('metadata') metadata?: Record<string, unknown>,
+  ) {
+    return this.support.createBugReport(userId, title, description, metadata);
+  }
 }
 
 @Controller('admin/support')
@@ -93,5 +104,23 @@ export class AdminSupportController {
     @Body('assigneeId') assigneeId?: string,
   ) {
     return this.support.updateStatus(id, status, assigneeId);
+  }
+
+  // POST /api/v1/admin/support/users/:id/shadow-ban – Shadow-Banning (F-626)
+  @Post('users/:id/shadow-ban')
+  shadowBan(@Param('id') id: string) {
+    return this.support.shadowBan(id);
+  }
+
+  // DELETE /api/v1/admin/support/users/:id/shadow-ban – Shadow-Ban aufheben (F-626)
+  @Delete('users/:id/shadow-ban')
+  removeShadowBan(@Param('id') id: string) {
+    return this.support.removeShadowBan(id);
+  }
+
+  // GET /api/v1/admin/support/users/:id/trolling-check – Trolling-Erkennung (F-625)
+  @Get('users/:id/trolling-check')
+  checkTrolling(@Param('id') id: string) {
+    return this.support.checkTrollingPattern(id);
   }
 }

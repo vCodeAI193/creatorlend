@@ -45,4 +45,10 @@ export class PublicAdminController {
   listAnnouncements() {
     return this.admin.listAnnouncements(true);
   }
+
+  // GET /api/v1/faq – Platform-FAQ suchen (F-695, öffentlich)
+  @Get("faq")
+  searchFaq(@Query("q") q?: string, @Query("category") category?: string) {
+    return this.admin.searchPlatformFaqs(q, category);
+  }
 }

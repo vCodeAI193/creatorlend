@@ -856,4 +856,79 @@ export class AdminService {
     );
     return { submitted: true, takedownId, status: 'COUNTER_NOTICE' };
   }
+
+  // F-695: Platform-FAQ (in-memory store)
+  private platformFaqs: Array<{ id: string; category: string; question: string; answer: string; sortOrder: number }> = [
+    { id: '1', category: 'general', question: 'Was ist CreatorLend?', answer: 'CreatorLend ist eine Plattform, auf der Künstler:innen ihre Werke verleihen und Hörer:innen diese zeitlich begrenzt ausleihen können.', sortOrder: 0 },
+    { id: '2', category: 'loans', question: 'Wie lange kann ich ein Werk ausleihen?', answer: 'Werke werden standardmäßig für 7 Tage ausgeliehen. Du kannst die Leihe einmalig verlängern.', sortOrder: 1 },
+    { id: '3', category: 'billing', question: 'Welche Abonnement-Pläne gibt es?', answer: 'Es gibt FREE, STANDARD und PREMIUM Pläne mit unterschiedlichen Ausleihkontingenten.', sortOrder: 2 },
+    { id: '4', category: 'artists', question: 'Wie werden Künstler:innen vergütet?', answer: 'Künstler:innen erhalten 70 % der Ausleihgebühr. Auszahlungen erfolgen monatlich.', sortOrder: 3 },
+    { id: '5', category: 'support', question: 'Wie erreiche ich den Support?', answer: 'Du kannst ein Support-Ticket über POST /api/v1/support einreichen.', sortOrder: 4 },
+  ];
+
+  searchPlatformFaqs(query?: string, category?: string) {
+    let results = [...this.platformFaqs];
+    if (category) results = results.filter((f) => f.category === category);
+    if (query) {
+      const q = query.toLowerCase();
+      results = results.filter((f) => f.question.toLowerCase().includes(q) || f.answer.toLowerCase().includes(q));
+    }
+    return results.sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  upsertPlatformFaq(id: string | undefined, data: { category: string; question: string; answer: string; sortOrder?: number }) {
+    const existing = id ? this.platformFaqs.find((f) => f.id === id) : null;
+    if (existing) {
+      Object.assign(existing, data);
+      return existing;
+    }
+    const newId = String(Date.now());
+    const faq = { id: newId, sortOrder: 0, ...data };
+    this.platformFaqs.push(faq);
+    return faq;
+  }
+
+  deletePlatformFaq(id: string) {
+    const index = this.platformFaqs.findIndex((f) => f.id === id);
+    if (index === -1) throw new Error('faq_not_found');
+    this.platformFaqs.splice(index, 1);
+    return { deleted: true, id };
+  }
+
+  // F-698: Incident-E-Mail an alle aktiven Nutzer:innen senden
+  async sendIncidentEmail(subject: string, body: string, adminId: string) {
+    const users = await this.prisma.user.findMany({
+      where: { deletedAt: null },
+      select: { email: true },
+      take: 5000,
+    });
+    let sent = 0;
+    for (const user of users) {
+      await this.mail.sendEmail(user.email, `[Statusmeldung] ${subject}`, body).catch(() => {});
+      sent++;
+    }
+    await this.writeAuditLog(adminId, 'INCIDENT_EMAIL', 'System', 'all', { subject, recipientCount: sent });
+    return { sent, subject };
+  }
+
+  // F-702: Admin-Sub-Rollen verwalten (via adminTags)
+  async setSubRole(adminId: string, userId: string, subRole: string, active: boolean) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { adminTags: true } });
+    if (!user) throw new Error('user_not_found');
+    const currentTags = user.adminTags ?? [];
+    const tags = active
+      ? currentTags.includes(subRole) ? currentTags : [...currentTags, subRole]
+      : currentTags.filter((t) => t !== subRole);
+    await this.prisma.user.update({ where: { id: userId }, data: { adminTags: tags } });
+    await this.writeAuditLog(adminId, active ? 'SUB_ROLE_GRANT' : 'SUB_ROLE_REVOKE', 'User', userId, { subRole });
+    return { userId, subRole, active, adminTags: tags };
+  }
+
+  async listSubRoles(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { adminTags: true } });
+    if (!user) throw new Error('user_not_found');
+    const SUB_ROLES = ['SUPPORT', 'MODERATOR', 'REVIEWER', 'FINANCE'];
+    const assigned = (user.adminTags ?? []).filter((t) => SUB_ROLES.includes(t));
+    return { userId, subRoles: assigned };
+  }
 }

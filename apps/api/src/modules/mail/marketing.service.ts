@@ -21,4 +21,23 @@ export class MarketingService {
     // Stub: in prod send to Segment/Klaviyo
     return { tracked: true, userId, event, properties, isStub: true };
   }
+
+  // F-629: Community newsletter opt-in/out
+  async newsletterOptIn(userId: string, optIn: boolean) {
+    const version = '1.0';
+    await this.prisma.consentRecord.upsert({
+      where: { id: `newsletter-${userId}` },
+      create: { id: `newsletter-${userId}`, userId, type: 'NEWSLETTER', version, granted: optIn },
+      update: { granted: optIn, version },
+    });
+    return { userId, newsletterOptIn: optIn };
+  }
+
+  async getNewsletterStatus(userId: string) {
+    const record = await this.prisma.consentRecord.findFirst({
+      where: { userId, type: 'NEWSLETTER' },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { userId, newsletterOptIn: record?.granted ?? false };
+  }
 }

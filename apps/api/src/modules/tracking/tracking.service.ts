@@ -59,4 +59,30 @@ export class TrackingService {
       botSharePercent: total > 0 ? Math.round((botEstimate / total) * 100) : 0,
     };
   }
+
+  // F-782: Seitenaufrufe tracken
+  async trackPageView(data: { path: string; userId?: string; sessionId?: string; referrer?: string; durationMs?: number }) {
+    return this.prisma.customEvent.create({
+      data: {
+        eventName: 'PAGE_VIEW',
+        userId: data.userId,
+        sessionId: data.sessionId,
+        properties: { path: data.path, referrer: data.referrer ?? null, durationMs: data.durationMs ?? null },
+      },
+    });
+  }
+
+  // F-782: Seitenaufruf-Statistiken (Admin)
+  async getPageViewStats(from?: string) {
+    const rows = await this.prisma.$queryRaw<Array<{ path: string; cnt: bigint }>>`
+      SELECT properties->>'path' AS path, COUNT(*) AS cnt
+      FROM "CustomEvent"
+      WHERE "eventName" = 'PAGE_VIEW'
+        ${from ? `AND "createdAt" >= ${new Date(from).toISOString()}::timestamp` : ''}
+      GROUP BY path
+      ORDER BY cnt DESC
+      LIMIT 100
+    `;
+    return rows.map((r) => ({ path: r.path, views: Number(r.cnt) }));
+  }
 }

@@ -25,6 +25,18 @@ export class TrackingController {
   ) {
     return this.tracking.trackUtm({ userId, sessionId, source, medium, campaign, content, term, page, referrer });
   }
+
+  // POST /api/v1/tracking/pageview – Seitenaufruf erfassen (F-782)
+  @Post('pageview')
+  trackPageView(
+    @Body('path') path: string,
+    @Body('userId') userId?: string,
+    @Body('sessionId') sessionId?: string,
+    @Body('referrer') referrer?: string,
+    @Body('durationMs') durationMs?: number,
+  ) {
+    return this.tracking.trackPageView({ path, userId, sessionId, referrer, durationMs });
+  }
 }
 
 // Admin-Analytics (F-801)
@@ -47,5 +59,11 @@ export class AdminTrackingController {
   @Get('bot-traffic')
   getBotTraffic() {
     return this.tracking.getBotTrafficShare();
+  }
+
+  // GET /api/v1/admin/tracking/pageviews – Seitenaufruf-Statistiken (F-782)
+  @Get('pageviews')
+  getPageViews(@Query('from') from?: string) {
+    return this.tracking.getPageViewStats(from);
   }
 }

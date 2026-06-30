@@ -826,4 +826,60 @@ export class AdminController {
   ) {
     return this.admin.submitDmcaCounterNotice(workId, adminId, statement, takedownId);
   }
+
+  // POST /api/v1/admin/incident-email – Incident-E-Mail senden (F-698)
+  @Post("incident-email")
+  sendIncidentEmail(
+    @CurrentUser() adminId: string,
+    @Body("subject") subject: string,
+    @Body("body") body: string,
+  ) {
+    return this.admin.sendIncidentEmail(subject, body, adminId);
+  }
+
+  // GET /api/v1/admin/faq – Platform-FAQ auflisten (F-695)
+  @Get("faq")
+  listPlatformFaqs(@Query("q") q?: string, @Query("category") category?: string) {
+    return this.admin.searchPlatformFaqs(q, category);
+  }
+
+  // PUT /api/v1/admin/faq/:id – Platform-FAQ erstellen/aktualisieren (F-695)
+  @Put("faq/:id")
+  upsertPlatformFaq(
+    @Param("id") id: string,
+    @Body() body: { category: string; question: string; answer: string; sortOrder?: number },
+  ) {
+    return this.admin.upsertPlatformFaq(id, body);
+  }
+
+  // POST /api/v1/admin/faq – Platform-FAQ anlegen (F-695)
+  @Post("faq")
+  createPlatformFaq(
+    @Body() body: { category: string; question: string; answer: string; sortOrder?: number },
+  ) {
+    return this.admin.upsertPlatformFaq(undefined, body);
+  }
+
+  // DELETE /api/v1/admin/faq/:id – Platform-FAQ löschen (F-695)
+  @Delete("faq/:id")
+  deletePlatformFaq(@Param("id") id: string) {
+    return this.admin.deletePlatformFaq(id);
+  }
+
+  // PATCH /api/v1/admin/users/:id/sub-role – Sub-Rolle setzen (F-702)
+  @Patch("users/:id/sub-role")
+  setSubRole(
+    @CurrentUser() adminId: string,
+    @Param("id") userId: string,
+    @Body("subRole") subRole: string,
+    @Body("active") active: boolean,
+  ) {
+    return this.admin.setSubRole(adminId, userId, subRole, active);
+  }
+
+  // GET /api/v1/admin/users/:id/sub-roles – Sub-Rollen abrufen (F-702)
+  @Get("users/:id/sub-roles")
+  listSubRoles(@Param("id") userId: string) {
+    return this.admin.listSubRoles(userId);
+  }
 }

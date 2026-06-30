@@ -97,4 +97,43 @@ export class SupportService {
     else req.votes.add(userId);
     return { id, voteCount: req.votes.size, voted: !alreadyVoted };
   }
+
+  // F-607: Bug-Report direkt aus der App einreichen
+  async createBugReport(userId: string, title: string, description: string, metadata?: Record<string, unknown>) {
+    return this.prisma.supportTicket.create({
+      data: {
+        userId,
+        subject: `[BUG] ${title}`,
+        body: `${description}${metadata ? `\n\nMetadata: ${JSON.stringify(metadata)}` : ''}`,
+        priority: 'HIGH',
+        slaDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  // F-625: Trolling-Erkennung (wiederholte Meldungen → Auto-Flag)
+  async checkTrollingPattern(userId: string): Promise<{ flagged: boolean; reportCount: number }> {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const reportCount = await this.prisma.report.count({
+      where: { reporterId: userId, createdAt: { gte: since } },
+    });
+    const flagged = reportCount >= 5;
+    return { flagged, reportCount };
+  }
+
+  // F-626: Shadow-Banning für Spam-Accounts
+  async shadowBan(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { adminTags: { push: 'SHADOW_BANNED' } },
+    });
+    return { shadowBanned: true, userId };
+  }
+
+  async removeShadowBan(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { adminTags: true } });
+    const tags = (user?.adminTags ?? []).filter((t) => t !== 'SHADOW_BANNED');
+    await this.prisma.user.update({ where: { id: userId }, data: { adminTags: tags } });
+    return { shadowBanned: false, userId };
+  }
 }
