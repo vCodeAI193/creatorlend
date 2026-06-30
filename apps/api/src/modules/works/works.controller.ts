@@ -33,6 +33,7 @@ import { AutoTranslateService } from "./auto-translate.service";
 import { DiscountCodesService } from "./discount-codes.service";
 import { CategoriesService } from "./categories.service";
 import { UtmService } from "./utm.service";
+import { WorksStubsService } from "./works-stubs.service";
 import { CreateWorkDto } from "./dto/create-work.dto";
 import { UpdateWorkDto } from "./dto/update-work.dto";
 
@@ -55,6 +56,7 @@ export class WorksController {
     private readonly discountCodes: DiscountCodesService,
     private readonly utm: UtmService,
     private readonly categories: CategoriesService,
+    private readonly stubs: WorksStubsService,
   ) {}
 
   // POST /api/v1/works – Werk einstellen (ARTIST)
@@ -915,4 +917,323 @@ export class WorksController {
   ) {
     return this.works.convertCurrency(Number(amount), from ?? 'EUR', to ?? 'EUR');
   }
+
+  // F-085: Qualitätsstufen
+  @Get("quality-levels")
+  qualityLevels() { return this.stubs.getQualityLevels(); }
+
+  // F-086: Audio-Fingerprinting
+  @Post(":id/fingerprint")
+  @UseGuards(JwtAuthGuard)
+  fingerprint(@Param("id") workId: string) { return this.stubs.fingerprintWork(workId); }
+
+  // F-087/F-088: ISRC / ISBN
+  @Get(":id/identifiers")
+  @UseGuards(JwtAuthGuard)
+  getIdentifiers(@Param("id") workId: string) { return this.stubs.getWorkIdentifiers(workId); }
+
+  @Patch(":id/identifiers")
+  @UseGuards(JwtAuthGuard)
+  setIdentifiers(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body() body: { isrc?: string; isbn?: string; ean?: string }) {
+    return this.stubs.setWorkIdentifiers(user.userId, workId, body);
+  }
+
+  // F-089: Lautstärke-Normalisierung
+  @Get(":id/audio-analysis")
+  @UseGuards(JwtAuthGuard)
+  audioAnalysis(@Param("id") workId: string) { return this.stubs.getWorkAudioAnalysis(workId); }
+
+  // F-090: Spektrum-Analyse
+  @Get(":id/spectrum")
+  spectrumAnalysis(@Param("id") workId: string) { return this.stubs.getSpectrumAnalysis(workId); }
+
+  // F-091: Cover aus ID3
+  @Post(":id/extract-cover")
+  @UseGuards(JwtAuthGuard)
+  extractCover(@Param("id") workId: string, @CurrentUser() user: { userId: string }) { return this.stubs.extractCoverFromId3(user.userId, workId); }
+
+  // F-092: Metadaten aus ID3 importieren
+  @Post(":id/import-metadata")
+  @UseGuards(JwtAuthGuard)
+  importMetadata(@Param("id") workId: string, @CurrentUser() user: { userId: string }) { return this.stubs.importId3Metadata(user.userId, workId); }
+
+  // F-094: Bulk-Edit
+  @Patch("bulk")
+  @UseGuards(JwtAuthGuard)
+  bulkUpdate(@CurrentUser() user: { userId: string }, @Body() body: { workIds: string[]; patch: Record<string, unknown> }) {
+    return this.stubs.bulkUpdateWorks(user.userId, body.workIds ?? [], body.patch ?? {});
+  }
+
+  // F-096: Version-Diff
+  @Get(":id/versions/diff")
+  @UseGuards(JwtAuthGuard)
+  versionDiff(@Param("id") workId: string, @Query("from") from: string, @Query("to") to: string) {
+    return this.stubs.getVersionDiff(workId, Number(from) || 1, Number(to) || 2);
+  }
+
+  // F-100: Werk-Vorlagen
+  @Get("templates")
+  @UseGuards(JwtAuthGuard)
+  getTemplates(@CurrentUser() user: { userId: string }) { return this.stubs.getWorkTemplates(user.userId); }
+
+  @Post("templates")
+  @UseGuards(JwtAuthGuard)
+  saveTemplate(@CurrentUser() user: { userId: string }, @Body() body: { name: string; fields: Record<string, unknown> }) {
+    return this.stubs.saveWorkTemplate(user.userId, body.name, body.fields ?? {});
+  }
+
+  // F-101: CUE-Sheet Import
+  @Post(":id/chapters/import-cue")
+  @UseGuards(JwtAuthGuard)
+  importCue(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body("cue") cue: string) {
+    return this.stubs.importCueSheet(user.userId, workId, cue ?? '');
+  }
+
+  // F-102: CUE-Sheet Export
+  @Get(":id/chapters/export-cue")
+  exportCue(@Param("id") workId: string) { return this.stubs.exportCueSheet(workId); }
+
+  // F-104: Whisper AI Transkription
+  @Post(":id/transcripts/whisper")
+  @UseGuards(JwtAuthGuard)
+  triggerWhisper(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body("language") language?: string) {
+    return this.stubs.triggerWhisperTranscription(user.userId, workId, language);
+  }
+
+  // F-106: Transkript-Sync-Info
+  @Get(":id/transcripts/sync")
+  transcriptSync(@Param("id") workId: string) { return this.stubs.getTranscriptSyncInfo(workId); }
+
+  // F-107: Sprach-Erkennung
+  @Get(":id/detect-language")
+  detectLanguage(@Param("id") workId: string) { return this.stubs.detectLanguage(workId); }
+
+  // F-110: KI-Metadaten (Stimmung, Tempo)
+  @Get(":id/ai-metadata")
+  aiMetadata(@Param("id") workId: string) { return this.stubs.getAiMetadata(workId); }
+
+  // F-114: Per-Werk Geo-Blocking
+  @Patch(":id/geo-block")
+  @UseGuards(JwtAuthGuard)
+  setGeoBlock(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body("blockedCountries") blockedCountries: string[]) {
+    return this.stubs.setWorkGeoBlock(user.userId, workId, blockedCountries ?? []);
+  }
+
+  // F-115: Altersfreigabe
+  @Patch(":id/age-rating")
+  @UseGuards(JwtAuthGuard)
+  setAgeRating(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body() body: { rating: string; system: 'FSK' | 'USK' | 'PEGI' }) {
+    return this.stubs.setAgeRating(user.userId, workId, body.rating, body.system ?? 'FSK');
+  }
+
+  // F-120: Bonus-Material
+  @Get(":id/bonus")
+  bonusMaterial(@Param("id") workId: string) { return this.stubs.getBonusMaterial(workId); }
+
+  @Post(":id/bonus")
+  @UseGuards(JwtAuthGuard)
+  addBonusMaterial(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body() body: { title: string; type: string; url: string }) {
+    return this.stubs.addBonusMaterial(user.userId, workId, body);
+  }
+
+  // F-121: Transkript-Annotation
+  @Post(":id/transcripts/annotate")
+  @UseGuards(JwtAuthGuard)
+  annotateTranscript(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body() body: { timestamp: number; text: string }) {
+    return this.stubs.addTranscriptAnnotation(user.userId, workId, body.timestamp ?? 0, body.text ?? '');
+  }
+
+  // F-122: Audio-Kommentarspur
+  @Get(":id/commentary")
+  audioCommentary(@Param("id") workId: string) { return this.stubs.getAudioCommentaryInfo(workId); }
+
+  // F-125: Bookmarks exportieren
+  @Get("bookmarks/export")
+  @UseGuards(JwtAuthGuard)
+  exportBookmarks(@CurrentUser() user: { userId: string }, @Query("format") format: string) {
+    return this.stubs.exportBookmarks(user.userId, (format as 'txt' | 'pdf') ?? 'txt');
+  }
+
+  // F-127: Notizen teilen
+  @Post("notes/:noteId/share")
+  @UseGuards(JwtAuthGuard)
+  shareNote(@Param("noteId") noteId: string, @CurrentUser() user: { userId: string }, @Body("targetUserId") targetUserId: string) {
+    return this.stubs.shareNote(user.userId, noteId, targetUserId);
+  }
+
+  // F-128: Lese-/Hörmodus
+  @Patch("reading-mode")
+  @UseGuards(JwtAuthGuard)
+  setReadingMode(@CurrentUser() user: { userId: string }, @Body("mode") mode: 'LISTEN' | 'READ') {
+    return this.stubs.setReadingMode(user.userId, mode ?? 'LISTEN');
+  }
+
+  // F-130: Abspiel-Heatmap
+  @Get(":id/heatmap")
+  @UseGuards(JwtAuthGuard)
+  playHeatmap(@Param("id") workId: string) { return this.stubs.getPlayHeatmap(workId); }
+
+  // F-132: A/B-Test Cover-Art
+  @Post(":id/ab-test/cover")
+  @UseGuards(JwtAuthGuard)
+  createCoverAbTest(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body("variantUrl") variantUrl: string) {
+    return this.stubs.createCoverAbTest(user.userId, workId, variantUrl ?? '');
+  }
+
+  // F-134: Spotlights
+  @Get("spotlights")
+  getSpotlights() { return this.stubs.getSpotlights(); }
+
+  // F-135: Embed-Player
+  @Get(":id/embed")
+  embedUrl(@Param("id") workId: string) { return this.stubs.getEmbedUrl(workId); }
+
+  // F-136: Widget-Generator
+  @Get("widget")
+  @UseGuards(JwtAuthGuard)
+  widgetCode(@CurrentUser() user: { userId: string }, @Query("theme") theme: string, @Query("works") works: string) {
+    return this.stubs.getWidgetCode(user.userId, (theme as 'light' | 'dark') ?? 'light');
+  }
+
+  // F-138: Atom-Feed
+  @Get("feed.atom")
+  atomFeed(@Query("category") category: string) { return this.stubs.getAtomFeedUrl(category ?? 'all'); }
+
+  // F-139: OPDS-Katalog
+  @Get("opds")
+  opdsCatalog() { return this.stubs.getOpdsCatalogUrl(); }
+
+  // F-141: NFC-URL
+  @Get(":id/nfc")
+  nfcUrl(@Param("id") workId: string) { return this.stubs.getNfcUrl(workId); }
+
+  // F-142: Schaufenster-Modus
+  @Patch("showcase")
+  @UseGuards(JwtAuthGuard)
+  setShowcase(@CurrentUser() user: { userId: string }, @Body() body: { featuredWorkIds: string[]; headerText?: string; bannerUrl?: string }) {
+    return this.stubs.setShowcaseConfig(user.userId, body);
+  }
+
+  // F-143: Slideshow
+  @Patch(":id/slideshow")
+  @UseGuards(JwtAuthGuard)
+  setSlideshow(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body() body: { intervalSeconds: number; showLyrics: boolean }) {
+    return this.stubs.setSlideshowConfig(user.userId, workId, body);
+  }
+
+  // F-148: Custom-Attribute
+  @Get(":id/custom-attributes")
+  getCustomAttributes(@Param("id") workId: string) { return this.stubs.getCustomAttributes(workId); }
+
+  @Patch(":id/custom-attributes")
+  @UseGuards(JwtAuthGuard)
+  setCustomAttributes(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body() attributes: Record<string, unknown>) {
+    return this.stubs.setCustomAttributes(user.userId, workId, attributes);
+  }
+
+  // F-150: Mehrsprachige Audio-Tracks
+  @Get(":id/audio-tracks")
+  getAudioTracks(@Param("id") workId: string) { return this.stubs.getAudioTracks(workId); }
+
+  @Post(":id/audio-tracks")
+  @UseGuards(JwtAuthGuard)
+  addAudioTrack(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body() track: { language: string; uploadUrl: string }) {
+    return this.stubs.addAudioTrack(user.userId, workId, track);
+  }
+
+  // F-153: Chords
+  @Get(":id/chords")
+  getChords(@Param("id") workId: string) { return this.stubs.getChords(workId); }
+
+  // F-154/F-155: MIDI / Sheet Music
+  @Get(":id/attachments")
+  getAttachments(@Param("id") workId: string) { return this.stubs.getWorkAttachments(workId); }
+
+  @Patch(":id/attachments")
+  @UseGuards(JwtAuthGuard)
+  setAttachments(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body() body: { midiUrl?: string; sheetMusicUrl?: string }) {
+    return this.stubs.setWorkAttachments(user.userId, workId, body);
+  }
+
+  // F-157/F-158: Waveform
+  @Get(":id/waveform")
+  getWaveform(@Param("id") workId: string) { return this.stubs.getWaveformData(workId); }
+
+  // F-159: Spektrogramm
+  @Get(":id/spectrogram")
+  getSpectrogram(@Param("id") workId: string) { return this.stubs.getSpectrogram(workId); }
+
+  // F-160/F-161: 3D / Spatial Audio Flags
+  @Get(":id/audio-flags")
+  getAudioFlags(@Param("id") workId: string) { return this.stubs.getAudioFeatureFlags(workId); }
+
+  @Patch(":id/audio-flags")
+  @UseGuards(JwtAuthGuard)
+  setAudioFlags(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body() flags: { binaural3d?: boolean; dolbyAtmos?: boolean; spatialAudio?: boolean }) {
+    return this.stubs.setAudioFeatureFlags(user.userId, workId, flags);
+  }
+
+  // F-162: Kapitel-TOC
+  @Get(":id/toc")
+  getChapterToc(@Param("id") workId: string) { return this.stubs.getChapterToc(workId); }
+
+  // F-163: Auto-Kapitel-Erkennung
+  @Post(":id/auto-chapters")
+  @UseGuards(JwtAuthGuard)
+  autoChapters(@Param("id") workId: string, @CurrentUser() user: { userId: string }) {
+    return this.stubs.triggerAutoChapterDetection(user.userId, workId);
+  }
+
+  // F-167: Live-Premiere
+  @Patch(":id/premiere")
+  @UseGuards(JwtAuthGuard)
+  setLivePremiere(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body("premiereAt") premiereAt: string) {
+    return this.stubs.setLivePremiere(user.userId, workId, premiereAt);
+  }
+
+  // F-168: Pre-Release-Registrierung
+  @Post(":id/pre-release")
+  @UseGuards(JwtAuthGuard)
+  registerPreRelease(@Param("id") workId: string, @CurrentUser() user: { userId: string }) {
+    return this.stubs.registerPreRelease(user.userId, workId);
+  }
+
+  // F-169: Crowdfunding-Status
+  @Get(":id/crowdfunding")
+  crowdfundingStatus(@Param("id") workId: string) { return this.stubs.getCrowdfundingStatus(workId); }
+
+  // F-170: Produktions-Fortschritt
+  @Patch(":id/production-progress")
+  @UseGuards(JwtAuthGuard)
+  setProductionProgress(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body() body: { percentComplete: number; note?: string }) {
+    return this.stubs.setProductionProgress(user.userId, workId, body.percentComplete ?? 0, body.note);
+  }
+
+  // F-171/F-172/F-173: Werk-Tagebuch / BTS / WIP
+  @Get(":id/diary")
+  getWorkDiary(@Param("id") workId: string) { return this.stubs.getWorkDiary(workId); }
+
+  @Post(":id/diary")
+  @UseGuards(JwtAuthGuard)
+  addDiaryEntry(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body() body: { type: 'DIARY' | 'BTS' | 'WIP'; content: string; mediaUrl?: string }) {
+    return this.stubs.addWorkDiaryEntry(user.userId, workId, body.type ?? 'DIARY', body.content ?? '', body.mediaUrl);
+  }
+
+  // F-175: ML-Genre-Klassifikation
+  @Get(":id/classify-genre")
+  classifyGenre(@Param("id") workId: string) { return this.stubs.classifyGenre(workId); }
+
+  // F-177: Duplikaterkennung
+  @Get(":id/duplicates")
+  @UseGuards(JwtAuthGuard)
+  checkDuplicates(@Param("id") workId: string) { return this.stubs.checkDuplicates(workId); }
+
+  // F-178: Copyright-Scan
+  @Post(":id/copyright-scan")
+  @UseGuards(JwtAuthGuard)
+  copyrightScan(@Param("id") workId: string) { return this.stubs.runCopyrightScan(workId); }
+
+  // F-179: Qualitäts-Score
+  @Get(":id/quality-score")
+  qualityScore(@Param("id") workId: string) { return this.stubs.getWorkQualityScore(workId); }
 }

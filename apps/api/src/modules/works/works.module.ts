@@ -22,11 +22,12 @@ import { AutoTranslateService } from "./auto-translate.service";
 import { DiscountCodesService } from "./discount-codes.service";
 import { UtmService } from "./utm.service";
 import { CategoriesService } from "./categories.service";
+import { WorksStubsService } from "./works-stubs.service";
 
 @Module({
   imports: [NotificationsModule, EngagementModule],
   controllers: [WorksController, SeriesController, RecommendationsController, SitemapController],
-  providers: [WorksService, WorksScheduler, ChapterMarksService, SeriesService, TranscriptsService, RecommendationsService, SubtitlesService, LyricsService, WorkTranslationsService, CollectionsService, SitemapService, AiService, GeoService, AutoTranslateService, DiscountCodesService, UtmService, CategoriesService],
-  exports: [WorksService, ChapterMarksService, SeriesService, TranscriptsService, RecommendationsService, SubtitlesService, LyricsService, WorkTranslationsService, CollectionsService, SitemapService, AiService, GeoService, AutoTranslateService, DiscountCodesService, UtmService, CategoriesService],
+  providers: [WorksService, WorksScheduler, ChapterMarksService, SeriesService, TranscriptsService, RecommendationsService, SubtitlesService, LyricsService, WorkTranslationsService, CollectionsService, SitemapService, AiService, GeoService, AutoTranslateService, DiscountCodesService, UtmService, CategoriesService, WorksStubsService],
+  exports: [WorksService, ChapterMarksService, SeriesService, TranscriptsService, RecommendationsService, SubtitlesService, LyricsService, WorkTranslationsService, CollectionsService, SitemapService, AiService, GeoService, AutoTranslateService, DiscountCodesService, UtmService, CategoriesService, WorksStubsService],
 })
 export class WorksModule {}
