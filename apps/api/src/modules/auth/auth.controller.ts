@@ -187,6 +187,87 @@ export class AuthController {
     return this.auth.socialLoginCallback('apple', idToken, user ?? '');
   }
 
+  // F-004: OAuth Spotify Login
+  @Get('social/spotify')
+  spotifyLogin() {
+    return this.auth.socialSpotifyInfo();
+  }
+
+  @Post('social/spotify/callback')
+  @HttpCode(200)
+  spotifyCallback(@Body('code') code: string) {
+    return this.auth.socialSpotifyCallback(code);
+  }
+
+  // F-006: SMS 2FA config
+  @Get('2fa/sms/config')
+  sms2faConfig() {
+    return this.auth.getSms2faConfig();
+  }
+
+  // F-013: CAPTCHA config
+  @Get('captcha/config')
+  captchaConfig() {
+    return this.auth.getCaptchaConfig();
+  }
+
+  // F-016: Waitlist
+  @Post('waitlist')
+  @HttpCode(200)
+  joinWaitlist(@Body('email') email: string) {
+    return this.auth.joinWaitlist(email);
+  }
+
+  @Get('waitlist/status')
+  waitlistStatus(@Query('email') email: string) {
+    return this.auth.getWaitlistStatus(email ?? '');
+  }
+
+  // F-017: Onboarding steps
+  @Get('onboarding/steps')
+  onboardingSteps() {
+    return this.auth.getOnboardingSteps();
+  }
+
+  // F-022: Password history config
+  @Get('password/history-config')
+  passwordHistoryConfig() {
+    return this.auth.getPasswordHistoryConfig();
+  }
+
+  // F-023: Password reset via SMS
+  @Post('password/reset/sms')
+  @HttpCode(202)
+  resetPasswordViaSms(@Body('phone') phone: string) {
+    return this.auth.requestSmsPasswordReset(phone ?? '');
+  }
+
+  // F-050: SSO/SAML config
+  @Get('saml/config')
+  samlConfig() {
+    return this.auth.getSsoConfig();
+  }
+
+  // F-053: Auto-logout config
+  @Get('config/auto-logout')
+  autoLogoutConfig() {
+    return this.auth.getAutoLogoutConfig();
+  }
+
+  // F-054: Persistent login config
+  @Get('config/persistent-login')
+  persistentLoginConfig() {
+    return this.auth.getPersistentLoginConfig();
+  }
+
+  // F-055: Account freeze
+  @Post('account/freeze')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  freezeAccount(@CurrentUser() userId: string) {
+    return this.auth.freezeAccount(userId);
+  }
+
   // F-020: E-Mail-Adresse ändern mit Re-Verifizierung
   @Post('change-email/request')
   @UseGuards(JwtAuthGuard)

@@ -662,4 +662,128 @@ export class UsersService {
   async deleteSavedSearch(userId: string, id: string) {
     return this.prisma.savedSearch.deleteMany({ where: { id, userId } });
   }
+
+  // F-029: Verified badge (admin-granted) — user-facing read
+  async getVerifiedBadgeStatus(userId: string) {
+    const [user, setting] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, displayName: true, role: true } }),
+      this.prisma.appSetting.findUnique({ where: { key: `verified_badge:${userId}` } }),
+    ]);
+    if (!user) return { verified: false };
+    return { verified: !!setting, userId, displayName: user.displayName };
+  }
+
+  // F-030: Team accounts / sub-accounts for labels
+  getTeamAccountsInfo() {
+    return {
+      status: 'planned',
+      maxMembersPerLabel: 20,
+      note: 'Label accounts can invite multiple artists under one billing plan. Each artist retains individual profile.',
+      requiredPlan: 'LABEL',
+      features: ['unified_billing', 'shared_analytics', 'bulk_upload', 'team_permissions'],
+    };
+  }
+
+  // F-035: IP blocklist
+  async getIpBlocklist() {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: 'security:ip_blocklist' } });
+    return { blockedRanges: setting ? JSON.parse(setting.value) : [], updatedAt: null };
+  }
+
+  // F-043: Family plan / group (up to 6 members)
+  getFamilyPlanInfo() {
+    return {
+      status: 'planned',
+      maxMembers: 6,
+      plans: ['FAMILY_MONTHLY', 'FAMILY_ANNUAL'],
+      features: ['shared_subscription', 'individual_profiles', 'parental_controls', 'shared_wishlist'],
+      note: 'Each member has independent listening history and recommendations',
+    };
+  }
+
+  // F-064: Affiliate dashboard
+  async getAffiliateDashboard(userId: string) {
+    const [totalReferrals, pendingReferrals, referredUsers] = await Promise.all([
+      this.prisma.user.count({ where: { referredById: userId } }),
+      this.prisma.user.count({ where: { referredById: userId, emailVerified: false } }),
+      this.prisma.user.findMany({
+        where: { referredById: userId },
+        select: { id: true, displayName: true, emailVerified: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+    ]);
+    return {
+      userId,
+      totalReferrals,
+      pendingReferrals,
+      totalEarnedCents: 0,
+      referrals: referredUsers,
+      note: 'Referral rewards tracked in PayoutItem; configure REFERRAL_REWARD_CENTS for payout amount',
+    };
+  }
+
+  // F-066: Profile theme
+  async getProfileTheme(userId: string) {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: `profile_theme:${userId}` } });
+    return setting ? JSON.parse(setting.value) : { theme: 'default', accentColor: '#6366f1' };
+  }
+
+  async setProfileTheme(userId: string, theme: string, accentColor?: string) {
+    await this.prisma.appSetting.upsert({
+      where: { key: `profile_theme:${userId}` },
+      update: { value: JSON.stringify({ theme, accentColor: accentColor ?? '#6366f1' }) },
+      create: { key: `profile_theme:${userId}`, value: JSON.stringify({ theme, accentColor: accentColor ?? '#6366f1' }) },
+    });
+    return { updated: true, theme, accentColor };
+  }
+
+  // F-067: AI-generated avatar (from initials)
+  getAiAvatarInfo(displayName: string) {
+    const initials = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    return {
+      generatedAvatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(initials)}`,
+      initials,
+      note: 'Production: use DiceBear or a custom AI-generated avatar service. Set AI_AVATAR_ENABLED=true.',
+      enabled: !!process.env.AI_AVATAR_ENABLED,
+    };
+  }
+
+  // F-071: Profile embed card
+  getProfileEmbedCard(userId: string) {
+    const base = process.env.APP_BASE_URL ?? 'https://app.creatorlend.com';
+    return {
+      embedUrl: `${base}/embed/u/${userId}`,
+      iframeCode: `<iframe src="${base}/embed/u/${userId}" width="400" height="200" frameborder="0"></iframe>`,
+      oembedUrl: `${base}/oembed?url=${encodeURIComponent(`${base}/u/${userId}`)}`,
+    };
+  }
+
+  // F-075: User segmentation for A/B tests
+  async getUserSegment(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, createdAt: true, role: true } });
+    if (!user) return { segment: 'unknown' };
+    const daysSinceCreation = Math.floor((Date.now() - user.createdAt.getTime()) / 86400000);
+    return {
+      userId,
+      segments: [
+        user.role === 'ARTIST' ? 'creator' : 'listener',
+        daysSinceCreation < 7 ? 'new_user' : daysSinceCreation < 30 ? 'active_user' : 'established_user',
+      ],
+      daysSinceCreation,
+    };
+  }
+
+  // F-079: GDPR Art. 15 — automated data access response
+  async generateGdprArt15Response(userId: string) {
+    const data = await this.exportData(userId);
+    return {
+      article: 'GDPR Art. 15 — Right of Access',
+      requestedAt: new Date().toISOString(),
+      userId,
+      responseFormatVersion: '1.0',
+      data,
+      deliveredVia: 'API response (production: also send via email)',
+    };
+  }
 }

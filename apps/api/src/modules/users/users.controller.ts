@@ -549,4 +549,90 @@ export class UsersController {
   deleteSavedSearch(@CurrentUser() userId: string, @Param("id") id: string) {
     return this.users.deleteSavedSearch(userId, id);
   }
+
+  // F-029: Verified badge status
+  @Get("me/verified-badge")
+  @UseGuards(JwtAuthGuard)
+  getVerifiedBadgeStatus(@CurrentUser() userId: string) {
+    return this.users.getVerifiedBadgeStatus(userId);
+  }
+
+  // F-030: Team accounts info (stub)
+  @Get("team-accounts/info")
+  teamAccountsInfo() {
+    return this.users.getTeamAccountsInfo();
+  }
+
+  // F-035: IP blocklist
+  @Get("me/ip-blocklist")
+  @UseGuards(JwtAuthGuard)
+  getIpBlocklist(@CurrentUser() _userId: string) {
+    return this.users.getIpBlocklist();
+  }
+
+  // F-043: Family plan info
+  @Get("family-plan/info")
+  familyPlanInfo() {
+    return this.users.getFamilyPlanInfo();
+  }
+
+  // F-064: Affiliate dashboard
+  @Get("me/affiliate")
+  @UseGuards(JwtAuthGuard)
+  affiliateDashboard(@CurrentUser() userId: string) {
+    return this.users.getAffiliateDashboard(userId);
+  }
+
+  // F-066: Profile theme
+  @Get("me/theme")
+  @UseGuards(JwtAuthGuard)
+  getProfileTheme(@CurrentUser() userId: string) {
+    return this.users.getProfileTheme(userId);
+  }
+
+  @Put("me/theme")
+  @UseGuards(JwtAuthGuard)
+  setProfileTheme(@CurrentUser() userId: string, @Body("theme") theme: string, @Body("accentColor") accentColor?: string) {
+    return this.users.setProfileTheme(userId, theme ?? 'default', accentColor);
+  }
+
+  // F-067: AI-generated avatar
+  @Get("me/ai-avatar")
+  @UseGuards(JwtAuthGuard)
+  async getAiAvatar(@CurrentUser() userId: string) {
+    const user = await this.users.getProfile(userId);
+    return this.users.getAiAvatarInfo((user as { displayName?: string })?.displayName ?? 'User');
+  }
+
+  // F-069: Profile QR code
+  @Get("me/qr-code")
+  @UseGuards(JwtAuthGuard)
+  getProfileQrCode(@CurrentUser() userId: string) {
+    return this.users.getProfileQrCode(userId);
+  }
+
+  @Get(":id/qr-code")
+  getPublicProfileQrCode(@Param("id") userId: string) {
+    return this.users.getProfileQrCode(userId);
+  }
+
+  // F-071: Profile embed card
+  @Get(":id/embed")
+  getProfileEmbed(@Param("id") userId: string) {
+    return this.users.getProfileEmbedCard(userId);
+  }
+
+  // F-075: User segment for A/B tests
+  @Get("me/segment")
+  @UseGuards(JwtAuthGuard)
+  getUserSegment(@CurrentUser() userId: string) {
+    return this.users.getUserSegment(userId);
+  }
+
+  // F-079: GDPR Art. 15 automated response
+  @Get("me/gdpr/art15")
+  @UseGuards(JwtAuthGuard)
+  gdprArt15(@CurrentUser() userId: string) {
+    return this.users.generateGdprArt15Response(userId);
+  }
 }

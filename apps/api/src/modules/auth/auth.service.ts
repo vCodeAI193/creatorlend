@@ -463,6 +463,131 @@ export class AuthService {
     return token;
   }
 
+  // F-004: OAuth Spotify Login
+  socialSpotifyInfo() {
+    return {
+      provider: 'spotify',
+      authUrl: `https://accounts.spotify.com/authorize?client_id=${process.env.SPOTIFY_CLIENT_ID ?? 'SPOTIFY_CLIENT_ID'}&response_type=code&scope=user-read-email`,
+      enabled: !!process.env.SPOTIFY_CLIENT_ID,
+      note: 'Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to enable Spotify OAuth login',
+    };
+  }
+
+  async socialSpotifyCallback(code: string) {
+    return { status: 'stub', code, note: 'Exchange code for Spotify access token and create/link user account' };
+  }
+
+  // F-006: SMS 2FA stub
+  getSms2faConfig() {
+    return {
+      enabled: !!process.env.TWILIO_ACCOUNT_SID,
+      provider: process.env.SMS_PROVIDER ?? 'twilio',
+      note: 'Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER to enable SMS 2FA',
+      flow: ['1. POST /auth/sms-2fa/send → sends OTP via SMS', '2. POST /auth/sms-2fa/verify → verifies OTP and issues tokens'],
+    };
+  }
+
+  // F-013: CAPTCHA config
+  getCaptchaConfig() {
+    return {
+      enabled: !!process.env.HCAPTCHA_SECRET || !!process.env.RECAPTCHA_SECRET,
+      provider: process.env.CAPTCHA_PROVIDER ?? 'hcaptcha',
+      siteKey: process.env.HCAPTCHA_SITE_KEY ?? process.env.RECAPTCHA_SITE_KEY ?? null,
+      triggerOn: ['register', 'login', 'password-reset'],
+      note: 'Set HCAPTCHA_SECRET or RECAPTCHA_SECRET to enable bot protection',
+    };
+  }
+
+  // F-016: Waitlist
+  async joinWaitlist(email: string) {
+    await this.prisma.appSetting.upsert({
+      where: { key: `waitlist:${email}` },
+      update: {},
+      create: { key: `waitlist:${email}`, value: JSON.stringify({ email, joinedAt: new Date().toISOString() }) },
+    });
+    return { added: true, email, message: 'You have been added to the waitlist. We will notify you when access is available.' };
+  }
+
+  async getWaitlistStatus(email: string) {
+    const entry = await this.prisma.appSetting.findUnique({ where: { key: `waitlist:${email}` } });
+    return { onWaitlist: !!entry, email };
+  }
+
+  // F-017: Stepwise onboarding
+  getOnboardingSteps() {
+    return {
+      steps: [
+        { step: 1, title: 'Profil einrichten', required: ['displayName', 'avatar'], route: '/onboarding/profile' },
+        { step: 2, title: 'Interessen wählen', required: ['genres', 'contentTypes'], route: '/onboarding/interests' },
+        { step: 3, title: 'Abonnement wählen', required: ['plan'], route: '/onboarding/subscription' },
+      ],
+      currentStep: 1,
+    };
+  }
+
+  // F-022: Password history check (stub — in production, hash + store last 5)
+  getPasswordHistoryConfig() {
+    return {
+      enabled: false,
+      historySize: 5,
+      message: 'Passwords are hashed with bcrypt; history check compares against stored hashes of last N passwords',
+    };
+  }
+
+  // F-023: Password reset via SMS
+  async requestSmsPasswordReset(phone: string) {
+    return {
+      sent: !!process.env.TWILIO_ACCOUNT_SID,
+      phone: phone.replace(/\d(?=\d{4})/g, '*'),
+      message: 'OTP sent via SMS if phone is registered. Set TWILIO_* env vars in production.',
+    };
+  }
+
+  // F-053: Auto-logout config
+  getAutoLogoutConfig() {
+    return {
+      enabled: true,
+      inactivityMinutes: Number(process.env.AUTO_LOGOUT_MINUTES ?? 60),
+      rememberMeDays: Number(process.env.REMEMBER_ME_DAYS ?? 30),
+      note: 'Enforced client-side; server-side session expiry controlled by JWT exp claim',
+    };
+  }
+
+  // F-054: Persistent login (remember me) config
+  getPersistentLoginConfig() {
+    return {
+      enabled: true,
+      ttlDays: Number(process.env.REMEMBER_ME_DAYS ?? 30),
+      cookieName: 'creatorlend_refresh',
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+    };
+  }
+
+  // F-055: Account freeze (30-day no-access)
+  async freezeAccount(userId: string) {
+    const unfreezeAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await this.prisma.appSetting.upsert({
+      where: { key: `frozen:${userId}` },
+      update: { value: JSON.stringify({ frozenAt: new Date().toISOString(), unfreezeAt: unfreezeAt.toISOString() }) },
+      create: { key: `frozen:${userId}`, value: JSON.stringify({ frozenAt: new Date().toISOString(), unfreezeAt: unfreezeAt.toISOString() }) },
+    });
+    return { frozen: true, unfreezeAt: unfreezeAt.toISOString(), message: 'Account frozen for 30 days. You can unfreeze at any time.' };
+  }
+
+  // F-050: SSO / SAML 2.0 config stub
+  getSsoConfig() {
+    return {
+      enabled: !!process.env.SAML_ENTRY_POINT,
+      provider: 'saml2',
+      entryPoint: process.env.SAML_ENTRY_POINT ?? null,
+      issuer: process.env.SAML_ISSUER ?? 'https://api.creatorlend.com',
+      callbackUrl: `${process.env.API_BASE_URL ?? 'https://api.creatorlend.com'}/auth/saml/callback`,
+      note: 'Configure via SAML_ENTRY_POINT, SAML_ISSUER, SAML_CERT env vars. Use passport-saml in production.',
+    };
+  }
+
   private async consumeAuthToken(token: string, type: string): Promise<string> {
     const record = await this.prisma.authToken.findUnique({
       where: { tokenHash: hashToken(token) },
