@@ -10,6 +10,7 @@ import { LoanGiftsService } from "./loan-gifts.service";
 import { SingleLoanService } from "./single-loan.service";
 import { DownloadService } from "./download.service";
 import { LoansStubsService } from "./loans-stubs.service";
+import { ListenerExperienceService } from "./listener-experience.service";
 import { BorrowDto } from "./dto/borrow.dto";
 import { ExchangeDto } from "./dto/exchange.dto";
 
@@ -25,6 +26,7 @@ export class LoansController {
     private readonly singleLoan: SingleLoanService,
     private readonly download: DownloadService,
     private readonly stubs: LoansStubsService,
+    private readonly listenerExp: ListenerExperienceService,
   ) {}
 
   // GET /api/v1/loans/expired-check – prüfen welche Ausleihen abgelaufen sind (F-855)
@@ -587,5 +589,516 @@ export class LoansController {
     @Body("incognito") incognito: boolean,
   ) {
     return this.stubs.setLoanIncognito(userId, id, incognito);
+  }
+
+  // ─── F-501–510: UI-Präferenzen ──────────────────────────────────────────
+
+  @Get("preferences/ui")
+  getUiPreferences(@CurrentUser() userId: string) {
+    return this.listenerExp.getUiPreferences(userId);
+  }
+
+  @Put("preferences/ui")
+  setUiPreferences(@CurrentUser() userId: string, @Body() prefs: Record<string, unknown>) {
+    return this.listenerExp.setUiPreferences(userId, prefs);
+  }
+
+  @Get("preferences/dark-mode")
+  getDarkMode(@CurrentUser() userId: string) {
+    return this.listenerExp.getDarkMode(userId);
+  }
+
+  @Put("preferences/dark-mode")
+  setDarkMode(@CurrentUser() userId: string, @Body("mode") mode: string) {
+    return this.listenerExp.setDarkMode(userId, mode);
+  }
+
+  @Get("preferences/theme-time")
+  getThemeTimeConfig(@CurrentUser() userId: string) {
+    return this.listenerExp.getThemeTimeBasedConfig(userId);
+  }
+
+  @Put("preferences/theme-time")
+  setThemeTimeConfig(@CurrentUser() userId: string, @Body() config: Record<string, unknown>) {
+    return this.listenerExp.setThemeTimeBasedConfig(userId, config);
+  }
+
+  @Get("preferences/accessibility")
+  getAccessibilitySettings(@CurrentUser() userId: string) {
+    return this.listenerExp.getAccessibilitySettings(userId);
+  }
+
+  @Put("preferences/accessibility")
+  setAccessibilitySettings(@CurrentUser() userId: string, @Body() settings: Record<string, unknown>) {
+    return this.listenerExp.setAccessibilitySettings(userId, settings);
+  }
+
+  @Get("preferences/font")
+  getFontPreferences(@CurrentUser() userId: string) {
+    return this.listenerExp.getFontPreferences(userId);
+  }
+
+  @Put("preferences/font")
+  setFontPreferences(@CurrentUser() userId: string, @Body() fontPrefs: Record<string, unknown>) {
+    return this.listenerExp.setFontPreferences(userId, fontPrefs);
+  }
+
+  @Get("preferences/ambient")
+  getAmbientSoundConfig(@CurrentUser() userId: string) {
+    return this.listenerExp.getAmbientSoundConfig(userId);
+  }
+
+  @Put("preferences/ambient")
+  setAmbientSoundConfig(@CurrentUser() userId: string, @Body() config: Record<string, unknown>) {
+    return this.listenerExp.setAmbientSoundConfig(userId, config);
+  }
+
+  @Get("preferences/focus-mode")
+  getFocusMode(@CurrentUser() userId: string) {
+    return this.listenerExp.getFocusMode(userId);
+  }
+
+  @Put("preferences/focus-mode")
+  setFocusMode(@CurrentUser() userId: string, @Body("enabled") enabled: boolean) {
+    return this.listenerExp.setFocusMode(userId, enabled);
+  }
+
+  @Get("preferences/read-mode")
+  getReadMode(@CurrentUser() userId: string) {
+    return this.listenerExp.getReadMode(userId);
+  }
+
+  @Put("preferences/read-mode")
+  setReadMode(@CurrentUser() userId: string, @Body("enabled") enabled: boolean) {
+    return this.listenerExp.setReadMode(userId, enabled);
+  }
+
+  // ─── F-511–512: Countdown & Fortschritt ─────────────────────────────────
+
+  @Get(":id/countdown")
+  getActiveLoanCountdown(@Param("id") id: string) {
+    return this.listenerExp.getActiveLoanCountdown(id);
+  }
+
+  @Get("progress/:workId")
+  getWorkListeningProgress(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.listenerExp.getWorkListeningProgress(userId, workId);
+  }
+
+  // ─── F-513–514: Transcript-Reaktionen & Szenen-Marker ──────────────────
+
+  @Get("reactions/:workId")
+  getTranscriptReactions(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.listenerExp.getTranscriptReactions(userId, workId);
+  }
+
+  @Post("reactions/:workId")
+  addTranscriptReaction(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body("positionSeconds") positionSeconds: number,
+    @Body("emoji") emoji: string,
+  ) {
+    return this.listenerExp.addTranscriptReaction(userId, workId, positionSeconds, emoji);
+  }
+
+  @Get("scene-markers/:workId")
+  getSceneMarkers(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.listenerExp.getSceneMarkers(userId, workId);
+  }
+
+  @Post("scene-markers/:workId")
+  addSceneMarker(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body("positionSeconds") positionSeconds: number,
+    @Body("label") label: string,
+    @Body("isPublic") isPublic: boolean,
+  ) {
+    return this.listenerExp.addSceneMarker(userId, workId, positionSeconds, label, isPublic);
+  }
+
+  // ─── F-515–518: Social Listening ────────────────────────────────────────
+
+  @Get("social/current-listeners/:workId")
+  getCurrentListeners(@Param("workId") workId: string) {
+    return this.listenerExp.getCurrentListeners(workId);
+  }
+
+  @Post("social/group-session")
+  createGroupListeningSession(
+    @CurrentUser() userId: string,
+    @Body("workId") workId: string,
+    @Body("invitedUserIds") invitedUserIds: string[],
+  ) {
+    return this.listenerExp.createGroupListeningSession(userId, workId, invitedUserIds);
+  }
+
+  @Get("social/group-session/:sessionId")
+  getGroupListeningSession(@Param("sessionId") sessionId: string) {
+    return this.listenerExp.getGroupListeningSession(sessionId);
+  }
+
+  @Get("social/party-chat/:sessionId")
+  getListeningPartyChat(@Param("sessionId") sessionId: string) {
+    return this.listenerExp.getListeningPartyChat(sessionId);
+  }
+
+  @Post("social/party-chat/:sessionId")
+  sendListeningPartyMessage(
+    @CurrentUser() userId: string,
+    @Param("sessionId") sessionId: string,
+    @Body("text") text: string,
+  ) {
+    return this.listenerExp.sendListeningPartyMessage(sessionId, userId, text);
+  }
+
+  @Get("preferences/reactions-overlay")
+  getReactionsOverlayConfig(@CurrentUser() userId: string) {
+    return this.listenerExp.getReactionsOverlayConfig(userId);
+  }
+
+  @Put("preferences/reactions-overlay")
+  setReactionsOverlayConfig(@CurrentUser() userId: string, @Body() config: Record<string, unknown>) {
+    return this.listenerExp.setReactionsOverlayConfig(userId, config);
+  }
+
+  // ─── F-519–534: Bewertungen & Reviews ──────────────────────────────────
+
+  @Get("rating-prompt/:workId")
+  checkRatingPrompt(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.listenerExp.checkRatingPrompt(userId, workId);
+  }
+
+  @Post("ratings/:workId")
+  createOrUpdateRating(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body("value") value: number,
+  ) {
+    return this.listenerExp.createOrUpdateRating(userId, workId, value);
+  }
+
+  @Post("reviews/:workId")
+  createOrUpdateReview(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body("body") body: string,
+    @Body("rating") rating: number,
+    @Body("hasSpoiler") hasSpoiler: boolean,
+  ) {
+    return this.listenerExp.createOrUpdateReview(userId, workId, body, rating, hasSpoiler);
+  }
+
+  @Post("reviews/:reviewId/vote")
+  voteReviewHelpful(
+    @CurrentUser() userId: string,
+    @Param("reviewId") reviewId: string,
+    @Body("helpful") helpful: boolean,
+  ) {
+    return this.listenerExp.voteReviewHelpful(userId, reviewId, helpful);
+  }
+
+  @Get("reviews/:reviewId/spoiler")
+  getReviewSpoilerFlag(@Param("reviewId") reviewId: string) {
+    return this.listenerExp.getReviewSpoilerFlag(reviewId);
+  }
+
+  @Get("review-history")
+  getUserReviewHistory(@CurrentUser() userId: string) {
+    return this.listenerExp.getUserReviewHistory(userId);
+  }
+
+  @Get("reviews/:reviewId/comments")
+  getReviewComments(@Param("reviewId") reviewId: string) {
+    return this.listenerExp.getReviewComments(reviewId);
+  }
+
+  @Post("reviews/:reviewId/comments")
+  addReviewComment(
+    @CurrentUser() userId: string,
+    @Param("reviewId") reviewId: string,
+    @Body("text") text: string,
+  ) {
+    return this.listenerExp.addReviewComment(reviewId, userId, text);
+  }
+
+  @Get("work-reviews/:workId")
+  getReviews(
+    @Param("workId") workId: string,
+    @Query("sort") sort: string,
+    @Query("verifiedOnly") verifiedOnly: string,
+  ) {
+    return this.listenerExp.getReviews(workId, sort, verifiedOnly === 'true');
+  }
+
+  @Post("ratings/:workId/detailed")
+  createDetailedRating(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body() criteria: Record<string, number>,
+  ) {
+    return this.listenerExp.createDetailedRating(userId, workId, criteria);
+  }
+
+  @Get("ratings/:workId/detailed")
+  getDetailedRatings(@Param("workId") workId: string) {
+    return this.listenerExp.getDetailedRatings(workId);
+  }
+
+  @Get("reviews/:workId/word-cloud")
+  getReviewWordCloud(@Param("workId") workId: string) {
+    return this.listenerExp.getReviewWordCloud(workId);
+  }
+
+  @Get("reviews/:workId/sentiment")
+  getReviewSentiment(@Param("workId") workId: string) {
+    return this.listenerExp.getReviewSentimentAnalysis(workId);
+  }
+
+  @Get("reviews/:workId/ai-summary")
+  getReviewAiSummary(@Param("workId") workId: string) {
+    return this.listenerExp.getReviewAiSummary(workId);
+  }
+
+  // ─── F-535–540: Personalisierung ────────────────────────────────────────
+
+  @Get("preferences/interest-tags")
+  getInterestTags(@CurrentUser() userId: string) {
+    return this.listenerExp.getInterestTags(userId);
+  }
+
+  @Put("preferences/interest-tags")
+  setInterestTags(@CurrentUser() userId: string, @Body("tags") tags: string[]) {
+    return this.listenerExp.setInterestTags(userId, tags);
+  }
+
+  @Post("recommendations/:workId/dismiss")
+  dismissRecommendation(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.listenerExp.dismissRecommendation(userId, workId);
+  }
+
+  @Post("recommendations/:workId/more-like-this")
+  markMoreLikeThis(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.listenerExp.markMoreLikeThis(userId, workId);
+  }
+
+  @Post("mood-vote/:workId")
+  submitMoodRating(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body("mood") mood: string,
+  ) {
+    return this.listenerExp.submitMoodRating(userId, workId, mood);
+  }
+
+  @Post("inactivity-feedback")
+  submitInactivityFeedback(@CurrentUser() userId: string, @Body("feedback") feedback: string) {
+    return this.listenerExp.submitInactivityFeedback(userId, feedback);
+  }
+
+  // ─── F-541–543: Barrierefreiheit ────────────────────────────────────────
+
+  @Get("player/keyboard-config")
+  getPlayerKeyboardConfig() {
+    return this.listenerExp.getPlayerKeyboardConfig();
+  }
+
+  @Get("player/aria-config")
+  getAriaConfig() {
+    return this.listenerExp.getAriaConfig();
+  }
+
+  // ─── F-544–547: Onboarding ──────────────────────────────────────────────
+
+  @Get("onboarding/tooltips")
+  getTooltipConfig(@CurrentUser() userId: string) {
+    return this.listenerExp.getTooltipConfig(userId);
+  }
+
+  @Post("onboarding/tooltips/:tooltipId/seen")
+  markTooltipSeen(@CurrentUser() userId: string, @Param("tooltipId") tooltipId: string) {
+    return this.listenerExp.markTooltipSeen(userId, tooltipId);
+  }
+
+  @Get("onboarding/status")
+  getOnboardingStatus(@CurrentUser() userId: string) {
+    return this.listenerExp.getOnboardingStatus(userId);
+  }
+
+  @Post("onboarding/steps/:step/complete")
+  completeOnboardingStep(@CurrentUser() userId: string, @Param("step") step: string) {
+    return this.listenerExp.completeOnboardingStep(userId, step);
+  }
+
+  @Get("onboarding/tour")
+  getGuidedTourStatus(@CurrentUser() userId: string) {
+    return this.listenerExp.getGuidedTourStatus(userId);
+  }
+
+  @Post("onboarding/tour/complete")
+  completeGuidedTour(@CurrentUser() userId: string) {
+    return this.listenerExp.completeGuidedTour(userId);
+  }
+
+  // ─── F-548–557: Gamification & Statistiken ──────────────────────────────
+
+  @Get("gamification/skill-progress")
+  getSkillProgress(@CurrentUser() userId: string) {
+    return this.listenerExp.getSkillProgress(userId);
+  }
+
+  @Get("gamification/listener-of-month")
+  getListenerOfMonth(@Query("period") period: string) {
+    return this.listenerExp.getListenerOfMonth(period);
+  }
+
+  @Get("gamification/monthly-challenge")
+  getMonthlyChallenge(@CurrentUser() userId: string) {
+    return this.listenerExp.getMonthlyChallenge(userId);
+  }
+
+  @Put("gamification/monthly-goal")
+  setMonthlyGoal(
+    @CurrentUser() userId: string,
+    @Body("targetWorks") targetWorks: number,
+    @Body("period") period: string,
+  ) {
+    return this.listenerExp.setMonthlyGoal(userId, targetWorks, period);
+  }
+
+  @Post("gamification/challenge-friend")
+  challengeFriend(
+    @CurrentUser() userId: string,
+    @Body("friendId") friendId: string,
+    @Body("targetCount") targetCount: number,
+    @Body("period") period: string,
+  ) {
+    return this.listenerExp.challengeFriend(userId, friendId, targetCount, period);
+  }
+
+  @Get("stats/yearly")
+  getYearlyStats(@CurrentUser() userId: string, @Query("year") year: string) {
+    return this.listenerExp.getYearlyStats(userId, parseInt(year, 10) || new Date().getFullYear());
+  }
+
+  @Get("stats/yearly/poster")
+  getYearlyStatsPoster(@CurrentUser() userId: string, @Query("year") year: string) {
+    return this.listenerExp.getYearlyStatsPoster(userId, parseInt(year, 10) || new Date().getFullYear());
+  }
+
+  @Get("stats/hour-equivalent")
+  getHourEquivalent(@CurrentUser() userId: string) {
+    return this.listenerExp.getHourEquivalent(userId);
+  }
+
+  @Post("quotes/:loanId")
+  createQuote(
+    @CurrentUser() userId: string,
+    @Param("loanId") loanId: string,
+    @Body("text") text: string,
+    @Body("positionSeconds") positionSeconds: number,
+  ) {
+    return this.listenerExp.createQuote(userId, loanId, text, positionSeconds);
+  }
+
+  @Get("quotes")
+  getQuotes(@CurrentUser() userId: string) {
+    return this.listenerExp.getQuotes(userId);
+  }
+
+  @Get("quotes/:quoteId/card")
+  createQuoteCard(@CurrentUser() userId: string, @Param("quoteId") quoteId: string) {
+    return this.listenerExp.createQuoteCard(userId, quoteId);
+  }
+
+  // ─── F-558–570: Lernen & Sprachfunktionen ───────────────────────────────
+
+  @Get("vocab/:workId")
+  getVocabList(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.listenerExp.getVocabList(userId, workId);
+  }
+
+  @Post("vocab/:workId")
+  addVocabItem(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body("term") term: string,
+    @Body("definition") definition: string,
+  ) {
+    return this.listenerExp.addVocabItem(userId, workId, term, definition);
+  }
+
+  @Get("flashcards/:workId")
+  getFlashcards(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.listenerExp.getFlashcards(userId, workId);
+  }
+
+  @Get("anki-export/:workId")
+  getAnkiExportUrl(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.listenerExp.getAnkiExportUrl(userId, workId);
+  }
+
+  @Get("sync-mode/:workId")
+  getSyncModeConfig(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.listenerExp.getSyncModeConfig(userId, workId);
+  }
+
+  @Put("sync-mode/:workId")
+  setSyncModeConfig(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body() config: Record<string, unknown>,
+  ) {
+    return this.listenerExp.setSyncModeConfig(userId, workId, config);
+  }
+
+  @Get("companion-materials/:workId")
+  getCompanionMaterials(@Param("workId") workId: string) {
+    return this.listenerExp.getCompanionMaterials(workId);
+  }
+
+  @Get("wikipedia/:workId")
+  getWikipediaContext(@Param("workId") workId: string) {
+    return this.listenerExp.getWikipediaContext(workId);
+  }
+
+  @Get("similar-nonfiction/:workId")
+  getSimilarNonFiction(@Param("workId") workId: string) {
+    return this.listenerExp.getSimilarNonFictionWorks(workId);
+  }
+
+  @Get("tempo/:loanId")
+  getTempoTracking(@CurrentUser() userId: string, @Param("loanId") loanId: string) {
+    return this.listenerExp.getTempoTracking(userId, loanId);
+  }
+
+  @Post("tempo/:loanId")
+  recordTempoEvent(@Param("loanId") loanId: string, @Body("speed") speed: number) {
+    return this.listenerExp.recordTempoEvent(loanId, speed);
+  }
+
+  @Get("focus-score/:loanId")
+  getFocusScore(@CurrentUser() userId: string, @Param("loanId") loanId: string) {
+    return this.listenerExp.getFocusScore(userId, loanId);
+  }
+
+  @Get("learning-goal/:workId")
+  getLearningGoal(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.listenerExp.getLearningGoal(userId, workId);
+  }
+
+  @Put("learning-goal/:workId")
+  setLearningGoal(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body() goal: Record<string, unknown>,
+  ) {
+    return this.listenerExp.setLearningGoal(userId, workId, goal);
+  }
+
+  @Get("mindmap/:workId")
+  getMindmap(@Param("workId") workId: string) {
+    return this.listenerExp.getMindmap(workId);
   }
 }
