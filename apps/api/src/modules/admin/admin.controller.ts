@@ -12,6 +12,7 @@ import { AnalyticsService } from "./analytics.service";
 import { AbTestingService } from "./ab-testing.service";
 import { ContentModerationService } from "./content-moderation.service";
 import { TranslationManagementService } from "../users/translation-management.service";
+import { AdminStubsService } from "./admin-stubs.service";
 
 /** Admin-Backoffice (B-151, B-152, B-154, B-155). Nur für ADMIN-Rolle. */
 @ApiTags("admin")
@@ -27,6 +28,7 @@ export class AdminController {
     private readonly abTesting: AbTestingService,
     private readonly contentModeration: ContentModerationService,
     private readonly translationManagement: TranslationManagementService,
+    private readonly adminStubs: AdminStubsService,
   ) {}
 
   // GET /api/v1/admin/stats – Plattform-Übersicht
@@ -956,4 +958,249 @@ export class AdminController {
   notificationAnalytics(@Query("since") since?: string) {
     return this.admin.getNotificationAnalytics(since);
   }
+
+  // ─── F-705: Admin session config ─────────────────────────────────────────
+  @Get("session-config")
+  getAdminSessionConfig() { return this.adminStubs.getAdminSessionConfig(); }
+
+  @Put("session-config")
+  setAdminSessionConfig(@Body() config: Record<string, unknown>) { return this.adminStubs.setAdminSessionConfig(config); }
+
+  // ─── F-706: Admin IP whitelist ────────────────────────────────────────────
+  @Get("ip-whitelist")
+  getAdminIpWhitelist() { return this.adminStubs.getAdminIpWhitelist(); }
+
+  @Post("ip-whitelist")
+  addAdminIpWhitelist(@Body("ip") ip: string) { return this.adminStubs.addAdminIpWhitelist(ip); }
+
+  @Delete("ip-whitelist/:ip")
+  removeAdminIpWhitelist(@Param("ip") ip: string) { return this.adminStubs.removeAdminIpWhitelist(ip); }
+
+  // ─── F-707: 2FA enforcement ───────────────────────────────────────────────
+  @Get("mfa-status")
+  getAdminMfaStatus() { return this.adminStubs.getAdminMfaStatus(); }
+
+  // ─── F-708: Admin handover protocol ──────────────────────────────────────
+  @Get("handover/:fromAdminId")
+  getHandoverProtocol(@Param("fromAdminId") fromAdminId: string) { return this.adminStubs.getHandoverProtocol(fromAdminId); }
+
+  @Post("handover")
+  createHandoverProtocol(
+    @CurrentUser() adminId: string,
+    @Body("toAdminId") toAdminId: string,
+    @Body("items") items: string[],
+  ) { return this.adminStubs.createHandoverProtocol(adminId, toAdminId, items); }
+
+  // ─── F-715: User impersonation (stub with audit log) ─────────────────────
+  @Post("impersonate/:userId")
+  impersonateUserStub(@CurrentUser() adminId: string, @Param("userId") userId: string) { return this.adminStubs.impersonateUser(adminId, userId); }
+
+  // ─── F-718: Mass email ────────────────────────────────────────────────────
+  @Post("mass-email")
+  scheduleMassEmail(
+    @CurrentUser() adminId: string,
+    @Body("subject") subject: string,
+    @Body("templateId") templateId: string,
+    @Body("filter") filter: Record<string, unknown>,
+  ) { return this.adminStubs.scheduleMassEmail(adminId, subject, templateId, filter); }
+
+  @Get("mass-email/jobs")
+  getMassEmailJobs(@CurrentUser() adminId: string) { return this.adminStubs.getMassEmailJobs(adminId); }
+
+  // ─── F-723: Auto-assign rules ─────────────────────────────────────────────
+  @Get("auto-assign-rules")
+  getAutoAssignRules() { return this.adminStubs.getAutoAssignRules(); }
+
+  @Put("auto-assign-rules")
+  setAutoAssignRules(@Body("rules") rules: Array<{ category: string; assigneeId: string }>) { return this.adminStubs.setAutoAssignRules(rules); }
+
+  // ─── F-724: Escalation config ─────────────────────────────────────────────
+  @Get("escalation-config")
+  getEscalationConfig() { return this.adminStubs.getEscalationConfig(); }
+
+  @Put("escalation-config")
+  setEscalationConfig(@Body() config: Record<string, unknown>) { return this.adminStubs.setEscalationConfig(config); }
+
+  @Post("reports/:reportId/escalate-stub")
+  escalateReportStub(@CurrentUser() adminId: string, @Param("reportId") reportId: string, @Body("level") level: number) {
+    return this.adminStubs.escalateReport(adminId, reportId, level);
+  }
+
+  // ─── F-731: DMCA counter-notice ───────────────────────────────────────────
+  @Post("dmca/:takedownId/counter-notice")
+  submitDmcaCounterNotice(
+    @CurrentUser() artistId: string,
+    @Param("takedownId") takedownId: string,
+    @Body("basis") basis: string,
+    @Body("statement") statement: string,
+  ) { return this.adminStubs.submitDmcaCounterNotice(artistId, takedownId, basis, statement); }
+
+  @Get("dmca/:takedownId/counter-notice")
+  getDmcaCounterNotice(@Param("takedownId") takedownId: string) { return this.adminStubs.getDmcaCounterNotice(takedownId); }
+
+  // ─── F-732: Strike system ─────────────────────────────────────────────────
+  @Get("users/:userId/strikes")
+  getUserStrikes(@Param("userId") userId: string) { return this.adminStubs.getUserStrikes(userId); }
+
+  @Post("users/:userId/strikes")
+  addUserStrike(@CurrentUser() adminId: string, @Param("userId") userId: string, @Body("reason") reason: string) {
+    return this.adminStubs.addUserStrike(adminId, userId, reason);
+  }
+
+  // ─── F-733: Warnings (stub with deadline) ────────────────────────────────
+  @Post("users/:userId/warnings")
+  issueWarningStub(
+    @CurrentUser() adminId: string,
+    @Param("userId") userId: string,
+    @Body("message") message: string,
+    @Body("deadlineHours") deadlineHours: number,
+  ) { return this.adminStubs.issueWarning(adminId, userId, message, deadlineHours); }
+
+  @Get("users/:userId/warnings")
+  getUserWarnings(@Param("userId") userId: string) { return this.adminStubs.getUserWarnings(userId); }
+
+  // ─── F-734: Appeal process ────────────────────────────────────────────────
+  @Post("appeals")
+  submitAppeal(@CurrentUser() userId: string, @Body("reason") reason: string, @Body("supportingInfo") supportingInfo: string) {
+    return this.adminStubs.submitAppeal(userId, reason, supportingInfo);
+  }
+
+  @Get("appeals")
+  getAppeals(@Query("status") status?: string) { return this.adminStubs.getAppeals(status); }
+
+  @Post("appeals/:userId/:index/resolve")
+  resolveAppeal(
+    @CurrentUser() adminId: string,
+    @Param("userId") userId: string,
+    @Param("index") index: string,
+    @Body("decision") decision: string,
+  ) { return this.adminStubs.resolveAppeal(adminId, userId, Number(index), decision); }
+
+  // ─── F-735: Age verification config ──────────────────────────────────────
+  @Get("age-verification-config")
+  getAgeVerificationConfig() { return this.adminStubs.getAgeVerificationConfig(); }
+
+  @Put("age-verification-config")
+  setAgeVerificationConfig(@Body() config: Record<string, unknown>) { return this.adminStubs.setAgeVerificationConfig(config); }
+
+  // ─── F-736: Geo-block work ────────────────────────────────────────────────
+  @Put("works/:workId/geo-block")
+  setWorkGeoBlock(@CurrentUser() adminId: string, @Param("workId") workId: string, @Body("blockedCountries") blockedCountries: string[]) {
+    return this.adminStubs.setWorkGeoBlock(adminId, workId, blockedCountries);
+  }
+
+  // ─── F-737: IP geo-lookup ─────────────────────────────────────────────────
+  @Get("ip-geo/:ip")
+  getIpGeoLookup(@Param("ip") ip: string) { return this.adminStubs.getIpGeoLookup(ip); }
+
+  // ─── F-738: Fraud score ───────────────────────────────────────────────────
+  @Get("users/:userId/fraud-score")
+  getUserFraudScore(@Param("userId") userId: string) { return this.adminStubs.getUserFraudScore(userId); }
+
+  // ─── F-739: Chargebacks report (stub) ────────────────────────────────────
+  @Get("chargebacks/detail")
+  getChargebacksReportStub() { return this.adminStubs.getChargebacksReport(); }
+
+  // ─── F-740: PEP/sanctions screening ──────────────────────────────────────
+  @Get("users/:userId/pep-screening")
+  getPepSanctionsScreening(@Param("userId") userId: string) { return this.adminStubs.getPepSanctionsScreening(userId); }
+
+  @Post("users/:userId/pep-screening")
+  runPepScreening(@CurrentUser() adminId: string, @Param("userId") userId: string) { return this.adminStubs.runPepScreening(adminId, userId); }
+
+  // ─── F-745: Platform config-as-code ──────────────────────────────────────
+  @Get("platform-config")
+  getPlatformConfig() { return this.adminStubs.getPlatformConfig(); }
+
+  @Put("platform-config/:key")
+  setPlatformConfigKey(@CurrentUser() adminId: string, @Param("key") key: string, @Body("value") value: unknown) {
+    return this.adminStubs.setPlatformConfigKey(adminId, key, value);
+  }
+
+  // ─── F-746: Backfill job trigger ─────────────────────────────────────────
+  @Post("backfill")
+  triggerBackfillJob(@CurrentUser() adminId: string, @Body("jobType") jobType: string, @Body("params") params: Record<string, unknown>) {
+    return this.adminStubs.triggerBackfillJob(adminId, jobType, params);
+  }
+
+  // ─── F-747: Authority data export (GDPR Art. 58) ─────────────────────────
+  @Post("users/:userId/authority-export")
+  createAuthorityDataExport(
+    @CurrentUser() adminId: string,
+    @Param("userId") userId: string,
+    @Body("requestedBy") requestedBy: string,
+    @Body("legalBasis") legalBasis: string,
+  ) { return this.adminStubs.createAuthorityDataExport(adminId, userId, requestedBy, legalBasis); }
+
+  // ─── F-748: GDPR deletion log ─────────────────────────────────────────────
+  @Get("gdpr/deletion-log")
+  getDeletionLog() { return this.adminStubs.getDeletionLog(); }
+
+  // ─── F-749: Retention policy ─────────────────────────────────────────────
+  @Get("retention-policy")
+  getRetentionPolicy() { return this.adminStubs.getRetentionPolicy(); }
+
+  @Put("retention-policy")
+  setRetentionPolicy(@CurrentUser() adminId: string, @Body() policy: Record<string, unknown>) { return this.adminStubs.setRetentionPolicy(adminId, policy); }
+
+  // ─── F-750: DB backup status ─────────────────────────────────────────────
+  @Get("db-backup-status")
+  getDbBackupStatus() { return this.adminStubs.getDbBackupStatus(); }
+
+  // ─── F-751: DR plan ──────────────────────────────────────────────────────
+  @Get("dr-plan")
+  getDisasterRecoveryPlan() { return this.adminStubs.getDisasterRecoveryPlan(); }
+
+  // ─── F-752: Change management log ────────────────────────────────────────
+  @Get("change-log")
+  getChangeManagementLog() { return this.adminStubs.getChangeManagementLog(); }
+
+  @Post("deployments")
+  logDeployment(
+    @CurrentUser() adminId: string,
+    @Body("version") version: string,
+    @Body("environment") environment: string,
+    @Body("changeDescription") changeDescription: string,
+  ) { return this.adminStubs.logDeployment(adminId, version, environment, changeDescription); }
+
+  // ─── F-753: Release notes ─────────────────────────────────────────────────
+  @Get("release-notes")
+  getReleaseNotes() { return this.adminStubs.getReleaseNotes(); }
+
+  // ─── F-754: Alerting config ──────────────────────────────────────────────
+  @Get("alerting-config")
+  getAlertingConfig() { return this.adminStubs.getAlertingConfig(); }
+
+  @Put("alerting-config")
+  setAlertingConfig(@CurrentUser() adminId: string, @Body() config: Record<string, unknown>) { return this.adminStubs.setAlertingConfig(adminId, config); }
+
+  // ─── F-755: On-call rotation ─────────────────────────────────────────────
+  @Get("on-call-rotation")
+  getOnCallRotation() { return this.adminStubs.getOnCallRotation(); }
+
+  @Put("on-call-rotation")
+  setOnCallRotation(@CurrentUser() adminId: string, @Body("rotation") rotation: Array<{ userId: string; startDate: string; endDate: string }>) {
+    return this.adminStubs.setOnCallRotation(adminId, rotation);
+  }
+
+  // ─── F-756: Runbooks ─────────────────────────────────────────────────────
+  @Get("runbooks")
+  getRunbooks() { return this.adminStubs.getRunbooks(); }
+
+  // ─── F-757: Uptime monitoring config ─────────────────────────────────────
+  @Get("uptime-monitoring")
+  getUptimeMonitoringConfig() { return this.adminStubs.getUptimeMonitoringConfig(); }
+
+  // ─── F-758: Synthetic monitoring ─────────────────────────────────────────
+  @Get("synthetic-monitoring")
+  getSyntheticMonitoringConfig() { return this.adminStubs.getSyntheticMonitoringConfig(); }
+
+  // ─── F-759: Error budget ─────────────────────────────────────────────────
+  @Get("error-budget")
+  getErrorBudget() { return this.adminStubs.getErrorBudget(); }
+
+  // ─── F-760: Platform stats CSV export (stub) ─────────────────────────────
+  @Get("stats/export-csv")
+  @Header("Content-Type", "text/csv")
+  exportPlatformStatsCsvStub() { return this.adminStubs.exportPlatformStatsCsv(); }
 }

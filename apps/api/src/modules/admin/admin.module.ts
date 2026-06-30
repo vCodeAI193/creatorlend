@@ -10,11 +10,12 @@ import { TranslationManagementService } from "../users/translation-management.se
 import { PublicAdminController } from "./public.controller";
 import { PromoCodesModule } from "../promo-codes/promo-codes.module";
 import { ReportsModule } from "../reports/reports.module";
+import { AdminStubsService } from "./admin-stubs.service";
 
 @Module({
   imports: [PromoCodesModule, ReportsModule],
   controllers: [AdminController, PublicAdminController],
-  providers: [AdminService, DmcaService, FeatureFlagsService, AnalyticsService, AbTestingService, ContentModerationService, TranslationManagementService],
-  exports: [AdminService, DmcaService, FeatureFlagsService, AnalyticsService, AbTestingService, ContentModerationService, TranslationManagementService],
+  providers: [AdminService, DmcaService, FeatureFlagsService, AnalyticsService, AbTestingService, ContentModerationService, TranslationManagementService, AdminStubsService],
+  exports: [AdminService, DmcaService, FeatureFlagsService, AnalyticsService, AbTestingService, ContentModerationService, TranslationManagementService, AdminStubsService],
 })
 export class AdminModule {}
