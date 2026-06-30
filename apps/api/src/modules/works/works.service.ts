@@ -996,19 +996,34 @@ export class WorksService {
 
   async getWorkStats(artistId: string, workId: string) {
     await this.ownedWork(artistId, workId);
-    const [totalLoans, activeLoans, renewals, exchanges, totalRevenue] = await Promise.all([
+    const [totalLoans, activeLoans, renewals, exchanges, totalRevenue, playbackStats] = await Promise.all([
       this.prisma.loan.count({ where: { workId } }),
       this.prisma.loan.count({ where: { workId, status: 'ACTIVE' } }),
       this.prisma.loan.aggregate({ where: { workId }, _sum: { renewalCount: true } }),
       this.prisma.loan.count({ where: { workId, status: 'EXCHANGED' } }),
       this.prisma.payoutItem.aggregate({ where: { loan: { workId } }, _sum: { amountCents: true } }),
+      // F-129: Abspielzeiten + Abbruchpunkte
+      this.prisma.playbackPosition.aggregate({
+        where: { workId },
+        _avg: { positionSeconds: true },
+        _count: { id: true },
+      }),
     ]);
+    const completedCount = await this.prisma.playbackPosition.count({ where: { workId, completedAt: { not: null } } });
+    const totalListeners = playbackStats._count.id;
     return {
       totalLoans,
       activeLoans,
       totalRenewals: renewals._sum.renewalCount ?? 0,
       totalExchanges: exchanges,
       totalRevenueCents: totalRevenue._sum.amountCents ?? 0,
+      // F-129: Playback-Statistiken (Abspielzeiten, Abbruchpunkte)
+      playback: {
+        totalListeners,
+        avgPlaybackPositionSeconds: Math.round(playbackStats._avg.positionSeconds ?? 0),
+        completedCount,
+        completionRate: totalListeners > 0 ? Math.round((completedCount / totalListeners) * 100) : 0,
+      },
     };
   }
 

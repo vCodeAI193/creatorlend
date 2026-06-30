@@ -54,4 +54,50 @@ export class MediaService {
     if (Date.now() > expiresAtMs) return false;
     return this.sign(path, expiresAtMs) === sig;
   }
+
+  // F-084: Automatische Audio-Transkodierung (MP3 → AAC/Opus) – stub
+  getTranscodeConfig(workId: string) {
+    return {
+      workId,
+      inputPath: `/media/${workId}/original`,
+      outputs: [
+        { format: 'aac', bitrate: '128k', path: `/media/${workId}/aac_128.m4a`, purpose: 'streaming_mobile' },
+        { format: 'aac', bitrate: '256k', path: `/media/${workId}/aac_256.m4a`, purpose: 'streaming_hifi' },
+        { format: 'opus', bitrate: '96k', path: `/media/${workId}/opus_96.ogg`, purpose: 'streaming_low' },
+        { format: 'mp3', bitrate: '128k', path: `/media/${workId}/mp3_128.mp3`, purpose: 'download_compat' },
+      ],
+      message: 'Integrate FFmpeg or AWS MediaConvert / Cloudflare Stream for production transcoding',
+      estimatedDurationSeconds: 30,
+    };
+  }
+
+  // F-082/F-083: Batch-Upload Info & Upload-Progress stub
+  getBatchUploadConfig() {
+    return {
+      maxFilesPerBatch: 10,
+      maxFileSizeMb: 500,
+      supportedFormats: ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'opus'],
+      uploadMethod: 'multipart_signed_url',
+      progressTracking: 'poll GET /api/v1/media/upload/:uploadId/progress',
+      dragDropSupported: true,
+    };
+  }
+
+  // F-092: Metadaten-Import aus ID3/FLAC-Tags – stub
+  extractMetadata(filename: string, fileType: string) {
+    return {
+      filename,
+      fileType,
+      extractedFields: ['title', 'artist', 'album', 'year', 'genre', 'track', 'duration', 'bitrate', 'sampleRate'],
+      message: 'Install music-metadata or node-id3 npm package to parse ID3v2/FLAC tags server-side',
+      example: {
+        title: 'Extracted from ID3 TIT2 tag',
+        artist: 'Extracted from ID3 TPE1 tag',
+        album: 'Extracted from ID3 TALB tag',
+        year: 'Extracted from ID3 TDRC tag',
+        genre: 'Extracted from ID3 TCON tag',
+        durationSeconds: 'Extracted from audio header',
+      },
+    };
+  }
 }
