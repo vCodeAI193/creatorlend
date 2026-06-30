@@ -57,4 +57,34 @@ export class InfraController {
   queryCache() {
     return this.infra.getQueryCacheInfo();
   }
+
+  // F-754: PagerDuty-Konfiguration
+  @Get('pagerduty')
+  pagerduty() {
+    return this.infra.getPagerDutyConfig();
+  }
+
+  // F-757: Uptime-Status
+  @Get('uptime')
+  uptime() {
+    return this.infra.getUptimeStatus();
+  }
+
+  // F-759: Error-Budget
+  @Get('error-budget')
+  errorBudget() {
+    return this.infra.getErrorBudget();
+  }
+
+  // F-750: Backup-Status
+  @Get('backup')
+  backup() {
+    return this.infra.getBackupStatus();
+  }
+
+  // F-756: Runbooks
+  @Get('runbooks')
+  runbooks() {
+    return this.infra.getRunbooks();
+  }
 }
