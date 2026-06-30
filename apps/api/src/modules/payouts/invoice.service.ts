@@ -42,4 +42,41 @@ export class InvoiceService {
       createdAt: item.createdAt,
     }));
   }
+
+  // F-411: ZUGFeRD / XRechnung XML stub
+  async getInvoiceXml(payoutId: string) {
+    const payout = await this.prisma.payoutItem.findUnique({ where: { id: payoutId } });
+    if (!payout) throw new NotFoundException("payout_not_found");
+    return {
+      format: 'ZUGFeRD 2.1 / XRechnung',
+      message: 'Install zugferd-node or facturx library to generate compliant XML',
+      invoiceNumber: `CL-${payoutId.slice(-8).toUpperCase()}`,
+      amountCents: payout.amountCents,
+      currency: 'EUR',
+      issueDate: payout.createdAt.toISOString().split('T')[0],
+    };
+  }
+
+  // F-402: Datev / ELSTER accounting export stub
+  async getAccountingExport(artistId: string, year: number, format: string) {
+    const items = await this.prisma.payoutItem.findMany({
+      where: {
+        artistId,
+        status: 'PAID',
+        createdAt: { gte: new Date(`${year}-01-01`), lt: new Date(`${year + 1}-01-01`) },
+      },
+      select: { id: true, amountCents: true, createdAt: true },
+    });
+    const totalCents = items.reduce((acc: number, i: { amountCents: number }) => acc + i.amountCents, 0);
+    return {
+      format: format === 'elster' ? 'ELSTER UStVA' : 'DATEV CSV',
+      year,
+      totalEarningsEuro: totalCents / 100,
+      transactionCount: items.length,
+      items: items.map((i: { id: string; amountCents: number; createdAt: Date }) => ({
+        id: i.id, amountEuro: i.amountCents / 100, date: i.createdAt.toISOString().split('T')[0],
+      })),
+      message: 'Use a certified Datev connector or ELSTER API for production submissions',
+    };
+  }
 }

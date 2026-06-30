@@ -208,4 +208,16 @@ export class PayoutsController {
     res.setHeader("Content-Disposition", `attachment; filename="invoice-${id}.pdf"`);
     res.send(pdfBuffer);
   }
+
+  // GET /api/v1/payouts/:id/invoice/xml – invoice as ZUGFeRD / XRechnung XML (F-411)
+  @Get(":id/invoice/xml")
+  getInvoiceXml(@Param("id") id: string) {
+    return this.invoice.getInvoiceXml(id);
+  }
+
+  // GET /api/v1/payouts/accounting-export?year=2026&format=datev – Datev/ELSTER export (F-402)
+  @Get("accounting-export")
+  accountingExport(@CurrentUser() userId: string, @Query("year") year?: string, @Query("format") format?: string) {
+    return this.invoice.getAccountingExport(userId, year ? Number(year) : new Date().getFullYear(), format ?? 'datev');
+  }
 }
