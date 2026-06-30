@@ -31,4 +31,17 @@ export class AiController {
   translate(@Param('id') id: string, @Query('lang') lang: string) {
     return this.ai.translateDescription(id, lang ?? 'en');
   }
+
+  // POST /api/v1/ai/works/:id/cover – Cover-Art generieren (F-1000)
+  @Post('works/:id/cover')
+  @UseGuards(JwtAuthGuard)
+  generateCover(@Param('id') id: string) {
+    return this.ai.generateCoverArt(id);
+  }
+
+  // POST /api/v1/ai/moderate – Inhaltsmoderation (F-916)
+  @Post('moderate')
+  moderate(@Body('text') text: string) {
+    return this.ai.moderateContent(text ?? '');
+  }
 }

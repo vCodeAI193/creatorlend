@@ -1,0 +1,42 @@
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { InfraService } from './infra.service';
+import { UserRole } from '@creatorlend/shared';
+
+@Controller('admin/infra')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
+export class InfraController {
+  constructor(private readonly infra: InfraService) {}
+
+  // F-966: Circuit-Breaker-Status
+  @Get('circuit-breakers')
+  circuitBreakers() {
+    return this.infra.getCircuitBreakerStatus();
+  }
+
+  // F-964/F-965: Job-Queue-Status
+  @Get('queues')
+  queues() {
+    return this.infra.getJobQueueStatus();
+  }
+
+  @Get('queues/board')
+  bullBoard() {
+    return this.infra.getBullBoardInfo();
+  }
+
+  // F-962: Index-Empfehlungen
+  @Get('db/indexes')
+  dbIndexes() {
+    return this.infra.getIndexRecommendations();
+  }
+
+  // F-920: Log-Aggregation
+  @Get('logs')
+  logs() {
+    return this.infra.getLogAggregationStatus();
+  }
+}

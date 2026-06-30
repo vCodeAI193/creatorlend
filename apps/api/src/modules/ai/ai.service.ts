@@ -56,4 +56,32 @@ export class AiService {
         : '[Keine Beschreibung]',
     };
   }
+
+  // F-1000: Generative Cover-Art für Werke ohne Bild (stub)
+  async generateCoverArt(workId: string): Promise<{ workId: string; imageUrl: string; prompt: string; model: string }> {
+    const work = await this.prisma.work.findUnique({
+      where: { id: workId },
+      select: { title: true, category: true, tags: true },
+    });
+    const prompt = work
+      ? `Abstract artistic cover art for "${work.title}", ${work.category ?? 'audio'} content, tags: ${(work.tags ?? []).join(', ')}`
+      : `Abstract artistic cover art`;
+    // In production: call DALL-E / Stable Diffusion API
+    return {
+      workId,
+      imageUrl: `https://cdn.creatorlend.com/generated-covers/${workId}.png`,
+      prompt,
+      model: 'dall-e-3-stub',
+    };
+  }
+
+  // F-916: KI-Inhaltsmoderation (stub)
+  async moderateContent(text: string): Promise<{ safe: boolean; categories: Record<string, number>; flagged: boolean }> {
+    // In production: call Perspective API or AWS Rekognition
+    return {
+      safe: true,
+      categories: { harassment: 0.01, hate: 0.01, spam: 0.02 },
+      flagged: false,
+    };
+  }
 }

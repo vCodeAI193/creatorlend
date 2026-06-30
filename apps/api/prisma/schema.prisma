@@ -172,6 +172,7 @@ model User {
   appealRequests    AppealRequest[]
   gdprDataRequests  GdprDataRequest[]
   npsSurveys        NpsSurvey[]
+  offlineActions    OfflineAction[]
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -1503,4 +1504,38 @@ model OutgoingWebhookDelivery {
   @@index([subscriptionId])
   @@index([nextRetryAt])
   @@index([event])
+}
+
+// UTM-Event-Tracking (F-801/F-802)
+model UtmEvent {
+  id         String   @id @default(uuid())
+  userId     String?
+  sessionId  String?
+  source     String?
+  medium     String?
+  campaign   String?
+  content    String?
+  term       String?
+  page       String?
+  referrer   String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([campaign])
+  @@index([createdAt])
+}
+
+// Offline-Action-Queue (F-827)
+model OfflineAction {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  action      Json     // { type, payload }
+  status      String   @default("PENDING") // PENDING | PROCESSED | FAILED
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([status])
 }

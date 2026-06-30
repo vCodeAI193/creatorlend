@@ -2,6 +2,7 @@ import { APP_INTERCEPTOR } from "@nestjs/core";
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { LanguageMiddleware } from "./common/language.middleware";
 import { RequestIdMiddleware } from "./common/request-id.middleware";
+import { I18nMiddleware } from "./common/i18n.middleware";
 import { HttpLoggerInterceptor } from "./common/http-logger.interceptor";
 import { DeprecationInterceptor } from "./common/deprecation.interceptor";
 import { ConfigModule } from "@nestjs/config";
@@ -30,6 +31,13 @@ import { GdprModule } from "./modules/gdpr/gdpr.module";
 import { SurveysModule } from "./modules/surveys/surveys.module";
 import { AiModule } from "./modules/ai/ai.module";
 import { MetricsModule } from "./modules/metrics/metrics.module";
+import { FeatureFlagsModule } from "./modules/feature-flags/feature-flags.module";
+import { I18nModule } from "./modules/i18n/i18n.module";
+import { MobileModule } from "./modules/mobile/mobile.module";
+import { TrackingModule } from "./modules/tracking/tracking.module";
+import { OAuthModule } from "./modules/oauth/oauth.module";
+import { AccessibilityModule } from "./modules/accessibility/accessibility.module";
+import { InfraModule } from "./modules/infra/infra.module";
 
 @Module({
   imports: [
@@ -59,6 +67,13 @@ import { MetricsModule } from "./modules/metrics/metrics.module";
     SurveysModule,
     AiModule,
     MetricsModule,
+    FeatureFlagsModule,
+    I18nModule,
+    MobileModule,
+    TrackingModule,
+    OAuthModule,
+    AccessibilityModule,
+    InfraModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: HttpLoggerInterceptor },
@@ -67,6 +82,6 @@ import { MetricsModule } from "./modules/metrics/metrics.module";
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestIdMiddleware, LanguageMiddleware).forRoutes('*');
+    consumer.apply(RequestIdMiddleware, LanguageMiddleware, I18nMiddleware).forRoutes('*');
   }
 }
