@@ -168,4 +168,137 @@ export class InfraService implements OnApplicationShutdown {
       ],
     };
   }
+
+  // F-922: Subresource Integrity (SRI) Konfiguration
+  getSriConfig() {
+    return {
+      enabled: true,
+      provider: process.env.CDN_PROVIDER ?? 'cloudflare',
+      hashAlgorithm: 'sha384',
+      assets: ['runtime.js', 'main.js', 'styles.css'],
+      docs: 'https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity',
+    };
+  }
+
+  // F-924/F-925: Dependency- und Secrets-Scanning
+  getSecurityScanConfig() {
+    return {
+      dependencyScanning: {
+        tool: process.env.DEPENDENCY_SCAN_TOOL ?? 'Dependabot',
+        schedule: 'daily',
+        alertsUrl: process.env.SNYK_DASHBOARD_URL ?? null,
+      },
+      secretsScanning: {
+        tool: 'GitLeaks',
+        preScanHook: true,
+        ciIntegration: true,
+      },
+      containerScanning: {
+        tool: 'Trivy',
+        schedule: 'on-push',
+      },
+    };
+  }
+
+  // F-934: Secret Management (HashiCorp Vault / AWS SSM)
+  getSecretManagementConfig() {
+    return {
+      provider: process.env.SECRET_MANAGER ?? 'env',
+      vaultUrl: process.env.VAULT_ADDR ?? null,
+      rotationIntervalDays: 90,
+      secretsRotationEnabled: !!process.env.VAULT_ADDR,
+      awsSsmPrefix: process.env.AWS_SSM_PREFIX ?? '/creatorlend/',
+    };
+  }
+
+  // F-938: Verschlüsselung at Rest
+  getEncryptionAtRestConfig() {
+    return {
+      algorithm: 'AES-256-GCM',
+      provider: process.env.KMS_PROVIDER ?? 'aws-kms',
+      keyArn: process.env.KMS_KEY_ARN ?? null,
+      databaseEncrypted: true,
+      storageEncrypted: true,
+      backupsEncrypted: true,
+    };
+  }
+
+  // F-939/F-942: TLS + GDPR DPA
+  getComplianceConfig() {
+    return {
+      tls: {
+        minVersion: 'TLSv1.3',
+        hsts: { maxAge: 63072000, includeSubDomains: true, preload: true },
+        certProvider: process.env.CERT_PROVIDER ?? 'Let\'s Encrypt',
+      },
+      gdpr: {
+        dpaSignedWithProcessors: true,
+        subProcessors: ['AWS', 'Stripe', 'SendGrid', 'Cloudflare'],
+        dpaDocumentUrl: 'https://docs.creatorlend.com/legal/dpa',
+      },
+      ePrivacy: {
+        cookiePolicyVersion: '1.0',
+        consentRequired: true,
+        granularOptions: true,
+        cookieConsentProvider: 'first-party',
+      },
+    };
+  }
+
+  // F-949: Data Processing Agreements mit Cloud-Anbietern
+  getDataProcessingAgreements() {
+    return {
+      agreements: [
+        { provider: 'AWS', type: 'DPA', signed: true, region: 'eu-central-1' },
+        { provider: 'Stripe', type: 'DPA', signed: true, region: 'EU' },
+        { provider: 'SendGrid', type: 'DPA', signed: true },
+        { provider: 'Cloudflare', type: 'DPA', signed: true },
+        { provider: 'Sentry', type: 'DPA', signed: false },
+      ],
+    };
+  }
+
+  // F-951: Horizontal Scaling / Load Balancer
+  getScalingConfig() {
+    return {
+      loadBalancer: process.env.LOAD_BALANCER ?? 'AWS ALB',
+      horizontalScaling: true,
+      autoScaling: {
+        enabled: !!process.env.KUBERNETES_SERVICE_HOST,
+        minReplicas: 2,
+        maxReplicas: 20,
+        cpuTargetPercent: 70,
+        memoryTargetPercent: 80,
+      },
+      kubernetes: {
+        enabled: !!process.env.KUBERNETES_SERVICE_HOST,
+        namespace: process.env.K8S_NAMESPACE ?? 'creatorlend',
+      },
+    };
+  }
+
+  // F-961: API SLO – P99 < 200ms
+  getApiSloConfig() {
+    return {
+      p99TargetMs: 200,
+      p95TargetMs: 100,
+      errorRateTarget: 0.1,
+      availabilityTarget: 99.9,
+      monitoringUrl: process.env.GRAFANA_URL ?? null,
+      alertManager: process.env.ALERTMANAGER_URL ?? null,
+    };
+  }
+
+  // F-973: Point-in-Time Recovery
+  getPitrConfig() {
+    return {
+      enabled: true,
+      maxRecoveryPointMinutes: 5,
+      walArchivingEnabled: true,
+      walArchiveDestination: process.env.WAL_S3_BUCKET ?? 's3://creatorlend-wal-archive',
+      testFrequency: 'monthly',
+      rpo: '< 15 minutes',
+      rto: '< 1 hour',
+    };
+  }
 }

@@ -38,6 +38,7 @@ export interface SearchFilter {
   explicit?: boolean; // true = include explicit; false = exclude
   tags?: string[]; // filter by any of these tags
   userId?: string; // for kidsMode filtering and search history
+  followedOnly?: boolean; // F-195: nur Werke von gefolgten Künstler:innen
 }
 
 @Injectable()
@@ -203,10 +204,21 @@ export class WorksService {
       }
     }
 
+    // F-195: Filter by followed artists only
+    let followedArtistIds: string[] | undefined;
+    if (filter.followedOnly && filter.userId) {
+      const follows = await this.prisma.follow.findMany({
+        where: { followerId: filter.userId },
+        select: { artistId: true },
+      });
+      followedArtistIds = follows.map((f: { artistId: string }) => f.artistId);
+    }
+
     const where: Prisma.WorkWhereInput = {
       status: "PUBLISHED",
       // F-113: Embargo-Filter – nur Werke ohne oder mit abgelaufenem Embargo
       OR: [{ embargoUntil: null }, { embargoUntil: { lte: now } }],
+      ...(followedArtistIds ? { artistId: { in: followedArtistIds } } : {}),
       ...(filter.type ? { type: filter.type as never } : {}),
       ...(filter.language ? { language: filter.language } : {}),
       ...(filter.category ? { category: filter.category } : {}),
@@ -1022,6 +1034,56 @@ export class WorksService {
       ogDescription: work.description?.slice(0, 160) ?? null,
       ogImage: work.coverKey,
     };
+  }
+
+  // ─── F-183/F-184: Fuzzy autocomplete search suggestions ─────────────────
+
+  async searchSuggestions(q: string, limit = 10) {
+    if (!q || q.length < 2) return { suggestions: [] };
+    const term = q.toLowerCase().trim();
+    // Title prefix match + fuzzy "contains" fallback
+    const works = await this.prisma.work.findMany({
+      where: {
+        status: 'PUBLISHED',
+        OR: [
+          { title: { startsWith: q, mode: 'insensitive' } },
+          { title: { contains: term, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, title: true, type: true, artist: { select: { displayName: true } } },
+      take: limit,
+      orderBy: { borrowCount: 'desc' },
+    });
+    // Unique artist suggestions
+    const artistRows = await this.prisma.user.findMany({
+      where: {
+        role: 'ARTIST',
+        displayName: { contains: term, mode: 'insensitive' },
+      },
+      select: { id: true, displayName: true },
+      take: 5,
+    });
+    return {
+      works: works.map((w: { id: string; title: string; type: string; artist: { displayName: string } }) => ({
+        id: w.id, label: w.title, type: w.type, artist: w.artist.displayName,
+      })),
+      artists: artistRows.map((a: { id: string; displayName: string }) => ({ id: a.id, label: a.displayName })),
+    };
+  }
+
+  // ─── F-222: "Neu auf CreatorLend" – zuletzt veröffentlichte Werke ────────
+
+  async getNewArrivals(limit = 20) {
+    const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000); // last 14 days
+    return this.prisma.work.findMany({
+      where: { status: 'PUBLISHED', createdAt: { gte: since } },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true, title: true, type: true, loanPriceCents: true, createdAt: true,
+        artist: { select: { id: true, displayName: true } },
+      },
+    });
   }
 
   // ─── F-144: Tag suggestions ───────────────────────────────────────────────

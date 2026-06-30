@@ -163,6 +163,18 @@ export class WorksController {
     return this.works.getTopCharts(period, limit ? Number(limit) : 20);
   }
 
+  // GET /api/v1/works/new – Neu auf CreatorLend (F-222)
+  @Get('new')
+  newArrivals(@Query('limit') limit?: string) {
+    return this.works.getNewArrivals(limit ? Number(limit) : 20);
+  }
+
+  // GET /api/v1/works/search/suggest – Autocomplete-Vorschläge (F-183/F-184)
+  @Get('search/suggest')
+  searchSuggestions(@Query('q') q: string, @Query('limit') limit?: string) {
+    return this.works.searchSuggestions(q ?? '', limit ? Number(limit) : 10);
+  }
+
   // GET /api/v1/works/rss/:artistId – RSS-Feed eines Künstlers (F-137)
   @Get("rss/:artistId")
   @Header("Content-Type", "application/rss+xml")
@@ -213,7 +225,7 @@ export class WorksController {
     return data;
   }
 
-  // GET /api/v1/works – Suche / Discovery mit Facetten (F-581/F-582)
+  // GET /api/v1/works – Suche / Discovery mit Facetten (F-581/F-582/F-195)
   @Get()
   search(
     @Query("type") type?: string,
@@ -228,6 +240,8 @@ export class WorksController {
     @Query("explicit") explicit?: string,
     @Query("tags") tags?: string, // comma-separated
     @Query("facets") facets?: string, // if "true", return facets
+    @Query("followedOnly") followedOnly?: string, // F-195
+    @CurrentUser() userId?: string,
   ) {
     const filter = {
       type,
@@ -241,6 +255,8 @@ export class WorksController {
       maxDuration: maxDuration !== undefined ? Number(maxDuration) : undefined,
       explicit: explicit !== undefined ? explicit === "true" : undefined,
       tags: tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+      followedOnly: followedOnly === "true",
+      userId,
     };
     if (facets === "true" || q?.includes(":")) {
       return this.works.searchWithFacets(filter);

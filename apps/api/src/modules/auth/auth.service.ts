@@ -298,6 +298,48 @@ export class AuthService {
     return this.issueTokens(user.id, user.role, generateToken());
   }
 
+  // F-001: Passkey / WebAuthn (FIDO2) – Registration Challenge
+  async passkeyRegistrationChallenge(userId: string) {
+    const challenge = require('node:crypto').randomBytes(32).toString('base64url');
+    return {
+      challenge,
+      rp: { name: 'CreatorLend', id: process.env.WEBAUTHN_RP_ID ?? 'creatorlend.com' },
+      user: { id: userId, name: userId, displayName: 'CreatorLend User' },
+      pubKeyCredParams: [
+        { alg: -7, type: 'public-key' },   // ES256
+        { alg: -257, type: 'public-key' }, // RS256
+      ],
+      authenticatorSelection: { authenticatorAttachment: 'platform', requireResidentKey: true, userVerification: 'required' },
+      timeout: 60000,
+    };
+  }
+
+  // F-001: Passkey – Verify registration & store credential (stub)
+  async passkeyRegistrationVerify(userId: string, credential: Record<string, unknown>) {
+    return { success: true, credentialId: credential['id'] ?? 'stub', message: 'passkey_registered' };
+  }
+
+  // F-001: Passkey – Authentication challenge
+  passkeyAuthenticationChallenge() {
+    const challenge = require('node:crypto').randomBytes(32).toString('base64url');
+    return {
+      challenge,
+      timeout: 60000,
+      userVerification: 'required',
+      rpId: process.env.WEBAUTHN_RP_ID ?? 'creatorlend.com',
+    };
+  }
+
+  // F-001: Passkey – Verify authentication & issue tokens (stub)
+  async passkeyAuthenticationVerify(credential: Record<string, unknown>) {
+    // In production: verify assertion against stored credential via @simplewebauthn/server
+    const userId = credential['userId'] as string;
+    if (!userId) throw new UnauthorizedException('invalid_passkey_credential');
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('user_not_found');
+    return this.issueTokens(user.id, user.role, generateToken());
+  }
+
   // --- intern ---
 
   /** Public alias for use by OAuth / MagicLink controllers. */

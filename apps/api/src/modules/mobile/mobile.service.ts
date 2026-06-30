@@ -114,4 +114,39 @@ export class MobileService {
       features: ['browse_downloads', 'playback', 'bookmarks', 'notes'],
     };
   }
+
+  // F-859: Universal Links (iOS) / App Links (Android) – AASA + assetlinks
+  getUniversalLinksConfig() {
+    const appId = process.env.IOS_APP_ID ?? 'de.creatorlend.app';
+    const packageName = process.env.ANDROID_PACKAGE ?? 'de.creatorlend.app';
+    const sha256Cert = process.env.ANDROID_SHA256_CERT ?? 'REPLACE_WITH_ACTUAL_CERT';
+    return {
+      ios: {
+        // Content for /.well-known/apple-app-site-association
+        applinks: {
+          details: [
+            {
+              appID: appId,
+              paths: ['/works/*', '/artists/*', '/loans/*', '/playlists/*'],
+            },
+          ],
+        },
+      },
+      android: {
+        // Content for /.well-known/assetlinks.json
+        assetlinks: [
+          {
+            relation: ['delegate_permission/common.handle_all_urls'],
+            target: {
+              namespace: 'android_app',
+              package_name: packageName,
+              sha256_cert_fingerprints: [sha256Cert],
+            },
+          },
+        ],
+      },
+      deepLinkScheme: 'creatorlend://',
+      supportedPaths: ['/works/:id', '/artists/:id', '/loans', '/playlists/:id'],
+    };
+  }
 }

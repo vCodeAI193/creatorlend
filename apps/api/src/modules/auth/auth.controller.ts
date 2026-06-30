@@ -131,4 +131,33 @@ export class AuthController {
   getLoginHistory(@CurrentUser() userId: string) {
     return this.auth.getLoginHistory(userId);
   }
+
+  // F-001: Passkey / WebAuthn – Registration Challenge
+  @Post('passkey/register/challenge')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  passkeyRegChallenge(@CurrentUser() userId: string) {
+    return this.auth.passkeyRegistrationChallenge(userId);
+  }
+
+  // F-001: Passkey / WebAuthn – Registration Verify
+  @Post('passkey/register/verify')
+  @UseGuards(JwtAuthGuard)
+  passkeyRegVerify(@CurrentUser() userId: string, @Body() credential: Record<string, unknown>) {
+    return this.auth.passkeyRegistrationVerify(userId, credential);
+  }
+
+  // F-001: Passkey / WebAuthn – Authentication Challenge
+  @Post('passkey/authenticate/challenge')
+  @HttpCode(200)
+  passkeyAuthChallenge() {
+    return this.auth.passkeyAuthenticationChallenge();
+  }
+
+  // F-001: Passkey / WebAuthn – Authentication Verify
+  @Post('passkey/authenticate/verify')
+  @HttpCode(200)
+  passkeyAuthVerify(@Body() credential: Record<string, unknown>) {
+    return this.auth.passkeyAuthenticationVerify(credential);
+  }
 }

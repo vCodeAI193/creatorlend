@@ -63,4 +63,10 @@ export class MobileController {
   expiredDownloads(@CurrentUser() user: { userId: string }) {
     return this.mobile.checkExpiredDownloads(user.userId);
   }
+
+  // F-859: Universal Links / App Links Konfiguration
+  @Get('universal-links')
+  universalLinksConfig() {
+    return this.mobile.getUniversalLinksConfig();
+  }
 }
