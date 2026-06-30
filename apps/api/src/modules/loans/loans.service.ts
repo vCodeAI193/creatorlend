@@ -716,6 +716,43 @@ export class LoansService {
   }
 
   /**
+   * F-520: Bewertungs-Erinnerung nach 24h (wenn Leihe abgelaufen und noch keine Bewertung).
+   * Ergänzt F-519 (direkt nach Ablauf); sendet erneut nach 24h, falls noch keine Rezension.
+   */
+  async run24hRatingReminders(): Promise<{ reminded: number }> {
+    const now = new Date();
+    const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const since25h = new Date(now.getTime() - 25 * 60 * 60 * 1000);
+    const recentlyExpired = await this.prisma.loan.findMany({
+      where: { status: "EXPIRED", expiresAt: { gte: since25h, lte: since24h } },
+      select: { id: true, userId: true, workId: true },
+    });
+
+    let reminded = 0;
+    for (const l of recentlyExpired) {
+      try {
+        const already = await this.prisma.notification.findFirst({
+          where: { userId: l.userId, type: NotificationType.RATING_PROMPT_24H, data: { path: ["loanId"], equals: l.id } },
+        });
+        if (already) continue;
+        const hasReview = await this.prisma.review.findFirst({ where: { userId: l.userId, workId: l.workId } });
+        if (hasReview) continue;
+        await this.notifications.create({
+          userId: l.userId,
+          type: NotificationType.RATING_PROMPT_24H,
+          title: "Noch keine Bewertung hinterlassen?",
+          body: "Es ist einen Tag her – hinterlasse jetzt eine kurze Bewertung!",
+          data: { loanId: l.id, workId: l.workId },
+        });
+        reminded += 1;
+      } catch (err) {
+        this.logger.warn(`24h rating reminder failed for loan ${l.id}`, err);
+      }
+    }
+    return { reminded };
+  }
+
+  /**
    * 48-Stunden-Erinnerung vor Ablauf (F-262).
    */
   async run48hReminders(): Promise<{ reminded: number }> {

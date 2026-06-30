@@ -24,6 +24,17 @@ export class RatingsService {
     return { deleted: true };
   }
 
+  /**
+   * F-521: One-Tap-Stern-Bewertung (direkt aus Leihe heraus).
+   * Wie upsert, aber akzeptiert loanId statt workId (lookups workId from loan).
+   */
+  async oneTapRate(userId: string, loanId: string, value: number) {
+    if (value < 1 || value > 5) throw new BadRequestException("rating_value_must_be_1_to_5");
+    const loan = await this.prisma.loan.findFirst({ where: { id: loanId, userId } });
+    if (!loan) throw new NotFoundException("loan_not_found");
+    return this.upsert(userId, loan.workId, value);
+  }
+
   /** Durchschnittsbewertung und Anzahl für ein Werk. */
   async summary(workId: string) {
     const agg = await this.prisma.rating.aggregate({

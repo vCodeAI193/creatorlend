@@ -946,4 +946,26 @@ export class AdminService {
     const assigned = (user.adminTags ?? []).filter((t) => SUB_ROLES.includes(t));
     return { userId, subRoles: assigned };
   }
+
+  // F-667: Benachrichtigungs-Analytics (Versandrate je Typ)
+  async getNotificationAnalytics(since?: string) {
+    const sinceDate = since ? new Date(since) : new Date(Date.now() - 30 * 24 * 3600 * 1000);
+    const counts = await this.prisma.notification.groupBy({
+      by: ['type'],
+      where: { createdAt: { gte: sinceDate } },
+      _count: { id: true },
+    });
+    const readCounts = await this.prisma.notification.groupBy({
+      by: ['type'],
+      where: { createdAt: { gte: sinceDate }, readAt: { not: null } },
+      _count: { id: true },
+    });
+    const readMap = new Map(readCounts.map(r => [r.type, r._count.id]));
+    return counts.map(c => ({
+      type: c.type,
+      sent: c._count.id,
+      read: readMap.get(c.type) ?? 0,
+      readRate: c._count.id > 0 ? Math.round(((readMap.get(c.type) ?? 0) / c._count.id) * 100) : 0,
+    })).sort((a, b) => b.sent - a.sent);
+  }
 }

@@ -915,4 +915,10 @@ export class AdminController {
   listSubRoles(@Param("id") userId: string) {
     return this.admin.listSubRoles(userId);
   }
+
+  // GET /api/v1/admin/analytics/notifications – Benachrichtigungs-Analytics (F-667)
+  @Get("analytics/notifications")
+  notificationAnalytics(@Query("since") since?: string) {
+    return this.admin.getNotificationAnalytics(since);
+  }
 }

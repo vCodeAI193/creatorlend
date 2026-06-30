@@ -17,11 +17,12 @@ import { WorkNotesService } from "./work-notes.service";
 import { WorkNotesController } from "./work-notes.controller";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { ContentFeedbackService } from "./content-feedback.service";
+import { RecommendationsService } from "./recommendations.service";
 
 @Module({
   imports: [NotificationsModule],
   controllers: [EngagementController, ArtistPostsController, MessagesController, WorkNotesController],
-  providers: [FavoritesService, FollowsService, WishlistService, RatingsService, ReviewsService, ArtistPostsService, MessagesService, BlocksService, BookmarksService, FaqsService, ReadingChallengeService, WorkNotesService, ContentFeedbackService],
-  exports: [FavoritesService, FollowsService, WishlistService, RatingsService, ReviewsService, ArtistPostsService, MessagesService, BlocksService, BookmarksService, FaqsService, ReadingChallengeService, WorkNotesService, ContentFeedbackService],
+  providers: [FavoritesService, FollowsService, WishlistService, RatingsService, ReviewsService, ArtistPostsService, MessagesService, BlocksService, BookmarksService, FaqsService, ReadingChallengeService, WorkNotesService, ContentFeedbackService, RecommendationsService],
+  exports: [FavoritesService, FollowsService, WishlistService, RatingsService, ReviewsService, ArtistPostsService, MessagesService, BlocksService, BookmarksService, FaqsService, ReadingChallengeService, WorkNotesService, ContentFeedbackService, RecommendationsService],
 })
 export class EngagementModule {}

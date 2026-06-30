@@ -30,6 +30,8 @@ export const NotificationType = {
   PRICE_DROP_WISHLIST: "PRICE_DROP_WISHLIST", // an Hörer:in: Preissenkung Wunschliste (F-688)
   ARTIST_ON_SALE: "ARTIST_ON_SALE",        // an Hörer:in: Lieblingsartist im Angebot (F-689)
   RATING_PROMPT: "RATING_PROMPT",          // an Hörer:in: Bewertungsaufforderung nach Ablauf (F-519)
+  RATING_PROMPT_24H: "RATING_PROMPT_24H",  // an Hörer:in: 24h-Bewertungserinnerung (F-520)
+  ARTIST_NEWSLETTER: "ARTIST_NEWSLETTER",  // an Follower:in: Künstler-Newsletter (F-443)
 } as const;
 
 export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];

@@ -177,6 +177,7 @@ model User {
   offlineActions    OfflineAction[]
   contentFeedbacks  ContentFeedback[]
   moodVotes         MoodVote[]
+  workRecommendations WorkRecommendation[]
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -279,6 +280,7 @@ model Work {
   playbackPositions PlaybackPosition[]
   categories      WorkCategoryAssignment[]   // F-146/F-147
   contentFeedbacks ContentFeedback[]
+  recommendations  WorkRecommendation[]
 
   @@index([artistId])
   @@index([type, status])
@@ -1575,4 +1577,35 @@ model MoodVote {
 
   @@unique([loanId, userId])
   @@index([loanId])
+}
+
+// F-585/F-587: Werk-Empfehlungen (öffentlich oder via DM)
+model WorkRecommendation {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workId    String
+  work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  comment   String?
+  isPublic  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([workId])
+  @@index([isPublic, createdAt])
+}
+
+// F-666: E-Mail-Event-Tracking (Öffnungen, Klicks)
+model EmailEvent {
+  id          String   @id @default(uuid())
+  userId      String?
+  email       String
+  type        String   // OPEN | CLICK | BOUNCE | SPAM_COMPLAINT
+  campaignKey String?
+  messageId   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([campaignKey])
+  @@index([type, createdAt])
 }

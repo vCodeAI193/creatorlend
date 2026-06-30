@@ -22,6 +22,7 @@ import { ReviewsService } from "./reviews.service";
 import { BookmarksService } from "./bookmarks.service";
 import { FaqsService } from "./faqs.service";
 import { ContentFeedbackService } from "./content-feedback.service";
+import { RecommendationsService } from "./recommendations.service";
 import { FavoriteDto } from "./dto/favorite.dto";
 import { FollowDto } from "./dto/follow.dto";
 
@@ -39,6 +40,7 @@ export class EngagementController {
     private readonly bookmarks: BookmarksService,
     private readonly faqs: FaqsService,
     private readonly contentFeedback: ContentFeedbackService,
+    private readonly recommendations: RecommendationsService,
   ) {}
 
   // POST /api/v1/favorites
@@ -305,5 +307,58 @@ export class EngagementController {
   @Patch("follows/privacy/follower-list")
   setFollowerListPublic(@CurrentUser() userId: string, @Body("public") isPublic: boolean) {
     return this.follows.setFollowerListPublic(userId, isPublic);
+  }
+
+  // ─── F-521: One-Tap-Stern-Bewertung ─────────────────────────────────────
+
+  // POST /api/v1/ratings/one-tap – Direkt-Bewertung aus Leihe heraus (F-521)
+  @Post("ratings/one-tap")
+  oneTapRate(
+    @CurrentUser() userId: string,
+    @Body("loanId") loanId: string,
+    @Body("value") value: number,
+  ) {
+    return this.ratings.oneTapRate(userId, loanId, value);
+  }
+
+  // ─── F-585/F-586/F-587: Werk-Empfehlungen ────────────────────────────────
+
+  // GET /api/v1/recommendations/feed – Empfehlungs-Feed (F-587)
+  @Get("recommendations/feed")
+  getRecommendationFeed(@CurrentUser() userId: string, @Query("limit") limit?: string) {
+    return this.recommendations.getFeed(userId, limit ? Number(limit) : 20);
+  }
+
+  // GET /api/v1/recommendations/user/:userId – Empfehlungen eines Nutzers
+  @Get("recommendations/user/:userId")
+  listUserRecommendations(@Param("userId") userId: string) {
+    return this.recommendations.listByUser(userId);
+  }
+
+  // POST /api/v1/recommendations – Werk öffentlich empfehlen (F-586)
+  @Post("recommendations")
+  recommend(
+    @CurrentUser() userId: string,
+    @Body("workId") workId: string,
+    @Body("comment") comment?: string,
+  ) {
+    return this.recommendations.recommend(userId, workId, comment);
+  }
+
+  // POST /api/v1/recommendations/dm – Werk per DM empfehlen (F-585)
+  @Post("recommendations/dm")
+  recommendViaDm(
+    @CurrentUser() userId: string,
+    @Body("recipientId") recipientId: string,
+    @Body("workId") workId: string,
+    @Body("comment") comment?: string,
+  ) {
+    return this.recommendations.recommendViaDm(userId, recipientId, workId, comment);
+  }
+
+  // DELETE /api/v1/recommendations/:id – Empfehlung löschen
+  @Delete("recommendations/:id")
+  removeRecommendation(@CurrentUser() userId: string, @Param("id") id: string) {
+    return this.recommendations.remove(userId, id);
   }
 }

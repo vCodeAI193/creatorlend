@@ -35,6 +35,15 @@ export class LoansScheduler {
     }
   }
 
+  /** F-520: 24h Bewertungs-Erinnerung. */
+  @Cron(CronExpression.EVERY_HOUR)
+  async handle24hRatingReminders(): Promise<void> {
+    const { reminded } = await this.loans.run24hRatingReminders();
+    if (reminded) {
+      this.logger.log(`24h-Bewertungs-Erinnerungen: ${reminded} gesendet`);
+    }
+  }
+
   /** F-260: Fällige Reservierungen erfüllen. */
   @Cron(CronExpression.EVERY_HOUR)
   async handleReservations(): Promise<void> {

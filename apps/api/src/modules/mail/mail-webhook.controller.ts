@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, Query, Get } from '@nestjs/common';
 import { MailService } from './mail.service';
 
 /**
@@ -58,6 +58,33 @@ export class MailWebhookController {
     }
 
     if (email) await this.mail.handleSpamComplaint(email, source);
+    return { ok: true };
+  }
+
+  // GET /api/v1/webhooks/mail/open – E-Mail-Öffnungs-Tracking (F-666)
+  @Get('open')
+  @HttpCode(200)
+  async trackOpen(
+    @Query('email') email: string,
+    @Query('campaign') campaign?: string,
+    @Query('mid') mid?: string,
+    @Query('uid') uid?: string,
+  ) {
+    if (email) {
+      await this.mail.trackEmailEvent(email, 'OPEN', campaign, mid, uid).catch(() => {});
+    }
+    return { ok: true };
+  }
+
+  // POST /api/v1/webhooks/mail/click – Link-Klick-Tracking (F-666)
+  @Post('click')
+  @HttpCode(200)
+  async trackClick(
+    @Body() body: { email?: string; campaign?: string; messageId?: string; userId?: string },
+  ) {
+    if (body.email) {
+      await this.mail.trackEmailEvent(body.email, 'CLICK', body.campaign, body.messageId, body.userId).catch(() => {});
+    }
     return { ok: true };
   }
 }

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 
 interface MailMessage {
   to: string;
@@ -17,6 +18,8 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly provider = process.env.MAIL_PROVIDER ?? 'log'; // 'ses' | 'sendgrid' | 'log'
   private readonly fromAddress = process.env.MAIL_FROM ?? 'noreply@creatorlend.com';
+
+  constructor(private readonly prisma: PrismaService) {}
 
   async send(message: MailMessage): Promise<void> {
     if (this.provider === 'ses') {
@@ -148,6 +151,19 @@ export class MailService {
     this.logger.warn(`[SPAM_COMPLAINT] complaint for ${email} from ${source ?? 'unknown'}`);
     // Production: immediately unsubscribe email from all marketing; keep only critical transactional
     // SES: parse SNS complaint notification; SendGrid: parse webhook event type "spamreport"
+  }
+
+  // F-666: E-Mail-Event tracken (Open, Click, Bounce, Spam)
+  async trackEmailEvent(
+    email: string,
+    type: 'OPEN' | 'CLICK' | 'BOUNCE' | 'SPAM_COMPLAINT',
+    campaignKey?: string,
+    messageId?: string,
+    userId?: string,
+  ): Promise<void> {
+    await this.prisma.emailEvent.create({
+      data: { email, type, campaignKey, messageId, userId },
+    });
   }
 
   // F-419: Preiserhöhungs-Ankündigung 30 Tage vorher

@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notification-types';
 
 @Injectable()
 export class ArtistPostsService {
@@ -57,7 +58,26 @@ export class ArtistPostsService {
   }
 
   async comment(userId: string, postId: string, body: string) {
-    return this.prisma.artistPostComment.create({ data: { postId, userId, body } });
+    const comment = await this.prisma.artistPostComment.create({ data: { postId, userId, body } });
+    // F-621: Notify @mentioned users
+    const mentions = [...body.matchAll(/@([a-zA-Z0-9_-]+)/g)].map(m => m[1]);
+    if (mentions.length > 0) {
+      const mentioned = await this.prisma.user.findMany({
+        where: { slug: { in: mentions } },
+        select: { id: true },
+      });
+      for (const u of mentioned) {
+        if (u.id === userId) continue;
+        this.notifications.create({
+          userId: u.id,
+          type: NotificationType.REVIEW_COMMENT,
+          title: 'Du wurdest erwähnt',
+          body: `Jemand hat dich in einem Kommentar erwähnt.`,
+          data: { postId, commentId: comment.id },
+        }).catch(() => { /* non-critical */ });
+      }
+    }
+    return comment;
   }
 
   async hideComment(adminOrArtistId: string, commentId: string) {
@@ -100,7 +120,7 @@ export class ArtistPostsService {
     for (const f of followers) {
       await this.notifications.create({
         userId: f.followerId,
-        type: 'ARTIST_NEWSLETTER',
+        type: NotificationType.ARTIST_NEWSLETTER,
         title: subject,
         body,
         data: { artistId, artistName: artist.displayName },
