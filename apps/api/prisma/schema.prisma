@@ -171,6 +171,7 @@ model User {
   userWarnings      UserWarning[]
   appealRequests    AppealRequest[]
   gdprDataRequests  GdprDataRequest[]
+  npsSurveys        NpsSurvey[]
 }
 
 // Rotierende Refresh-Tokens (B-001). Klartext wird nie gespeichert.
@@ -1456,4 +1457,50 @@ model SupportTicket {
   @@index([userId])
   @@index([status])
   @@index([assigneeId])
+}
+
+// NPS-Umfrage (F-809)
+model NpsSurvey {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  score     Int      // 0-10
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Custom-Event-Tracking (F-800)
+model CustomEvent {
+  id        String   @id @default(uuid())
+  userId    String?
+  eventName String
+  properties Json?
+  sessionId String?
+  createdAt DateTime @default(now())
+
+  @@index([eventName])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Ausgehende Webhook-Deliveries (F-883/F-884/F-885)
+model OutgoingWebhookDelivery {
+  id           String    @id @default(uuid())
+  subscriptionId String
+  event        String
+  payload      Json
+  signature    String?
+  statusCode   Int?
+  attempts     Int       @default(0)
+  nextRetryAt  DateTime?
+  succeededAt  DateTime?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+
+  @@index([subscriptionId])
+  @@index([nextRetryAt])
+  @@index([event])
 }

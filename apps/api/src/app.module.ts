@@ -27,6 +27,9 @@ import { ReportsModule } from "./modules/reports/reports.module";
 import { HealthModule } from "./modules/health/health.module";
 import { SupportModule } from "./modules/support/support.module";
 import { GdprModule } from "./modules/gdpr/gdpr.module";
+import { SurveysModule } from "./modules/surveys/surveys.module";
+import { AiModule } from "./modules/ai/ai.module";
+import { MetricsModule } from "./modules/metrics/metrics.module";
 
 @Module({
   imports: [
@@ -53,6 +56,9 @@ import { GdprModule } from "./modules/gdpr/gdpr.module";
     HealthModule,
     SupportModule,
     GdprModule,
+    SurveysModule,
+    AiModule,
+    MetricsModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: HttpLoggerInterceptor },

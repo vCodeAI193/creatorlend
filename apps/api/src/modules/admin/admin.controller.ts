@@ -669,4 +669,28 @@ export class AdminController {
   nullResultSearches(@Query("limit") limit?: string) {
     return this.analytics.getNullResultSearches(limit ? Number(limit) : undefined);
   }
+
+  // GET /api/v1/admin/analytics/revenue-by-country – Umsatz nach Land (F-773)
+  @Get("analytics/revenue-by-country")
+  revenueByCountry() {
+    return this.analytics.getRevenueByCountry();
+  }
+
+  // GET /api/v1/admin/analytics/revenue-anomaly – Anomalie-Erkennung (F-793)
+  @Get("analytics/revenue-anomaly")
+  revenueAnomaly() {
+    return this.analytics.getRevenueAnomaly();
+  }
+
+  // GET /api/v1/admin/analytics/fake-plays – Fake-Play-Erkennung (F-794)
+  @Get("analytics/fake-plays")
+  detectFakePlays() {
+    return this.analytics.detectFakePlays();
+  }
+
+  // GET /api/v1/admin/analytics/fraud-dashboard – Betrugs-Dashboard (F-795)
+  @Get("analytics/fraud-dashboard")
+  fraudDashboard() {
+    return this.analytics.getFraudDashboard();
+  }
 }

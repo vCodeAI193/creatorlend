@@ -300,4 +300,66 @@ export class AnalyticsService {
     `;
     return rows.map((r) => ({ query: r.query, count: Number(r.cnt) }));
   }
+
+  // F-773: Umsatz nach Land (aus Abrechnungsadresse)
+  async getRevenueByCountry() {
+    const rows = await this.prisma.$queryRaw<Array<{ country: string; total_cents: bigint; loan_count: bigint }>>`
+      SELECT
+        COALESCE(ba.country, 'UNKNOWN') AS country,
+        SUM(pi."amountCents") AS total_cents,
+        COUNT(*) AS loan_count
+      FROM "PayoutItem" pi
+      JOIN "Loan" l ON l.id = pi."loanId"
+      LEFT JOIN "BillingAddress" ba ON ba."userId" = l."userId"
+      GROUP BY country
+      ORDER BY total_cents DESC
+      LIMIT 50
+    `;
+    return rows.map((r) => ({ country: r.country, totalCents: Number(r.total_cents), loanCount: Number(r.loan_count) }));
+  }
+
+  // F-793: Anomalie-Erkennung – Einnahmenspitze / -einbruch (letzten 30 Tage vs. Vormonat)
+  async getRevenueAnomaly() {
+    const now = new Date();
+    const thirtyDays = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDays = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const [current, previous] = await Promise.all([
+      this.prisma.payoutItem.aggregate({ where: { createdAt: { gte: thirtyDays } }, _sum: { amountCents: true } }),
+      this.prisma.payoutItem.aggregate({ where: { createdAt: { gte: sixtyDays, lt: thirtyDays } }, _sum: { amountCents: true } }),
+    ]);
+    const currentCents = current._sum.amountCents ?? 0;
+    const previousCents = previous._sum.amountCents ?? 0;
+    const changePct = previousCents > 0 ? ((currentCents - previousCents) / previousCents) * 100 : 0;
+    const anomaly = Math.abs(changePct) > 50;
+    return { currentCents, previousCents, changePct: Math.round(changePct), anomaly, direction: changePct > 0 ? 'spike' : 'drop' };
+  }
+
+  // F-794: Fake-Play-Erkennung – unnatürliche Leih-Muster
+  async detectFakePlays() {
+    const rows = await this.prisma.$queryRaw<Array<{ userId: string; loanCount: bigint; distinctWorks: bigint }>>`
+      SELECT "userId", COUNT(*) AS loanCount, COUNT(DISTINCT "workId") AS distinctWorks
+      FROM "Loan"
+      WHERE "createdAt" >= NOW() - INTERVAL '24 hours'
+      GROUP BY "userId"
+      HAVING COUNT(*) > 10
+      ORDER BY loanCount DESC
+      LIMIT 50
+    `;
+    return rows.map((r) => ({
+      userId: r.userId,
+      loanCount: Number(r.loanCount),
+      distinctWorks: Number(r.distinctWorks),
+      suspicious: Number(r.loanCount) > 20 || Number(r.distinctWorks) < 2,
+    }));
+  }
+
+  // F-795: Betrugs-Dashboard – verdächtige Nutzer:innen
+  async getFraudDashboard() {
+    const [highFraud, flaggedPayouts, fakePlays] = await Promise.all([
+      this.prisma.user.count({ where: { fraudScore: { gte: 50 } } }),
+      this.prisma.payoutItem.count({ where: { flaggedForFraud: true } }),
+      this.detectFakePlays(),
+    ]);
+    return { highFraudUsers: highFraud, flaggedPayouts, suspiciousLoanPatterns: fakePlays.length };
+  }
 }
