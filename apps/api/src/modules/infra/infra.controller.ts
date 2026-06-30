@@ -262,6 +262,12 @@ export class InfraController {
     return this.infra.getBackupStrategyConfig();
   }
 
+  // F-933: mTLS Konfiguration
+  @Get('security/mtls')
+  mtlsConfig() {
+    return this.infra.getMtlsConfig();
+  }
+
   // F-977-F-980: IaC, CI/CD, Auto-Rollback
   @Get('iac')
   iacAndCiCd() {

@@ -557,4 +557,76 @@ export class IntegrationsService {
       status: 'planned',
     };
   }
+
+  // F-891: Spotify-Import – Playlist als CreatorLend-Wunschliste
+  async importSpotifyPlaylist(userId: string, playlistId?: string) {
+    return {
+      provider: 'spotify',
+      enabled: !!process.env.SPOTIFY_CLIENT_ID,
+      userId,
+      playlistId: playlistId ?? null,
+      importedTracks: 0,
+      matchedWorks: 0,
+      message: 'Set SPOTIFY_CLIENT_ID + SPOTIFY_CLIENT_SECRET to enable Spotify playlist import. Matched works are added to the wishlist.',
+      authUrl: `${process.env.API_BASE_URL ?? 'https://api.creatorlend.com'}/oauth/spotify`,
+      status: 'planned',
+    };
+  }
+
+  // F-892: Audible-Import – Hörbuch-History übertragen
+  async importAudibleHistory(userId: string, csvContent?: string) {
+    return {
+      provider: 'audible',
+      enabled: false,
+      userId,
+      importedCount: 0,
+      matchedWorks: 0,
+      message: 'Upload your Audible library export (CSV) to import your listening history. Matched works are marked as "listened" in your profile.',
+      note: 'Audible does not provide an official API; CSV import is the supported path.',
+      status: 'planned',
+    };
+  }
+
+  // F-894: Apple Health Integration – Hörstunden als Achtsamkeit
+  getAppleHealthConfig() {
+    return {
+      platform: 'iOS',
+      enabled: false,
+      framework: 'HealthKit',
+      permission: 'HKQuantityTypeIdentifierMindfulSession',
+      trackedMetrics: ['listening_minutes', 'sessions_per_day'],
+      dataFlowDirection: 'CreatorLend → Apple Health (write)',
+      status: 'planned',
+      note: 'Implement via react-native-health or expo-health-connect on iOS. Each completed listening session writes a mindful minute entry.',
+    };
+  }
+
+  // F-896: Notion-Integration – Notizen aus CreatorLend
+  async exportNotesToNotion(userId: string, workId?: string) {
+    return {
+      provider: 'notion',
+      enabled: !!process.env.NOTION_API_KEY,
+      userId,
+      workId: workId ?? null,
+      exportedNotes: 0,
+      message: 'Set NOTION_API_KEY and NOTION_DATABASE_ID to export your CreatorLend notes and highlights to Notion.',
+      authUrl: `${process.env.API_BASE_URL ?? 'https://api.creatorlend.com'}/oauth/notion`,
+      status: 'planned',
+    };
+  }
+
+  // F-897: Obsidian-Integration – Bookmarks + Zitate exportieren
+  async exportToObsidian(userId: string, workId?: string) {
+    return {
+      provider: 'obsidian',
+      enabled: false,
+      userId,
+      workId: workId ?? null,
+      exportFormat: 'Markdown',
+      vaultPath: '~/ObsidianVault/CreatorLend',
+      note: 'Obsidian has no public API; export is via file-based Markdown sync using the Obsidian Local REST API plugin or direct file write.',
+      exportedItems: 0,
+      status: 'planned',
+    };
+  }
 }

@@ -416,6 +416,68 @@ export class AdminStubsService {
     return { sloTarget: `${(sloTarget * 100).toFixed(1)}%`, currentUptime: `${(currentUptime * 100).toFixed(3)}%`, errorBudgetRemaining: `${Math.round((remaining - burned) / remaining * 100)}%`, status: currentUptime >= sloTarget ? 'ON_TRACK' : 'BURN_ALERT' };
   }
 
+  // F-703: Admin-Aktionen mit verpflichtender Notiz-Begründung
+  getMandatoryNotePolicy() {
+    return {
+      enabled: true,
+      actionsRequiringNote: [
+        'SUSPEND_USER', 'DELETE_CONTENT', 'REJECT_WORK', 'OVERRIDE_PAYOUT',
+        'IMPERSONATE_USER', 'BULK_DELETE', 'PLATFORM_CONFIG_CHANGE',
+      ],
+      minLength: 10,
+      maxLength: 500,
+      storedIn: 'AuditLog.meta.note',
+      enforcement: 'backend_validation_before_action',
+    };
+  }
+
+  // F-704: Admin-Audit-Log mit IP-Adresse
+  getAuditLogIpConfig() {
+    return {
+      captureIp: true,
+      ipField: 'AuditLog.meta.ipAddress',
+      hashIp: false,
+      retentionDays: 365,
+      note: 'Extract IP from request.ip in the action handler and pass as meta.ipAddress to writeAuditLog()',
+      gdprNote: 'IP addresses are personal data — ensure DPA covers audit log storage',
+    };
+  }
+
+  // F-741: Platform-weite Ankündigung (Banner für alle Nutzer:innen)
+  async getPlatformBannerConfig() {
+    return await this.getSetting<Record<string, unknown>>('platform:banner', {
+      enabled: false,
+      message: null,
+      type: 'info',
+      dismissible: true,
+      showFrom: null,
+      showUntil: null,
+    });
+  }
+
+  async setPlatformBanner(config: { message: string; type: string; dismissible: boolean; showFrom?: string; showUntil?: string }) {
+    await this.setSetting('platform:banner', { enabled: true, ...config });
+    return { updated: true, config };
+  }
+
+  // F-744: A/B-Test-Zuweisung per Admin konfigurieren
+  async getAbTestAdminConfig() {
+    const tests = await this.prisma.abTestAssignment.groupBy({
+      by: ['testKey', 'variant'],
+      _count: { id: true },
+    });
+    const testMap: Record<string, Array<{ variant: string; count: number }>> = {};
+    for (const t of tests) {
+      if (!testMap[t.testKey]) testMap[t.testKey] = [];
+      testMap[t.testKey].push({ variant: t.variant, count: t._count.id });
+    }
+    return {
+      activeTests: Object.keys(testMap),
+      summary: Object.entries(testMap).map(([testKey, variants]) => ({ testKey, variants })),
+      note: 'Use POST /admin/ab-tests/:testKey/assign to force a user into a specific variant',
+    };
+  }
+
   // F-760: Platform stats CSV export
   async exportPlatformStatsCsv() {
     const users = await this.prisma.user.count();

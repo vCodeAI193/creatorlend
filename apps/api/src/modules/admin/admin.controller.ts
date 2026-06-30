@@ -37,7 +37,13 @@ export class AdminController {
     return this.admin.platformStats();
   }
 
-  // GET /api/v1/admin/users?role=ARTIST&search=max&page=1 (F-381)
+  // GET /api/v1/admin/users/:id – Nutzer:in-Profilansicht (F-714)
+  @Get("users/:id/profile")
+  getUserAdminProfile(@Param("id") id: string) {
+    return this.admin.getUserAdminProfile(id);
+  }
+
+  // GET /api/v1/admin/users?role=ARTIST&search=max&page=1 (F-381/F-713: search by email, name, ID)
   @Get("users")
   listUsers(
     @Query("page") page = "1",
@@ -1281,4 +1287,25 @@ export class AdminController {
   @Get("stats/export-csv")
   @Header("Content-Type", "text/csv")
   exportPlatformStatsCsvStub() { return this.adminStubs.exportPlatformStatsCsv(); }
+
+  // ─── F-703: Mandatory note policy ────────────────────────────────────────
+  @Get("policy/mandatory-note")
+  getMandatoryNotePolicy() { return this.adminStubs.getMandatoryNotePolicy(); }
+
+  // ─── F-704: Audit log IP config ──────────────────────────────────────────
+  @Get("policy/audit-log-ip")
+  getAuditLogIpConfig() { return this.adminStubs.getAuditLogIpConfig(); }
+
+  // ─── F-741: Platform banner config ───────────────────────────────────────
+  @Get("platform/banner")
+  getPlatformBannerConfig() { return this.adminStubs.getPlatformBannerConfig(); }
+
+  @Post("platform/banner")
+  setPlatformBanner(@Body() config: { message: string; type: string; dismissible: boolean; showFrom?: string; showUntil?: string }) {
+    return this.adminStubs.setPlatformBanner(config);
+  }
+
+  // ─── F-744: A/B-Test admin config ────────────────────────────────────────
+  @Get("ab-tests/config")
+  getAbTestAdminConfig() { return this.adminStubs.getAbTestAdminConfig(); }
 }

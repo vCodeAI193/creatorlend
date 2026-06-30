@@ -32,6 +32,7 @@ export class AdminService {
     if (filters.role) where.role = filters.role;
     if (filters.search) {
       (where as Record<string, unknown>)["OR"] = [
+        { id: filters.search },
         { email: { contains: filters.search, mode: "insensitive" } },
         { displayName: { contains: filters.search, mode: "insensitive" } },
       ];
@@ -58,6 +59,37 @@ export class AdminService {
       this.prisma.user.count({ where: where as never }),
     ]);
     return { users, meta: { page, pageSize: limit, total } };
+  }
+
+  // F-714: Nutzer:in-Profilansicht (alle Daten im Admin)
+  async getUserAdminProfile(userId: string) {
+    const [user, loans, subscription, auditLog] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true, email: true, displayName: true, role: true,
+          emailVerified: true, createdAt: true, suspendedAt: true,
+          suspendReason: true, deletedAt: true,
+        },
+      }),
+      this.prisma.loan.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: { id: true, workId: true, status: true, expiresAt: true, createdAt: true },
+      }),
+      this.prisma.subscription.findFirst({
+        where: { userId, status: 'ACTIVE' },
+        select: { id: true, plan: true, status: true, currentPeriodEnd: true },
+      }),
+      this.prisma.auditLog.findMany({
+        where: { targetId: userId },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: { id: true, action: true, actorId: true, createdAt: true },
+      }),
+    ]);
+    return { user, recentLoans: loans, activeSubscription: subscription, recentAuditLog: auditLog };
   }
 
   private async writeAuditLog(actorId: string, action: string, targetType?: string, targetId?: string, meta?: object) {

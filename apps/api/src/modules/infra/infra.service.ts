@@ -351,6 +351,23 @@ export class InfraService implements OnApplicationShutdown {
     };
   }
 
+  // F-933: mTLS für interne Dienst-zu-Dienst-Kommunikation
+  getMtlsConfig() {
+    return {
+      enabled: !!process.env.MTLS_ENABLED,
+      certProvider: 'AWS ACM PCA',
+      services: [
+        { name: 'api → stripe-proxy', status: 'planned' },
+        { name: 'api → media-service', status: 'planned' },
+        { name: 'api → notification-service', status: 'planned' },
+      ],
+      caArn: process.env.ACM_PCA_CA_ARN ?? null,
+      certRotationDays: 90,
+      verifyClientCerts: true,
+      docs: 'https://docs.aws.amazon.com/acm-pca/latest/userguide/PcaCreateCa.html',
+    };
+  }
+
   // F-935: Automatische Secret-Rotation
   getSecretRotationConfig() {
     return {

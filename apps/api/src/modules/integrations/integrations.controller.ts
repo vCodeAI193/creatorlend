@@ -279,4 +279,38 @@ export class AdminIntegrationsController {
   iftttIntegration() {
     return this.integrations.getIftttIntegrationInfo();
   }
+
+  // F-891: Spotify-Import
+  @Post('spotify/import')
+  @UseGuards(JwtAuthGuard)
+  spotifyImport(@CurrentUser() user: { userId: string }, @Body('playlistId') playlistId?: string) {
+    return this.integrations.importSpotifyPlaylist(user.userId, playlistId);
+  }
+
+  // F-892: Audible-Import
+  @Post('audible/import')
+  @UseGuards(JwtAuthGuard)
+  audibleImport(@CurrentUser() user: { userId: string }, @Body('csvContent') csvContent?: string) {
+    return this.integrations.importAudibleHistory(user.userId, csvContent);
+  }
+
+  // F-894: Apple Health Config
+  @Get('apple-health')
+  appleHealthConfig() {
+    return this.integrations.getAppleHealthConfig();
+  }
+
+  // F-896: Notion-Export
+  @Post('notion/export')
+  @UseGuards(JwtAuthGuard)
+  notionExport(@CurrentUser() user: { userId: string }, @Body('workId') workId?: string) {
+    return this.integrations.exportNotesToNotion(user.userId, workId);
+  }
+
+  // F-897: Obsidian-Export
+  @Post('obsidian/export')
+  @UseGuards(JwtAuthGuard)
+  obsidianExport(@CurrentUser() user: { userId: string }, @Body('workId') workId?: string) {
+    return this.integrations.exportToObsidian(user.userId, workId);
+  }
 }
