@@ -38,6 +38,9 @@ import { TrackingModule } from "./modules/tracking/tracking.module";
 import { OAuthModule } from "./modules/oauth/oauth.module";
 import { AccessibilityModule } from "./modules/accessibility/accessibility.module";
 import { InfraModule } from "./modules/infra/infra.module";
+import { StreamingModule } from "./modules/streaming/streaming.module";
+import { IntegrationsModule } from "./modules/integrations/integrations.module";
+import { RealtimeModule } from "./modules/realtime/realtime.module";
 
 @Module({
   imports: [
@@ -74,6 +77,9 @@ import { InfraModule } from "./modules/infra/infra.module";
     OAuthModule,
     AccessibilityModule,
     InfraModule,
+    StreamingModule,
+    IntegrationsModule,
+    RealtimeModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: HttpLoggerInterceptor },

@@ -362,4 +362,124 @@ export class AnalyticsService {
     ]);
     return { highFraudUsers: highFraud, flaggedPayouts, suspiciousLoanPatterns: fakePlays.length };
   }
+
+  // F-774: Conversion-Rate Trial → Paid
+  async getConversionRate() {
+    const total = await this.prisma.user.count({ where: { deletedAt: null } });
+    const paid = await this.prisma.subscription.count({ where: { status: 'ACTIVE' } });
+    return { totalUsers: total, paidSubscribers: paid, conversionRate: total > 0 ? Math.round((paid / total) * 1000) / 10 : 0 };
+  }
+
+  // F-775: Funnel-Report Register → Activate → Borrow → Renew
+  async getFunnelReport() {
+    const [registered, activated, borrowed, renewed] = await Promise.all([
+      this.prisma.user.count({ where: { deletedAt: null } }),
+      this.prisma.subscription.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.loan.count(),
+      this.prisma.loan.count({ where: { renewalCount: { gte: 1 } } }),
+    ]);
+    return {
+      steps: [
+        { step: 'Register', count: registered },
+        { step: 'Activate Subscription', count: activated, dropOffPct: registered > 0 ? Math.round((1 - activated / registered) * 100) : 0 },
+        { step: 'First Borrow', count: borrowed, dropOffPct: activated > 0 ? Math.round((1 - borrowed / activated) * 100) : 0 },
+        { step: 'Renew', count: renewed, dropOffPct: borrowed > 0 ? Math.round((1 - renewed / borrowed) * 100) : 0 },
+      ],
+    };
+  }
+
+  // F-780: Feature-Adoption-Rate
+  async getFeatureAdoptionRate() {
+    const [users, withSubscription, withLoan, withPlaylist, withReview, withFollow] = await Promise.all([
+      this.prisma.user.count({ where: { deletedAt: null } }),
+      this.prisma.user.count({ where: { subscription: { isNot: null } } }),
+      this.prisma.user.count({ where: { loans: { some: {} } } }),
+      this.prisma.user.count({ where: { playlists: { some: {} } } }),
+      this.prisma.user.count({ where: { reviews: { some: {} } } }),
+      this.prisma.user.count({ where: { following: { some: {} } } }),
+    ]);
+    const pct = (n: number) => users > 0 ? Math.round((n / users) * 100) : 0;
+    return {
+      totalUsers: users,
+      features: [
+        { feature: 'Subscription', adoptionPct: pct(withSubscription) },
+        { feature: 'Borrow', adoptionPct: pct(withLoan) },
+        { feature: 'Playlist', adoptionPct: pct(withPlaylist) },
+        { feature: 'Review', adoptionPct: pct(withReview) },
+        { feature: 'Follow Artist', adoptionPct: pct(withFollow) },
+      ],
+    };
+  }
+
+  // F-781: Session-Länge-Histogramm (über UserSession-Daten)
+  async getSessionLengthHistogram() {
+    const rows = await this.prisma.$queryRaw<Array<{ bucket: string; cnt: bigint }>>`
+      SELECT
+        CASE
+          WHEN EXTRACT(EPOCH FROM ("lastActiveAt" - "createdAt")) < 60 THEN '<1min'
+          WHEN EXTRACT(EPOCH FROM ("lastActiveAt" - "createdAt")) < 300 THEN '1-5min'
+          WHEN EXTRACT(EPOCH FROM ("lastActiveAt" - "createdAt")) < 900 THEN '5-15min'
+          WHEN EXTRACT(EPOCH FROM ("lastActiveAt" - "createdAt")) < 3600 THEN '15-60min'
+          ELSE '>1h'
+        END AS bucket,
+        COUNT(*) AS cnt
+      FROM "UserSession"
+      WHERE "lastActiveAt" IS NOT NULL
+      GROUP BY bucket
+      ORDER BY MIN(EXTRACT(EPOCH FROM ("lastActiveAt" - "createdAt")))
+    `;
+    return rows.map((r) => ({ bucket: r.bucket, count: Number(r.cnt) }));
+  }
+
+  // F-786: Empfehlungs-CTR (Anteil der Leihen die aus Empfehlungen kamen, via CustomEvent)
+  async getRecommendationCtr() {
+    const [totalLoans, recClicks] = await Promise.all([
+      this.prisma.loan.count(),
+      this.prisma.customEvent.count({ where: { eventName: 'recommendation_click_borrow' } }),
+    ]);
+    return { totalLoans, fromRecommendation: recClicks, ctr: totalLoans > 0 ? Math.round((recClicks / totalLoans) * 1000) / 10 : 0 };
+  }
+
+  // F-815: Error-Tracking-Zusammenfassung (Sentry-stub)
+  async getErrorTracking() {
+    return {
+      provider: process.env.SENTRY_DSN ? 'Sentry' : 'none',
+      recentErrors: [],
+      errorRatePerHour: 0,
+      sentryDashboardUrl: process.env.SENTRY_PROJECT_URL ?? null,
+    };
+  }
+
+  // F-816: Performance-Profiling-Zusammenfassung
+  async getPerformanceSummary() {
+    const rows = await this.prisma.$queryRaw<Array<{ avg_ms: number; p99_ms: number; cnt: bigint }>>`
+      SELECT
+        AVG(EXTRACT(EPOCH FROM ("updatedAt" - "createdAt")) * 1000)::INT AS avg_ms,
+        PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM ("updatedAt" - "createdAt")) * 1000)::INT AS p99_ms,
+        COUNT(*) AS cnt
+      FROM "Loan"
+      WHERE "createdAt" >= NOW() - INTERVAL '24 hours'
+    `;
+    return { avgLoanCreationMs: rows[0]?.avg_ms ?? 0, p99Ms: rows[0]?.p99_ms ?? 0, sampleSize: Number(rows[0]?.cnt ?? 0) };
+  }
+
+  // F-817: Slow-Query-Log (pg_stat_statements stub)
+  async getSlowQueries() {
+    return { message: 'Install pg_stat_statements extension and query pg_stat_statements view for slow query log', topSlowQueries: [] };
+  }
+
+  // F-818: Redis Cache-Hit-Rate
+  async getCacheHitRate() {
+    return { message: 'Connect to Redis INFO stats endpoint for live cache hit rate', hitRate: null, provider: process.env.REDIS_URL ? 'redis' : 'none' };
+  }
+
+  // F-811: Feature-Request-Voting Analytics
+  async getFeatureRequestVoting() {
+    const rows = await this.prisma.$queryRaw<Array<{ eventName: string; cnt: bigint }>>`
+      SELECT "eventName", COUNT(*) AS cnt FROM "CustomEvent"
+      WHERE "eventName" LIKE 'feature_vote_%'
+      GROUP BY "eventName" ORDER BY cnt DESC LIMIT 20
+    `;
+    return rows.map((r) => ({ feature: r.eventName.replace('feature_vote_', ''), votes: Number(r.cnt) }));
+  }
 }

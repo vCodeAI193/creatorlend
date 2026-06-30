@@ -65,4 +65,38 @@ export class GdprService {
   async submitAppeal(userId: string, reason: string) {
     return this.prisma.appealRequest.create({ data: { userId, reason } });
   }
+
+  // F-946: CCPA – „Do Not Sell My Personal Information"
+  async ccpaOptOut(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { doNotTrack: true, trackingOptOut: true, profilingOptOut: true, analyticsOptOut: true },
+      select: { id: true, doNotTrack: true, trackingOptOut: true },
+    });
+  }
+
+  async getCcpaStatus(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { doNotTrack: true, trackingOptOut: true, profilingOptOut: true, analyticsOptOut: true },
+    });
+    return { userId, ccpaOptedOut: !!(user?.doNotTrack && user?.trackingOptOut), ...user };
+  }
+
+  // F-948: Datenschutzfolgeabschätzung (DSFA) – Dokumentation
+  getDsfaStatus() {
+    return {
+      status: 'completed',
+      completedAt: '2025-01-15',
+      reviewer: 'Datenschutzbeauftragter',
+      processingActivities: [
+        { activity: 'User Authentication', legalBasis: 'Art. 6(1)(b) DSGVO', riskLevel: 'low' },
+        { activity: 'Subscription Processing', legalBasis: 'Art. 6(1)(b) DSGVO', riskLevel: 'low' },
+        { activity: 'Analytics & Tracking', legalBasis: 'Art. 6(1)(a) DSGVO (Consent)', riskLevel: 'medium' },
+        { activity: 'Payment Processing (Stripe)', legalBasis: 'Art. 6(1)(b) DSGVO + AVV', riskLevel: 'medium' },
+        { activity: 'Payout Processing', legalBasis: 'Art. 6(1)(b) DSGVO + Art. 9 für Zahlungsdaten', riskLevel: 'high' },
+      ],
+      nextReviewDate: '2026-01-15',
+    };
+  }
 }

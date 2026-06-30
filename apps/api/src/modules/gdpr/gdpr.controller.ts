@@ -34,6 +34,18 @@ export class GdprController {
   listUserRequests(@CurrentUser() userId: string) {
     return this.gdpr.listUserRequests(userId);
   }
+
+  // POST /api/v1/gdpr/ccpa/opt-out – CCPA Opt-Out (F-946)
+  @Post('ccpa/opt-out')
+  ccpaOptOut(@CurrentUser() user: { userId: string }) {
+    return this.gdpr.ccpaOptOut(user.userId);
+  }
+
+  // GET /api/v1/gdpr/ccpa/status – CCPA-Status (F-946)
+  @Get('ccpa/status')
+  ccpaStatus(@CurrentUser() user: { userId: string }) {
+    return this.gdpr.getCcpaStatus(user.userId);
+  }
 }
 
 @Controller('admin/gdpr')
@@ -56,5 +68,11 @@ export class AdminGdprController {
     @Body('downloadUrl') downloadUrl?: string,
   ) {
     return this.gdpr.completeRequest(adminId, id, downloadUrl);
+  }
+
+  // GET /api/v1/admin/gdpr/dsfa – DSFA-Status (F-948)
+  @Get('dsfa')
+  getDsfa() {
+    return this.gdpr.getDsfaStatus();
   }
 }

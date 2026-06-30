@@ -693,4 +693,64 @@ export class AdminController {
   fraudDashboard() {
     return this.analytics.getFraudDashboard();
   }
+
+  // GET /api/v1/admin/analytics/conversion – Conversion-Rate (F-774)
+  @Get("analytics/conversion")
+  conversion() {
+    return this.analytics.getConversionRate();
+  }
+
+  // GET /api/v1/admin/analytics/funnel – Funnel-Report (F-775)
+  @Get("analytics/funnel")
+  funnel() {
+    return this.analytics.getFunnelReport();
+  }
+
+  // GET /api/v1/admin/analytics/feature-adoption – Feature-Adoption (F-780)
+  @Get("analytics/feature-adoption")
+  featureAdoption() {
+    return this.analytics.getFeatureAdoptionRate();
+  }
+
+  // GET /api/v1/admin/analytics/session-histogram – Session-Länge (F-781)
+  @Get("analytics/session-histogram")
+  sessionHistogram() {
+    return this.analytics.getSessionLengthHistogram();
+  }
+
+  // GET /api/v1/admin/analytics/recommendation-ctr – Empfehlungs-CTR (F-786)
+  @Get("analytics/recommendation-ctr")
+  recommendationCtr() {
+    return this.analytics.getRecommendationCtr();
+  }
+
+  // GET /api/v1/admin/analytics/errors – Error-Tracking (F-815)
+  @Get("analytics/errors")
+  errorTracking() {
+    return this.analytics.getErrorTracking();
+  }
+
+  // GET /api/v1/admin/analytics/performance – Performance-Profiling (F-816)
+  @Get("analytics/performance")
+  performance() {
+    return this.analytics.getPerformanceSummary();
+  }
+
+  // GET /api/v1/admin/analytics/slow-queries – Slow-Query-Log (F-817)
+  @Get("analytics/slow-queries")
+  slowQueries() {
+    return this.analytics.getSlowQueries();
+  }
+
+  // GET /api/v1/admin/analytics/cache-hit-rate – Cache-Hit-Rate (F-818)
+  @Get("analytics/cache-hit-rate")
+  cacheHitRate() {
+    return this.analytics.getCacheHitRate();
+  }
+
+  // GET /api/v1/admin/analytics/feature-requests – Feature-Request-Voting (F-811)
+  @Get("analytics/feature-requests")
+  featureRequests() {
+    return this.analytics.getFeatureRequestVoting();
+  }
 }
