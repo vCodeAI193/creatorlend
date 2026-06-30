@@ -470,6 +470,20 @@ export class UsersController {
     return this.users.setTrackingPreferences(userId, { profilingOptOut: false });
   }
 
+  // PATCH /api/v1/users/me/dark-mode – Dark-Mode-Präferenz (F-501)
+  @Patch("me/dark-mode")
+  setDarkMode(@CurrentUser() userId: string, @Body("darkMode") darkMode: boolean) {
+    return this.users.updateProfile(userId, { socialLinks: { darkMode } as never });
+  }
+
+  // GET /api/v1/users/me/dark-mode – Dark-Mode-Präferenz abrufen (F-501)
+  @Get("me/dark-mode")
+  async getDarkMode(@CurrentUser() userId: string) {
+    const profile = await this.users.getProfile(userId);
+    const links = (profile as Record<string, unknown>)?.socialLinks as Record<string, unknown> | null;
+    return { darkMode: links?.darkMode ?? false };
+  }
+
   // POST /api/v1/users/reading-challenge – Leseherausforderung setzen (F-550)
   @Post("reading-challenge")
   setReadingChallenge(

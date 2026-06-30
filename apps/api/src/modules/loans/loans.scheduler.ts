@@ -18,9 +18,10 @@ export class LoansScheduler {
     const { reminded } = await this.loans.runExpiringSoonReminders();
     const { expired } = await this.loans.runExpirySweep();
     const { reset } = await this.loans.resetExpiredQuotas();
-    if (reminded || expired || reset) {
+    const { prompted } = await this.loans.runRatingPrompts();
+    if (reminded || expired || reset || prompted) {
       this.logger.log(
-        `Sweep: ${reminded} Erinnerungen, ${expired} abgelaufen, ${reset} Kontingente zurückgesetzt`,
+        `Sweep: ${reminded} Erinnerungen, ${expired} abgelaufen, ${reset} Kontingente zurückgesetzt, ${prompted} Bewertungsaufforderungen`,
       );
     }
   }

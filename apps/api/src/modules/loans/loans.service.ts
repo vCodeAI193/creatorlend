@@ -305,6 +305,45 @@ export class LoansService {
   }
 
   /**
+   * F-519: Bewertungsaufforderung nach Ablauf einer Leihe.
+   * Sendet RATING_PROMPT-Benachrichtigung für Leihen, die in den letzten
+   * 2 Stunden abgelaufen sind, falls noch keine Bewertung vorliegt.
+   */
+  async runRatingPrompts(): Promise<{ prompted: number }> {
+    const now = new Date();
+    const since = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+    const recentlyExpired = await this.prisma.loan.findMany({
+      where: { status: "EXPIRED", expiresAt: { gte: since, lte: now } },
+      select: { id: true, userId: true, workId: true },
+    });
+
+    let prompted = 0;
+    for (const l of recentlyExpired) {
+      try {
+        const alreadyPrompted = await this.prisma.notification.findFirst({
+          where: { userId: l.userId, type: "RATING_PROMPT", data: { path: ["loanId"], equals: l.id } },
+        });
+        if (alreadyPrompted) continue;
+
+        const hasReview = await this.prisma.review.findFirst({ where: { userId: l.userId, workId: l.workId } });
+        if (hasReview) continue;
+
+        await this.notifications.create({
+          userId: l.userId,
+          type: NotificationType.RATING_PROMPT,
+          title: "Wie hat dir das Werk gefallen?",
+          body: "Deine Leihe ist abgelaufen. Hinterlasse jetzt eine Bewertung!",
+          data: { loanId: l.id, workId: l.workId },
+        });
+        prompted += 1;
+      } catch (err) {
+        this.logger.warn(`Rating prompt failed for loan ${l.id}`, err);
+      }
+    }
+    return { prompted };
+  }
+
+  /**
    * Erinnerung kurz vor Ablauf (F-082): aktive Leihen, die in <24h ablaufen
    * und für die noch keine Erinnerung erzeugt wurde. Dedup über die bereits
    * vorhandene LOAN_EXPIRING-Benachrichtigung (per data.loanId).

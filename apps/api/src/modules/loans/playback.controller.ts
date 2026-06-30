@@ -13,8 +13,15 @@ export class PlaybackController {
     @CurrentUser() userId: string,
     @Body('workId') workId: string,
     @Body('positionSeconds') positionSeconds: number,
+    @Body('deviceId') deviceId?: string,
   ) {
-    return this.playback.updatePosition(userId, workId, positionSeconds);
+    return this.playback.updatePosition(userId, workId, positionSeconds, deviceId);
+  }
+
+  // GET /api/v1/playback/sync/:workId – Cross-device sync status (F-276)
+  @Get('sync/:workId')
+  syncStatus(@CurrentUser() userId: string, @Param('workId') workId: string) {
+    return this.playback.getDeviceSyncStatus(userId, workId);
   }
 
   @Get(':workId')

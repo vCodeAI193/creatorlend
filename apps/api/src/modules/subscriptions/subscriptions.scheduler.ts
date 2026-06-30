@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { NotificationType } from "../notifications/notification-types";
 import { SubscriptionsService } from "./subscriptions.service";
+import { MailService } from "../mail/mail.service";
 
 @Injectable()
 export class SubscriptionsScheduler {
@@ -13,6 +14,7 @@ export class SubscriptionsScheduler {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly subscriptions: SubscriptionsService,
+    private readonly mail: MailService,
   ) {}
 
   /** Dunning: benachrichtigt Nutzer mit PAST_DUE-Abo stündlich (B-098). */
@@ -43,6 +45,7 @@ export class SubscriptionsScheduler {
 
   /**
    * F-418: Erneuerungs-Erinnerung 7 Tage vor Ablauf des aktuellen Abo-Zeitraums.
+   * F-654: Sendet zusätzlich eine E-Mail-Erinnerung.
    * Läuft täglich um 9 Uhr und benachrichtigt Nutzer:innen, deren Abo in
    * ~7 Tagen abläuft (Fenster: 7 Tage ± 30 Minuten).
    */
@@ -57,7 +60,7 @@ export class SubscriptionsScheduler {
         status: "ACTIVE",
         currentPeriodEnd: { gte: windowStart, lte: windowEnd },
       },
-      select: { userId: true, currentPeriodEnd: true },
+      select: { userId: true, currentPeriodEnd: true, plan: true },
     });
 
     let notified = 0;
@@ -70,12 +73,55 @@ export class SubscriptionsScheduler {
           body: `Dein Abonnement wird in 7 Tagen automatisch verlängert.`,
           data: { renewalDate: sub.currentPeriodEnd },
         });
+        const user = await this.prisma.user.findUnique({ where: { id: sub.userId }, select: { email: true, displayName: true } });
+        if (user && sub.currentPeriodEnd) {
+          await this.mail.sendSubscriptionRenewalReminder(user.email, user.displayName, sub.currentPeriodEnd, sub.plan ?? 'Standard');
+        }
         notified += 1;
       } catch (err) {
         this.logger.error(`Renewal-Erinnerung für ${sub.userId} fehlgeschlagen`, err);
       }
     }
     this.logger.log(`Renewal-Erinnerungen: ${notified} Benachrichtigungen gesendet`);
+  }
+
+  /**
+   * F-419: Preiserhöhungs-Ankündigung 30 Tage vorher.
+   * Läuft täglich um 10 Uhr. Sendet E-Mail wenn PRICE_INCREASE_DATE (ISO) gesetzt
+   * und heute genau 30 Tage davor liegt (±12h Fenster).
+   */
+  @Cron('0 10 * * *')
+  async handlePriceIncreaseNotification() {
+    const priceIncreaseDate = process.env.PRICE_INCREASE_DATE;
+    const newPriceCents = Number(process.env.PRICE_INCREASE_AMOUNT_CENTS ?? '0');
+    if (!priceIncreaseDate || !newPriceCents) return;
+
+    const effectiveDate = new Date(priceIncreaseDate);
+    const now = new Date();
+    const diff = effectiveDate.getTime() - now.getTime();
+    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    if (Math.abs(diff - thirtyDays) > 12 * 60 * 60 * 1000) return;
+
+    const activeSubscribers = await this.prisma.subscription.findMany({
+      where: { status: 'ACTIVE' },
+      select: { userId: true },
+    });
+
+    let sent = 0;
+    for (const sub of activeSubscribers) {
+      try {
+        const user = await this.prisma.user.findUnique({ where: { id: sub.userId }, select: { email: true, displayName: true } });
+        if (user) {
+          await this.mail.sendPriceIncreaseNotification(user.email, user.displayName, newPriceCents, effectiveDate);
+          sent += 1;
+        }
+      } catch (err) {
+        this.logger.error(`Preiserhöhungs-E-Mail für ${sub.userId} fehlgeschlagen`, err);
+      }
+    }
+    if (sent > 0) {
+      this.logger.log(`Preiserhöhungs-Ankündigungen: ${sent} E-Mails gesendet`);
+    }
   }
 
   /** Auto-Resume pausierter Abos (F-529): läuft stündlich. */

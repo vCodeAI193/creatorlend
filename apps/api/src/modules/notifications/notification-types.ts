@@ -29,6 +29,7 @@ export const NotificationType = {
   BOOK_CLUB_STARTING: "BOOK_CLUB_STARTING", // an Mitglied: Buchclub beginnt in 1h (F-687)
   PRICE_DROP_WISHLIST: "PRICE_DROP_WISHLIST", // an Hörer:in: Preissenkung Wunschliste (F-688)
   ARTIST_ON_SALE: "ARTIST_ON_SALE",        // an Hörer:in: Lieblingsartist im Angebot (F-689)
+  RATING_PROMPT: "RATING_PROMPT",          // an Hörer:in: Bewertungsaufforderung nach Ablauf (F-519)
 } as const;
 
 export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];

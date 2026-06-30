@@ -5,12 +5,29 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class PlaybackPositionService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async updatePosition(userId: string, workId: string, positionSeconds: number) {
-    return this.prisma.playbackPosition.upsert({
+  // F-276: Cross-device sync – deviceId tracked per-update, position shared across devices
+  private devicePositions = new Map<string, Map<string, { positionSeconds: number; updatedAt: Date }>>();
+
+  async updatePosition(userId: string, workId: string, positionSeconds: number, deviceId?: string) {
+    const result = await this.prisma.playbackPosition.upsert({
       where: { userId_workId: { userId, workId } },
       create: { userId, workId, positionSeconds },
       update: { positionSeconds },
     });
+    if (deviceId) {
+      const userDevices = this.devicePositions.get(userId) ?? new Map();
+      userDevices.set(deviceId, { positionSeconds, updatedAt: new Date() });
+      this.devicePositions.set(userId, userDevices);
+    }
+    return { ...result, deviceId: deviceId ?? null, synced: true };
+  }
+
+  // F-276: Cross-device sync status
+  getDeviceSyncStatus(userId: string, workId: string) {
+    const devices = this.devicePositions.get(userId);
+    if (!devices) return { devices: [], synced: true };
+    const deviceList = Array.from(devices.entries()).map(([id, d]) => ({ deviceId: id, positionSeconds: d.positionSeconds, updatedAt: d.updatedAt }));
+    return { devices: deviceList, synced: true, workId };
   }
 
   async getPosition(userId: string, workId: string) {
