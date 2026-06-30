@@ -141,4 +141,10 @@ export class InfraController {
   pitrConfig() {
     return this.infra.getPitrConfig();
   }
+
+  // F-753: Release-Notes aus Git-History
+  @Get('release-notes')
+  releaseNotes() {
+    return this.infra.getReleaseNotes();
+  }
 }

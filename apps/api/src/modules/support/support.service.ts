@@ -98,6 +98,42 @@ export class SupportService {
     return { id, voteCount: req.votes.size, voted: !alreadyVoted };
   }
 
+  // F-691: In-App Chat mit Support (Live-Chat Widget stub)
+  async startChatSession(userId: string, initialMessage: string) {
+    // Production: integrate with Intercom / Crisp / Chatwoot
+    const sessionId = `chat-${userId}-${Date.now()}`;
+    return {
+      sessionId,
+      status: 'CONNECTED',
+      welcomeMessage: 'Willkommen beim CreatorLend Support! Ein Mitarbeiter wird sich gleich melden.',
+      provider: 'stub',
+      initialMessage,
+    };
+  }
+
+  // F-691: Chat-Nachricht senden (stub)
+  async sendChatMessage(userId: string, sessionId: string, message: string) {
+    return { sessionId, userId, message, sentAt: new Date().toISOString(), status: 'DELIVERED' };
+  }
+
+  // F-692: Chatbot-Antwort auf häufige Fragen
+  chatbotResponse(message: string): { answer: string; suggestedTopics: string[]; escalate: boolean } {
+    const m = message.toLowerCase();
+    if (m.includes('kündigen') || m.includes('abo')) {
+      return { answer: 'Dein Abo kannst du unter Einstellungen → Abonnement kündigen.', suggestedTopics: ['Abo', 'Kündigung'], escalate: false };
+    }
+    if (m.includes('bezahl') || m.includes('rechnung')) {
+      return { answer: 'Für Fragen zu Zahlungen wende dich bitte an support@creatorlend.com.', suggestedTopics: ['Zahlung', 'Rechnung'], escalate: true };
+    }
+    if (m.includes('leihe') || m.includes('ausleihen')) {
+      return { answer: 'Werke können über die Schaltfläche "Leihen" auf der Werk-Seite geliehen werden. Die Leihdauer beträgt 7 Tage.', suggestedTopics: ['Leihe', 'Zugang'], escalate: false };
+    }
+    if (m.includes('passwort') || m.includes('anmeld')) {
+      return { answer: 'Über "Passwort vergessen" auf der Login-Seite kannst du dein Passwort zurücksetzen.', suggestedTopics: ['Passwort', 'Login'], escalate: false };
+    }
+    return { answer: 'Ich habe deine Frage notiert. Ein Support-Mitarbeiter wird sich melden.', suggestedTopics: ['Allgemein'], escalate: true };
+  }
+
   // F-607: Bug-Report direkt aus der App einreichen
   async createBugReport(userId: string, title: string, description: string, metadata?: Record<string, unknown>) {
     return this.prisma.supportTicket.create({

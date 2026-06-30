@@ -376,6 +376,17 @@ export class AdminController {
     return this.contentModeration.moderateWork(id);
   }
 
+  // POST /api/v1/admin/works/:id/ai-flag-review – Human-in-the-Loop KI-Flagging (F-729)
+  @Post("works/:id/ai-flag-review")
+  reviewAiFlag(
+    @CurrentUser() reviewerId: string,
+    @Param("id") workId: string,
+    @Body("decision") decision: 'CONFIRM' | 'DISMISS',
+    @Body("note") note?: string,
+  ) {
+    return this.contentModeration.reviewAiFlag(workId, reviewerId, decision, note);
+  }
+
   // GET /api/v1/admin/translations/pending – Pending translations list (F-996)
   @Get("translations/pending")
   listPendingTranslations(@Query("lang") lang = 'en') {

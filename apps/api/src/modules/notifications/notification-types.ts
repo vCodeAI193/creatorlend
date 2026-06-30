@@ -32,6 +32,7 @@ export const NotificationType = {
   RATING_PROMPT: "RATING_PROMPT",          // an Hörer:in: Bewertungsaufforderung nach Ablauf (F-519)
   RATING_PROMPT_24H: "RATING_PROMPT_24H",  // an Hörer:in: 24h-Bewertungserinnerung (F-520)
   ARTIST_NEWSLETTER: "ARTIST_NEWSLETTER",  // an Follower:in: Künstler-Newsletter (F-443)
+  NEW_QUESTION_ANSWER: "NEW_QUESTION_ANSWER", // an Nutzer:in: Antwort auf FAQ-Frage (F-690)
 } as const;
 
 export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];

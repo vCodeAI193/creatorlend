@@ -371,6 +371,24 @@ export class UsersController {
     return this.marketing.trackEvent(userId, event, properties);
   }
 
+  // GET /api/v1/users/me/email-sequences – Verfügbare E-Mail-Sequenzen (F-669)
+  @Get("me/email-sequences")
+  listEmailSequences() {
+    return this.marketing.getAvailableSequences();
+  }
+
+  // POST /api/v1/users/me/email-sequences/:name/trigger – E-Mail-Sequenz starten (F-669)
+  @Post("me/email-sequences/:name/trigger")
+  triggerEmailSequence(@CurrentUser() userId: string, @Param("name") name: string) {
+    return this.marketing.triggerSequence(userId, name);
+  }
+
+  // DELETE /api/v1/users/me/email-sequences/:name – E-Mail-Sequenz abbrechen (F-669)
+  @Delete("me/email-sequences/:name")
+  cancelEmailSequence(@CurrentUser() userId: string, @Param("name") name: string) {
+    return this.marketing.cancelSequence(userId, name);
+  }
+
   // POST /api/v1/users/me/ccpa/do-not-sell – Do Not Sell My Data (F-946)
   @Post("me/ccpa/do-not-sell")
   ccpaDoNotSell(@CurrentUser() userId: string) {

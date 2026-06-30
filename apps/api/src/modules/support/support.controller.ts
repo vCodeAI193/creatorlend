@@ -76,6 +76,28 @@ export class SupportController {
   ) {
     return this.support.createBugReport(userId, title, description, metadata);
   }
+
+  // POST /api/v1/support/chat – In-App Chat starten (F-691)
+  @Post('chat')
+  startChat(@CurrentUser() userId: string, @Body('message') message: string) {
+    return this.support.startChatSession(userId, message ?? '');
+  }
+
+  // POST /api/v1/support/chat/:sessionId/message – Chat-Nachricht senden (F-691)
+  @Post('chat/:sessionId/message')
+  sendChatMessage(
+    @CurrentUser() userId: string,
+    @Param('sessionId') sessionId: string,
+    @Body('message') message: string,
+  ) {
+    return this.support.sendChatMessage(userId, sessionId, message);
+  }
+
+  // POST /api/v1/support/chatbot – Chatbot-Frage stellen (F-692)
+  @Post('chatbot')
+  chatbot(@Body('message') message: string) {
+    return this.support.chatbotResponse(message ?? '');
+  }
 }
 
 @Controller('admin/support')

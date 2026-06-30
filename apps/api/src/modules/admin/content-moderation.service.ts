@@ -39,4 +39,24 @@ export class ContentModerationService {
     }
     return { workId, flagged: false, action: 'CLEARED' };
   }
+
+  // F-729: Human-in-the-Loop für KI-Flagging – Admin bestätigt oder verwirft AI-Flag
+  async reviewAiFlag(workId: string, reviewerId: string, decision: 'CONFIRM' | 'DISMISS', note?: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId }, select: { id: true, title: true, status: true } });
+    if (!work) throw new Error('work_not_found');
+    if (decision === 'CONFIRM') {
+      // Unpublish the work
+      await this.prisma.work.update({ where: { id: workId }, data: { status: 'DRAFT' } });
+    }
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: reviewerId,
+        action: `AI_FLAG_${decision}`,
+        targetType: 'Work',
+        targetId: workId,
+        meta: { note, previousStatus: work.status },
+      },
+    });
+    return { workId, decision, reviewerId, action: decision === 'CONFIRM' ? 'UNPUBLISHED' : 'CLEARED', note };
+  }
 }

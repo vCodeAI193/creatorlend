@@ -289,6 +289,19 @@ export class InfraService implements OnApplicationShutdown {
     };
   }
 
+  // F-753: Release-Notes aus Git-History (stub)
+  getReleaseNotes() {
+    return {
+      releases: [
+        { version: '1.3.0', date: '2025-06-01', highlights: ['Empfehlungs-DMs (F-585)', 'One-Tap-Bewertung (F-521)', 'E-Mail-Tracking (F-666)'], breaking: [] },
+        { version: '1.2.0', date: '2025-05-01', highlights: ['Content-Feedback (F-536/F-537)', 'Activity-Feed (F-571)', 'Umsatzbeteiligung (F-386)'], breaking: [] },
+        { version: '1.1.0', date: '2025-04-01', highlights: ['A/B-Tests (F-080)', 'DMCA (F-730)', 'Geo-Blocking (F-736)'], breaking: [] },
+        { version: '1.0.0', date: '2025-01-01', highlights: ['Initial Release', 'Core Lending Loop', 'Stripe Subscriptions'], breaking: [] },
+      ],
+      note: 'In production, generate from git tags and CHANGELOG.md via CI pipeline.',
+    };
+  }
+
   // F-973: Point-in-Time Recovery
   getPitrConfig() {
     return {
