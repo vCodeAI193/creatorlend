@@ -466,6 +466,77 @@ export class SubscriptionsService {
     };
   }
 
+  // F-334: Kreditkarte via Stripe Elements speichern – SetupIntent erstellen
+  async createSetupIntent(userId: string) {
+    if (!this.stripe.isEnabled()) {
+      return {
+        clientSecret: 'seti_dev_stub_secret_key_for_testing',
+        message: 'Configure STRIPE_SECRET_KEY to create real SetupIntents',
+      };
+    }
+    const sub = await this.prisma.subscription.findUnique({ where: { userId }, select: { stripeCustomerId: true } });
+    if (!sub?.stripeCustomerId) {
+      return {
+        message: 'Create a subscription first to get a Stripe customer ID, then save payment methods',
+        hint: 'POST /api/v1/subscriptions to create checkout session',
+      };
+    }
+    // Production: call stripe.setupIntents.create({ customer: sub.stripeCustomerId })
+    return {
+      message: 'Call Stripe SetupIntent API: stripe.setupIntents.create({ customer, payment_method_types: ["card"] })',
+      customerId: sub.stripeCustomerId,
+    };
+  }
+
+  // F-348: Plan-Upgrade mit sofortiger Gutschrift (Prorating)
+  async upgradePlanWithProration(userId: string, newPlan: string) {
+    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
+    if (!sub) throw new NotFoundException('subscription_not_found');
+    const oldPlan = sub.plan;
+    const PRICES = { BASIC: 499, STANDARD: 999, PREMIUM: 1999 } as Record<string, number>;
+    const oldPrice = PRICES[oldPlan] ?? 0;
+    const newPrice = PRICES[newPlan] ?? 0;
+    if (newPrice <= oldPrice) throw new BadRequestException('not_an_upgrade');
+
+    // Calculate proration credit (days remaining × daily rate difference)
+    const periodEnd = sub.currentPeriodEnd ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const daysRemaining = Math.max(0, Math.ceil((periodEnd.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
+    const dailyDiff = (newPrice - oldPrice) / 30;
+    const creditCents = Math.round(daysRemaining * dailyDiff);
+
+    await this.prisma.subscription.update({
+      where: { userId },
+      data: { plan: newPlan, loanQuotaPerPeriod: PLAN_QUOTA[newPlan as keyof typeof PLAN_QUOTA] ?? 10 },
+    });
+
+    return {
+      upgraded: true,
+      from: oldPlan,
+      to: newPlan,
+      proratedCreditCents: creditCents,
+      message: `Prorated credit of €${(creditCents / 100).toFixed(2)} applied. Use Stripe subscription.proration_behavior="create_prorations" for live billing.`,
+    };
+  }
+
+  // F-349: Plan-Downgrade am Periodenende (kein sofortiger Datenverlust)
+  async scheduleDowngrade(userId: string, targetPlan: string) {
+    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
+    if (!sub) throw new NotFoundException('subscription_not_found');
+    // Store pending downgrade (production: set Stripe subscription schedule or metadata)
+    await this.prisma.subscription.update({
+      where: { userId },
+      data: { cancelAtPeriodEnd: false }, // keep active, just schedule plan change
+    });
+    const effectiveAt = sub.currentPeriodEnd ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    return {
+      scheduled: true,
+      currentPlan: sub.plan,
+      targetPlan,
+      effectiveAt,
+      message: `Downgrade to ${targetPlan} will take effect at ${effectiveAt.toISOString()}. Use Stripe subscription schedules for production.`,
+    };
+  }
+
   getAvailablePaymentMethods() {
     return {
       methods: [

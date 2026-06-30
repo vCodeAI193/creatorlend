@@ -220,4 +220,22 @@ export class PayoutsController {
   accountingExport(@CurrentUser() userId: string, @Query("year") year?: string, @Query("format") format?: string) {
     return this.invoice.getAccountingExport(userId, year ? Number(year) : new Date().getFullYear(), format ?? 'datev');
   }
+
+  // GET /api/v1/payouts/kyc/status – KYC-Status abrufen (F-392)
+  @Get("kyc/status")
+  kycStatus(@CurrentUser() userId: string) {
+    return this.payouts.getKycStatus(userId);
+  }
+
+  // POST /api/v1/payouts/kyc/submit – KYC-Daten einreichen (F-392)
+  @Post("kyc/submit")
+  kycSubmit(@CurrentUser() userId: string, @Body() data: Record<string, unknown>) {
+    return this.payouts.submitKyc(userId, data);
+  }
+
+  // GET /api/v1/payouts/price-policy – Plattform-Preisdeckel (F-377)
+  @Get("price-policy")
+  pricePolicy() {
+    return this.payouts.getPricePolicy();
+  }
 }

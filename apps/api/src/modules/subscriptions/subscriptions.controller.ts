@@ -72,6 +72,24 @@ export class SubscriptionsController {
     return this.subscriptions.getBillingPortalUrl(userId);
   }
 
+  // POST /api/v1/subscriptions/setup-intent – Kreditkarte via Stripe Elements speichern (F-334)
+  @Post("setup-intent")
+  createSetupIntent(@CurrentUser() userId: string) {
+    return this.subscriptions.createSetupIntent(userId);
+  }
+
+  // POST /api/v1/subscriptions/me/upgrade – Plan-Upgrade mit Prorating (F-348)
+  @Post("me/upgrade")
+  upgradePlan(@CurrentUser() userId: string, @Body("plan") plan: string) {
+    return this.subscriptions.upgradePlanWithProration(userId, plan);
+  }
+
+  // POST /api/v1/subscriptions/me/downgrade – Downgrade am Periodenende (F-349)
+  @Post("me/downgrade")
+  downgradePlan(@CurrentUser() userId: string, @Body("plan") plan: string) {
+    return this.subscriptions.scheduleDowngrade(userId, plan);
+  }
+
   // GET /api/v1/subscriptions/billing-history – Abrechnungshistorie (B-090)
   @Get("billing-history")
   billingHistory(@CurrentUser() userId: string, @Query("page") page = "1") {

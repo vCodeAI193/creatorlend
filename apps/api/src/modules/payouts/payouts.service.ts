@@ -478,4 +478,77 @@ export class PayoutsService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  // F-391: Automatische Betrugserkennung – ungewöhnliche Auszahlungsmuster
+  async detectFraudulentPayouts() {
+    const THRESHOLD_CENTS = 100_000; // 1000€ single payout
+    const large = await this.prisma.payoutItem.findMany({
+      where: { amountCents: { gte: THRESHOLD_CENTS }, flaggedForFraud: false },
+      include: { artist: { select: { id: true, email: true } } },
+    });
+    // Flag them automatically
+    if (large.length > 0) {
+      await this.prisma.payoutItem.updateMany({
+        where: { id: { in: large.map((i) => i.id) } },
+        data: { flaggedForFraud: true },
+      });
+    }
+    return {
+      flaggedCount: large.length,
+      reason: `Payouts >= €${THRESHOLD_CENTS / 100} flagged for manual review`,
+    };
+  }
+
+  // F-392: KYC-Status abrufen
+  async getKycStatus(userId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { stripeConnectAccountId: true },
+    });
+    const annualEarnings = await this.prisma.payoutItem.aggregate({
+      where: {
+        artistId: userId,
+        status: 'PAID',
+        createdAt: { gte: new Date(`${new Date().getFullYear()}-01-01`) },
+      },
+      _sum: { amountCents: true },
+    });
+    const earnedCents = annualEarnings._sum.amountCents ?? 0;
+    const kycRequired = earnedCents >= 100_000; // 1000€/year triggers KYC
+    return {
+      kycRequired,
+      earnedThisYearCents: earnedCents,
+      thresholdCents: 100_000,
+      stripeConnectStatus: user.stripeConnectAccountId ? 'connected' : 'not_connected',
+      message: kycRequired
+        ? 'KYC required: complete Stripe Connect onboarding to continue receiving payouts'
+        : 'KYC not required yet (earnings below €1000/year)',
+    };
+  }
+
+  // F-392: KYC-Daten einreichen (Stripe Connect leitet zur Onboarding-Page)
+  async submitKyc(userId: string, _data: Record<string, unknown>) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    return {
+      message: 'KYC verification is handled via Stripe Connect onboarding',
+      onboardingUrl: user.stripeConnectAccountId
+        ? `Use POST /api/v1/payouts/connect/onboard to get onboarding URL`
+        : 'No Stripe Connect account yet — call POST /api/v1/payouts/connect/onboard first',
+      requirements: ['government_id', 'proof_of_address', 'bank_account'],
+    };
+  }
+
+  // F-377: Plattform-Preisdeckel (Leihe max. 5 €)
+  getPricePolicy() {
+    return {
+      maxLoanPriceCents: 500,  // 5 €
+      minLoanPriceCents: 50,   // 0,50 €
+      platformFeePct: 30,
+      artistRevSharePct: 70,
+      currency: 'EUR',
+      description: 'Platform policy: loan price must be between €0.50 and €5.00. Artist receives 70% of revenue.',
+      priceCapEnforced: true,
+      updatedAt: '2026-01-01',
+    };
+  }
 }
