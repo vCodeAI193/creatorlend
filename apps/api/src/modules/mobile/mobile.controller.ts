@@ -75,4 +75,88 @@ export class MobileController {
   biometricAuthConfig() {
     return this.mobile.getBiometricAuthConfig();
   }
+
+  // F-821–F-822: Native App Info
+  @Get('native-app')
+  nativeAppInfo() {
+    return this.mobile.getNativeAppInfo();
+  }
+
+  // F-824–F-825: App Clip / Instant App
+  @Get('instant-access')
+  instantAccessInfo() {
+    return this.mobile.getInstantAccessInfo();
+  }
+
+  // F-829: Datensparmodus-Konfiguration
+  @Get('data-saver')
+  dataSaverConfig() {
+    return this.mobile.getDataSaverConfig();
+  }
+
+  // F-830: Wi-Fi-only Downloads
+  @Get('wifi-only')
+  wifiOnlyConfig() {
+    return this.mobile.getWifiOnlyConfig();
+  }
+
+  // F-832–F-833: Widgets
+  @Get('widgets')
+  widgetConfig() {
+    return this.mobile.getWidgetConfig();
+  }
+
+  // F-834–F-835: Dynamic Island / Live Activities
+  @Get('live-activities')
+  liveActivitiesConfig() {
+    return this.mobile.getLiveActivitiesConfig();
+  }
+
+  // F-836–F-838: Notification Extensions & Shortcuts
+  @Get('notifications/extensions')
+  notificationExtensions() {
+    return this.mobile.getNotificationExtensionConfig();
+  }
+
+  // F-839–F-843: Haptic, Dynamic Type, Accessibility
+  @Get('accessibility')
+  mobileA11yConfig() {
+    return this.mobile.getMobileA11yConfig();
+  }
+
+  // F-844–F-847: Battery, App Size, Performance
+  @Get('performance')
+  mobilePerformanceConfig() {
+    return this.mobile.getMobilePerformanceConfig();
+  }
+
+  // F-848–F-850: Offline Library & Conflict Resolution
+  @Get('offline/library')
+  offlineLibraryConfig() {
+    return this.mobile.getOfflineLibraryConfig();
+  }
+
+  // F-854: DRM-Downloads
+  @Get('drm')
+  drmConfig() {
+    return this.mobile.getDrmConfig();
+  }
+
+  // F-856–F-857: Storage Management
+  @Get('storage')
+  storageManagement() {
+    return this.mobile.getStorageManagementConfig();
+  }
+
+  // F-860–F-861: QR Code & Share Extension
+  @Get('sharing')
+  mobileSharingConfig() {
+    return this.mobile.getMobileSharingConfig();
+  }
+
+  // F-863–F-870: Advanced Player (Bluetooth, Car, Podcast, Sleep, etc.)
+  @Get('player/advanced')
+  advancedPlayerConfig() {
+    return this.mobile.getAdvancedPlayerConfig();
+  }
 }

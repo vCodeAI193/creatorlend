@@ -165,4 +165,180 @@ export class MobileService {
       supportedPaths: ['/works/:id', '/artists/:id', '/loans', '/playlists/:id'],
     };
   }
+
+  // F-821–F-822: Native App Info
+  getNativeAppInfo() {
+    return {
+      ios: {
+        status: 'planned',
+        framework: 'Swift / SwiftUI',
+        minVersion: 'iOS 16',
+        appStoreId: process.env.IOS_APP_STORE_ID ?? null,
+        appStoreUrl: process.env.IOS_APP_STORE_ID ? `https://apps.apple.com/app/id${process.env.IOS_APP_STORE_ID}` : null,
+      },
+      android: {
+        status: 'planned',
+        framework: 'Kotlin / Jetpack Compose',
+        minVersion: 'Android 8.0 (API 26)',
+        packageName: 'com.creatorlend.app',
+        playStoreUrl: 'https://play.google.com/store/apps/details?id=com.creatorlend.app',
+      },
+    };
+  }
+
+  // F-824–F-825: App Clip / Instant App
+  getInstantAccessInfo() {
+    return {
+      appClip: {
+        platform: 'iOS',
+        status: 'planned',
+        bundleId: 'com.creatorlend.app.Clip',
+        triggerUrl: `${process.env.APP_BASE_URL ?? 'https://app.creatorlend.com'}/clip/works/:id`,
+        maxSize: '10MB',
+        features: ['Preview first 5 minutes', 'Borrow CTA'],
+      },
+      instantApp: {
+        platform: 'Android',
+        status: 'planned',
+        maxSize: '15MB',
+        features: ['Play preview', 'Subscribe CTA'],
+      },
+    };
+  }
+
+  // F-829: Datensparmodus
+  getDataSaverConfig() {
+    return {
+      modes: [
+        { name: 'HIGH_QUALITY', bitrateKbps: 320, description: 'Full quality (Wi-Fi recommended)' },
+        { name: 'STANDARD', bitrateKbps: 128, description: 'Standard quality' },
+        { name: 'DATA_SAVER', bitrateKbps: 64, description: 'Low quality for mobile networks' },
+      ],
+      autoDetect: true,
+      autoDetectThreshold: '3G',
+      userOverridable: true,
+    };
+  }
+
+  // F-830: Wi-Fi-only Downloads
+  getWifiOnlyConfig() {
+    return {
+      defaultEnabled: false,
+      userConfigurable: true,
+      detectWifiMethod: 'NetworkInfo API (mobile) / online check (PWA)',
+      affectsAutoDownload: true,
+    };
+  }
+
+  // F-832–F-833: Widgets
+  getWidgetConfig() {
+    return {
+      ios: {
+        kinds: ['SmallWidget', 'MediumWidget', 'LargeWidget'],
+        features: ['Current loan progress', 'Quick-resume button', 'Time remaining'],
+        framework: 'WidgetKit',
+      },
+      android: {
+        kinds: ['QuickPlayer', 'LoanProgress'],
+        features: ['Play/pause, next chapter', 'Loan expiry countdown'],
+        framework: 'Glance API (Compose Widgets)',
+      },
+    };
+  }
+
+  // F-834–F-835: Dynamic Island / Live Activities
+  getLiveActivitiesConfig() {
+    return {
+      dynamicIsland: { platform: 'iOS 16+', status: 'planned', activities: ['Now Playing', 'Loan timer'] },
+      liveActivities: { platform: 'iOS 16.1+', framework: 'ActivityKit', status: 'planned', shows: ['Chapter title', 'Time remaining on lock screen'] },
+    };
+  }
+
+  // F-836–F-838: Notification Extensions & Shortcuts
+  getNotificationExtensionConfig() {
+    return {
+      richPushNotifications: { enabled: true, includesImage: true, platform: 'iOS via Notification Service Extension' },
+      siriShortcuts: { platform: 'iOS', commands: ['Play last borrowed work', 'Borrow recommended work', 'Check loan status'] },
+      androidShortcuts: { enabled: true, longPressActions: ['Continue listening', 'Browse recommendations'] },
+    };
+  }
+
+  // F-839–F-843: Haptic, Dynamic Type, Accessibility
+  getMobileA11yConfig() {
+    return {
+      hapticFeedback: { enabled: true, triggers: ['borrow', 'rate', 'bookmark', 'chapter_change'] },
+      dynamicType: { respectsSystemFont: true, minScaleFactor: 0.8, maxScaleFactor: 1.5 },
+      voiceOver: { status: 'partial', completionTarget: 'v1.1' },
+      talkBack: { status: 'partial', completionTarget: 'v1.1' },
+      reducedMotion: { supported: true, fallback: 'instant transitions' },
+    };
+  }
+
+  // F-844–F-847: Battery, App Size, Performance
+  getMobilePerformanceConfig() {
+    return {
+      batterySaver: { enabled: true, reducesBackgroundSync: true, lowersBitrate: true },
+      appSizeTarget: '< 30MB (use on-demand resources for audio assets)',
+      coldStartTarget: '< 2 seconds',
+      smoothScrolling: '60fps minimum, 120fps on ProMotion displays',
+    };
+  }
+
+  // F-848–F-850: Offline Library & Conflict Resolution
+  getOfflineLibraryConfig() {
+    return {
+      offlineSearch: { enabled: true, index: 'SQLite FTS5 on device' },
+      offlineBookmarks: { enabled: true, syncOnReconnect: true },
+      conflictResolution: { strategy: 'last-write-wins with client-side optimistic updates', crdt: false },
+    };
+  }
+
+  // F-854: DRM-geschützte Downloads
+  getDrmConfig() {
+    return {
+      ios: { provider: 'FairPlay Streaming', status: 'planned', requiresAppleDeveloperAccount: true },
+      android: { provider: 'Widevine L1/L3', status: 'planned' },
+      web: { provider: 'EME (Encrypted Media Extensions)', status: 'planned' },
+      licenseServer: process.env.DRM_LICENSE_URL ?? null,
+      enabled: !!process.env.DRM_LICENSE_URL,
+    };
+  }
+
+  // F-856–F-857: Storage Warnings
+  getStorageManagementConfig() {
+    return {
+      warningThresholdGb: 1,
+      autoDeleteOldestWhenFull: true,
+      autoDeleteStrategy: 'LRU (Least Recently Used downloads)',
+      notifyUserBeforeDelete: true,
+      storageQuotaPerUser: null,
+    };
+  }
+
+  // F-860–F-861: QR Code & Share Extension
+  getMobileSharingConfig() {
+    return {
+      qrCodeScanner: { enabled: true, scansWorkQrCodes: true, opensWorkDetail: true },
+      shareExtension: {
+        platform: 'iOS Share Sheet / Android Intent',
+        accepts: ['URLs', 'Text (work title)'],
+        action: 'Opens recommendation dialog with detected work',
+        status: 'planned',
+      },
+    };
+  }
+
+  // F-863–F-870: Bluetooth, Car Play, Podcast Mode, Sleep, Alarm, Fitness, Safety, Kids
+  getAdvancedPlayerConfig() {
+    return {
+      bluetoothVolumeSync: { enabled: true, followsSystemVolume: true },
+      carProfile: { detectsCarAudio: true, higherVolumeCeiling: true, autoMuteOnPhoneCall: true },
+      podcastMode: { autoplayNextEpisode: true, continuousPlay: true },
+      sleepTracking: { pauseOnInactivity: true, inactivityThresholdMinutes: 30, gyroscopeDetection: false },
+      alarmIntegration: { status: 'planned', triggersWorkOnAlarm: true },
+      joggingMode: { status: 'planned', bpmSync: false },
+      drivingSafetyWarning: { showsWarningAboveKmh: 50, gpsRequired: true, status: 'planned' },
+      kidsMode: { enabled: true, locksPlayerUI: true, requiresParentPin: true },
+    };
+  }
 }

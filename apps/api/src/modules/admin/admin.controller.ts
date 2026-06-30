@@ -822,6 +822,30 @@ export class AdminController {
     return this.analytics.getCdnBandwidthUsage();
   }
 
+  // GET /api/v1/admin/analytics/external-monitoring – App Store, Social, Brand, Competitors (F-804-808)
+  @Get("analytics/external-monitoring")
+  externalMonitoring() {
+    return this.analytics.getExternalMonitoringConfig();
+  }
+
+  // GET /api/v1/admin/analytics/csat – CSAT-Score (F-810)
+  @Get("analytics/csat")
+  csatStats() {
+    return this.analytics.getCsatStats();
+  }
+
+  // GET /api/v1/admin/analytics/ux – Heatmap, Session Recording, Form Analytics (F-812-814)
+  @Get("analytics/ux")
+  uxAnalytics() {
+    return this.analytics.getUxAnalyticsConfig();
+  }
+
+  // GET /api/v1/admin/analytics/cost – Infrastrukturkosten je Feature (F-820)
+  @Get("analytics/cost")
+  costAnalysis() {
+    return this.analytics.getCostAnalysis();
+  }
+
   // POST /api/v1/admin/users/:id/notes – Admin-Notiz hinzufügen (F-716)
   @Post("users/:id/notes")
   addUserNote(

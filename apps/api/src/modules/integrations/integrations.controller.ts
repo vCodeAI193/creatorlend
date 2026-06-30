@@ -17,6 +17,60 @@ export class IntegrationsController {
     return this.integrations.getApiV2Info();
   }
 
+  // F-872: GraphQL API Info
+  @Get('api/graphql')
+  graphqlInfo() {
+    return this.integrations.getGraphQlInfo();
+  }
+
+  // F-874: gRPC Info
+  @Get('api/grpc')
+  grpcInfo() {
+    return this.integrations.getGrpcInfo();
+  }
+
+  // F-878: OpenAPI/Swagger Docs Info
+  @Get('api/openapi')
+  openApiInfo() {
+    return this.integrations.getOpenApiInfo();
+  }
+
+  // F-880: SDK Info
+  @Get('api/sdks')
+  sdkInfo() {
+    return this.integrations.getSdkInfo();
+  }
+
+  // F-891: Batch Actions Info
+  @Get('api/batch')
+  batchActionsInfo() {
+    return this.integrations.getBatchActionsInfo();
+  }
+
+  // F-892: Export API Info
+  @Get('api/export')
+  exportInfo() {
+    return this.integrations.getExportInfo();
+  }
+
+  // F-894: Search & Filter Info
+  @Get('api/search-filter')
+  searchFilterInfo() {
+    return this.integrations.getSearchFilterInfo();
+  }
+
+  // F-896-F-897: API Auth Info
+  @Get('api/auth')
+  apiAuthInfo() {
+    return this.integrations.getApiAuthInfo();
+  }
+
+  // F-899: Webhook Management Info
+  @Get('api/webhooks')
+  webhookManagementInfo() {
+    return this.integrations.getWebhookManagementInfo();
+  }
+
   // F-882: Changelog
   @Get('api/changelog')
   changelog() {

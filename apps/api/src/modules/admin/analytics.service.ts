@@ -539,4 +539,95 @@ export class AnalyticsService {
       bandwidthSavedPercent: null,
     };
   }
+
+  // F-804–F-808: External Monitoring (App Store, Social, Brand, Competitors)
+  getExternalMonitoringConfig() {
+    return {
+      appStoreRanking: {
+        enabled: !!process.env.APPFOLLOW_API_KEY,
+        provider: 'AppFollow / AppBot',
+        trackedApps: ['com.creatorlend.app', 'id.creatorlend.app'],
+        alertOnRankDrop: 10,
+      },
+      reviewMonitoring: {
+        enabled: !!process.env.REVIEW_MONITOR_KEY,
+        sources: ['App Store', 'Google Play'],
+        sentimentAnalysis: true,
+        alertOnNegativeRating: true,
+      },
+      socialMediaMentions: {
+        provider: process.env.SOCIAL_MONITOR ?? 'Mention.com / Brand24',
+        enabled: false,
+        keywords: ['creatorlend', '#creatorlend', '@creatorlend'],
+        channels: ['Twitter', 'Reddit', 'LinkedIn'],
+      },
+      brandSentiment: {
+        provider: 'NLP on reviews + social mentions',
+        sentimentScore: null,
+        lastAnalyzed: null,
+        message: 'Aggregate review scores and social sentiment via NLP pipeline',
+      },
+      competitorBenchmarking: {
+        enabled: false,
+        note: 'Anonymous market data from Sensor Tower / Similarweb',
+        metrics: ['DAU', 'store_rating', 'download_rank'],
+      },
+    };
+  }
+
+  // F-810: CSAT-Score nach Support-Kontakt
+  async getCsatStats() {
+    const ratings = await this.prisma.$queryRaw<Array<{ rating: number; cnt: bigint }>>`
+      SELECT rating, COUNT(*) AS cnt FROM "SupportTicket" WHERE rating IS NOT NULL GROUP BY rating ORDER BY rating
+    `.catch(() => [] as Array<{ rating: number; cnt: bigint }>);
+    if (!ratings.length) return { count: 0, average: null, distribution: {} };
+    const total = ratings.reduce((s, r) => s + Number(r.cnt), 0);
+    const sum = ratings.reduce((s, r) => s + r.rating * Number(r.cnt), 0);
+    const distribution: Record<number, number> = {};
+    for (const r of ratings) distribution[r.rating] = Number(r.cnt);
+    return { count: total, average: total > 0 ? Math.round((sum / total) * 10) / 10 : null, distribution };
+  }
+
+  // F-812–F-814: Heatmap, Session Recording, Form Analytics
+  getUxAnalyticsConfig() {
+    return {
+      heatmap: {
+        provider: process.env.HEATMAP_PROVIDER ?? 'Hotjar / Microsoft Clarity',
+        enabled: !!process.env.HEATMAP_SITE_ID,
+        siteId: process.env.HEATMAP_SITE_ID ?? null,
+        gdprMode: true,
+        note: 'Embed tracking snippet in Next.js _app.tsx',
+      },
+      sessionRecording: {
+        provider: process.env.SESSION_RECORD_PROVIDER ?? 'PostHog / LogRocket',
+        enabled: false,
+        dataPrivacy: 'mask all input fields by default',
+        retention: '30 days',
+      },
+      formAnalytics: {
+        enabled: false,
+        trackedForms: ['register', 'login', 'work-create', 'subscription'],
+        abandonmentTracking: true,
+        provider: 'PostHog',
+      },
+    };
+  }
+
+  // F-820: Kostenanalyse – Infrastrukturkosten je Feature
+  getCostAnalysis() {
+    return {
+      note: 'Assign resource tags per feature in AWS Cost Explorer / GCP Billing',
+      currentMonthEuroCent: null,
+      breakdown: [
+        { feature: 'Media storage + CDN', estimatedPct: 35 },
+        { feature: 'Database (RDS)', estimatedPct: 25 },
+        { feature: 'API compute (ECS/EKS)', estimatedPct: 20 },
+        { feature: 'Redis / ElastiCache', estimatedPct: 10 },
+        { feature: 'Email (SES/SendGrid)', estimatedPct: 5 },
+        { feature: 'Other (monitoring, DNS, etc.)', estimatedPct: 5 },
+      ],
+      provider: process.env.COST_PROVIDER ?? 'AWS Cost Explorer',
+      dashboardUrl: process.env.COST_DASHBOARD_URL ?? null,
+    };
+  }
 }
