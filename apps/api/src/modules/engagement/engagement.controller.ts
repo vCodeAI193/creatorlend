@@ -855,4 +855,132 @@ export class EngagementController {
   ) {
     return this.socialStubs.submitCommunityTranslation(userId, workId, language, translation);
   }
+
+  // F-487: Bookmaker API info
+  @Get("bookmaker/info")
+  getBookmakerApiInfo() {
+    return this.socialStubs.getBookmakerApiInfo();
+  }
+
+  // F-491: Mobile dashboard app info
+  @Get("mobile-app/info")
+  getMobileDashboardAppInfo() {
+    return this.socialStubs.getMobileDashboardAppInfo();
+  }
+
+  // F-506/507/508: Typography config
+  @Get("config/typography")
+  getTypographyConfig() {
+    return this.socialStubs.getTypographyConfig();
+  }
+
+  // F-542/543: Accessibility config
+  @Get("config/accessibility")
+  getAccessibilityConfig() {
+    return this.socialStubs.getAccessibilityConfig();
+  }
+
+  // F-545/546/547: Onboarding config
+  @Get("config/onboarding")
+  getOnboardingConfig() {
+    return this.socialStubs.getOnboardingConfig();
+  }
+
+  // F-556: Create quote card
+  @Post("quote-cards")
+  createQuoteCard(
+    @CurrentUser() userId: string,
+    @Body("workId") workId: string,
+    @Body("quote") quote: string,
+  ) {
+    return this.socialStubs.createQuoteCard(userId, workId, quote);
+  }
+
+  // F-557: Quote gallery
+  @Get("quote-cards/:userId")
+  getQuoteGallery(@Param("userId") userId: string) {
+    return this.socialStubs.getQuoteGallery(userId);
+  }
+
+  // F-559/560/563: Content tools config
+  @Get("config/content-tools")
+  getContentToolsConfig() {
+    return this.socialStubs.getContentToolsConfig();
+  }
+
+  // F-567/568: Playback analytics config
+  @Get("config/playback-analytics")
+  getPlaybackAnalyticsConfig() {
+    return this.socialStubs.getPlaybackAnalyticsConfig();
+  }
+
+  // F-568: Focus score
+  @Get("focus-score/:workId")
+  getFocusScore(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.socialStubs.getFocusScore(userId, workId);
+  }
+
+  // F-584: Audio message config
+  @Get("config/audio-messages")
+  getAudioMessageConfig() {
+    return this.socialStubs.getAudioMessageConfig();
+  }
+
+  // F-590: Vote on community playlist
+  @Post("community-playlists/:playlistId/vote")
+  voteCommunityPlaylist(
+    @CurrentUser() userId: string,
+    @Param("playlistId") playlistId: string,
+    @Body("workId") workId: string,
+  ) {
+    return this.socialStubs.voteCommunityPlaylist(userId, playlistId, workId);
+  }
+
+  // F-592/593/594: Forum config
+  @Get("config/forum")
+  getForumConfig() {
+    return this.socialStubs.getForumConfig();
+  }
+
+  // F-598: Book club schedule
+  @Get("book-club/schedule")
+  getBookClubSchedule() {
+    return this.socialStubs.getBookClubSchedule();
+  }
+
+  // F-608: Survey config
+  @Get("config/surveys")
+  getSurveyConfig() {
+    return this.socialStubs.getSurveyConfig();
+  }
+
+  // F-609/611/613/614: Community features config
+  @Get("config/community-features")
+  getCommunityFeaturesConfig() {
+    return this.socialStubs.getCommunityFeaturesConfig();
+  }
+
+  // F-620/623/627: Moderation config
+  @Get("config/moderation")
+  getModerationConfig() {
+    return this.socialStubs.getModerationConfig();
+  }
+
+  // F-630/631/632: Community programs
+  @Get("community/programs")
+  getCommunityPrograms() {
+    return this.socialStubs.getCommunityPrograms();
+  }
+
+  // F-635/636/637: Community engagement config
+  @Get("config/community-engagement")
+  getCommunityEngagementConfig() {
+    return this.socialStubs.getCommunityEngagementConfig();
+  }
+
+  // F-637: Listening story / Wrapped
+  @Get("story/:userId")
+  getListeningStory(@Param("userId") userId: string, @Query("year") year?: string) {
+    return this.socialStubs.getListeningStory(userId, year ? Number(year) : undefined);
+  }
 }

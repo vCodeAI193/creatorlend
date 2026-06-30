@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Request, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query, Request, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import { AuthService } from "./auth.service";
@@ -293,5 +293,215 @@ export class AuthController {
   @HttpCode(200)
   acceptTos(@CurrentUser() userId: string, @Body('version') version: string) {
     return this.auth.acceptTos(userId, version);
+  }
+
+  // F-007: Backup codes for 2FA
+  @Post('2fa/backup-codes/generate')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  generateBackupCodes(@CurrentUser() userId: string) {
+    return this.auth.generateBackupCodes(userId);
+  }
+
+  @Get('2fa/backup-codes/status')
+  @UseGuards(JwtAuthGuard)
+  getBackupCodesStatus(@CurrentUser() userId: string) {
+    return this.auth.getBackupCodesStatus(userId);
+  }
+
+  // F-009: Device management
+  @Get('devices')
+  @UseGuards(JwtAuthGuard)
+  getDevices(@CurrentUser() userId: string) {
+    return this.auth.getDevices(userId);
+  }
+
+  // F-012: Account lockout config
+  @Get('config/lockout')
+  getLockoutConfig() {
+    return this.auth.getLockoutConfig();
+  }
+
+  // F-015: Validate invite code for beta registration
+  @Get('invite/validate')
+  validateInviteCode(@Query('code') code: string) {
+    return this.auth.validateInviteCode(code ?? '');
+  }
+
+  // F-018: Registration avatar upload config
+  @Get('register/avatar-config')
+  getRegistrationAvatarConfig() {
+    return this.auth.getRegistrationAvatarUploadConfig();
+  }
+
+  // F-019: Username suggestions
+  @Get('register/username-suggestions')
+  getUsernameSuggestions(@Query('displayName') displayName: string) {
+    return this.auth.generateUsernameSuggestions(displayName ?? '');
+  }
+
+  // F-021: Password strength config
+  @Get('config/password-strength')
+  getPasswordStrengthConfig() {
+    return this.auth.getPasswordStrengthConfig();
+  }
+
+  // F-026: Account deactivation / reactivation
+  @Post('account/deactivate')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  deactivateAccount(@CurrentUser() userId: string) {
+    return this.auth.deactivateAccount(userId);
+  }
+
+  @Post('account/reactivate')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  reactivateAccount(@CurrentUser() userId: string) {
+    return this.auth.reactivateAccount(userId);
+  }
+
+  // F-032: OAuth app management
+  @Get('oauth/apps')
+  @UseGuards(JwtAuthGuard)
+  getOAuthApps(@CurrentUser() userId: string) {
+    return this.auth.getOAuthApps(userId);
+  }
+
+  // F-033: Token scope info
+  @Get('oauth/scopes')
+  getTokenScopeInfo() {
+    return this.auth.getTokenScopeInfo();
+  }
+
+  // F-036: DSGVO Art. 20 — portable ID export
+  @Get('export/portable-id')
+  @UseGuards(JwtAuthGuard)
+  exportPortableId(@CurrentUser() userId: string) {
+    return this.auth.exportPortableId(userId);
+  }
+
+  // F-038: Export categories
+  @Get('export/categories')
+  getExportCategories() {
+    return this.auth.getExportCategories();
+  }
+
+  // F-039: Account merge
+  @Post('account/merge/request')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(202)
+  requestAccountMerge(
+    @CurrentUser() userId: string,
+    @Body('secondaryEmail') secondaryEmail: string,
+  ) {
+    return this.auth.requestAccountMerge(userId, secondaryEmail);
+  }
+
+  // F-040: Emergency contact
+  @Post('account/emergency-contact')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  setEmergencyContact(@CurrentUser() userId: string, @Body('email') email: string) {
+    return this.auth.setEmergencyContact(userId, email);
+  }
+
+  @Get('account/emergency-contact')
+  @UseGuards(JwtAuthGuard)
+  getEmergencyContact(@CurrentUser() userId: string) {
+    return this.auth.getEmergencyContact(userId);
+  }
+
+  // F-045: Accessibility profile
+  @Get('accessibility')
+  @UseGuards(JwtAuthGuard)
+  getAccessibilityProfile(@CurrentUser() userId: string) {
+    return this.auth.getAccessibilityProfile(userId);
+  }
+
+  @Put('accessibility')
+  @UseGuards(JwtAuthGuard)
+  setAccessibilityProfile(@CurrentUser() userId: string, @Body() profile: Record<string, unknown>) {
+    return this.auth.setAccessibilityProfile(userId, profile);
+  }
+
+  // F-046: Cookie consent
+  @Get('cookie-consent')
+  @UseGuards(JwtAuthGuard)
+  getCookieConsent(@CurrentUser() userId: string) {
+    return this.auth.getCookieConsent(userId);
+  }
+
+  @Post('cookie-consent')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  setCookieConsent(@CurrentUser() userId: string, @Body() consent: Record<string, unknown>) {
+    return this.auth.setCookieConsent(userId, consent);
+  }
+
+  // F-048: Privacy policy versions
+  @Get('privacy-policy/versions')
+  getPrivacyPolicyVersions() {
+    return this.auth.getPrivacyPolicyVersions();
+  }
+
+  // F-049: Account transfer
+  @Post('account/transfer/request')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(202)
+  requestAccountTransfer(@CurrentUser() userId: string, @Body('newEmail') newEmail: string) {
+    return this.auth.requestAccountTransfer(userId, newEmail);
+  }
+
+  // F-056: Blockchain identity verification
+  @Get('verify/blockchain')
+  getBlockchainVerificationInfo() {
+    return this.auth.getBlockchainVerificationInfo();
+  }
+
+  // F-057: Emergency admin recovery info
+  @Get('emergency-recovery/info')
+  getEmergencyRecoveryInfo() {
+    return this.auth.getEmergencyRecoveryInfo();
+  }
+
+  // F-058: ZKP age verification info
+  @Get('verify/age-zkp')
+  getZkpAgeVerificationInfo() {
+    return this.auth.getZkpAgeVerificationInfo();
+  }
+
+  // F-061: Account import info
+  @Get('import/info')
+  getAccountImportInfo() {
+    return this.auth.getAccountImportInfo();
+  }
+
+  // F-070: NFC profile tag
+  @Get('profile/nfc')
+  @UseGuards(JwtAuthGuard)
+  getNfcProfileInfo(@CurrentUser() userId: string) {
+    return this.auth.getNfcProfileInfo(userId);
+  }
+
+  // F-076: Analytics tracking opt-out
+  @Post('tracking/opt-out')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  setTrackingOptOut(@CurrentUser() userId: string, @Body('optOut') optOut: boolean) {
+    return this.auth.setTrackingOptOut(userId, !!optOut);
+  }
+
+  @Get('tracking/opt-out')
+  @UseGuards(JwtAuthGuard)
+  getTrackingOptOut(@CurrentUser() userId: string) {
+    return this.auth.getTrackingOptOut(userId);
+  }
+
+  // F-078: Consent management
+  @Get('consent/record')
+  @UseGuards(JwtAuthGuard)
+  getConsentRecord(@CurrentUser() userId: string) {
+    return this.auth.getConsentRecord(userId);
   }
 }

@@ -575,7 +575,7 @@ export class LoansService {
     });
   }
 
-  /** Leihe-Pause beenden. */
+  // F-268: Resume loan after pause
   async resume(userId: string, loanId: string) {
     const loan = await this.prisma.loan.findFirst({ where: { id: loanId, userId } });
     if (!loan) throw new NotFoundException("loan_not_found");

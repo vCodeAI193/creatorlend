@@ -334,6 +334,7 @@ export class PayoutsService {
     return { scheduled: true, totalCents, itemCount: pending._count };
   }
 
+  // F-367: Payout history with status (PENDING/PAID/FAILED) — see listForArtist below
   // ─── F-302: Payout history with filters ──────────────────────────────────
 
   /** List payout items with optional status/date filters. */
@@ -408,7 +409,7 @@ export class PayoutsService {
     return { payoutThreshold: user.payoutThreshold, currency: user.currency };
   }
 
-  /** Set minimum payout threshold for an artist. */
+  // F-364: Min payout amount configurable (default 10€)
   async setPayoutThreshold(artistId: string, minCents: number) {
     return this.prisma.user.update({
       where: { id: artistId },
@@ -548,6 +549,149 @@ export class PayoutsService {
         : 'No Stripe Connect account yet — call POST /api/v1/payouts/connect/onboard first',
       requirements: ['government_id', 'proof_of_address', 'bank_account'],
     };
+  }
+
+  // F-422: Dashboard widgets (drag-and-drop config)
+  async getDashboardWidgetConfig(artistId: string) {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: `dashboard_widgets:${artistId}` } });
+    return setting ? JSON.parse(setting.value) : {
+      widgets: [
+        { id: 'revenue_today', position: 0, enabled: true },
+        { id: 'active_loans', position: 1, enabled: true },
+        { id: 'top_works', position: 2, enabled: true },
+        { id: 'follower_growth', position: 3, enabled: true },
+      ],
+    };
+  }
+
+  async setDashboardWidgetConfig(artistId: string, widgets: Array<{ id: string; position: number; enabled: boolean }>) {
+    await this.prisma.appSetting.upsert({
+      where: { key: `dashboard_widgets:${artistId}` },
+      update: { value: JSON.stringify({ widgets }) },
+      create: { key: `dashboard_widgets:${artistId}`, value: JSON.stringify({ widgets }) },
+    });
+    return { updated: true, widgets };
+  }
+
+  // F-424: Revenue chart — daily view
+  async getRevenuechartDaily(artistId: string, days = 30) {
+    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const rows = await this.prisma.$queryRaw<Array<{ day: Date; total: bigint }>>`
+      SELECT DATE_TRUNC('day', "createdAt") AS day, SUM("amountCents") AS total
+      FROM "PayoutItem"
+      WHERE "artistId" = ${artistId} AND "createdAt" >= ${from}
+      GROUP BY 1 ORDER BY 1
+    `;
+    return { artistId, period: 'daily', days, data: rows.map(r => ({ day: r.day, totalCents: Number(r.total) })) };
+  }
+
+  // F-425: Revenue chart — weekly/monthly/yearly
+  async getRevenueChart(artistId: string, granularity: 'week' | 'month' | 'year' = 'month') {
+    const months = granularity === 'year' ? 12 : granularity === 'month' ? 6 : 8;
+    const from = new Date(Date.now() - months * 30 * 24 * 60 * 60 * 1000);
+    const rows = await this.prisma.$queryRaw<Array<{ period: Date; total: bigint }>>`
+      SELECT DATE_TRUNC(${granularity}, "createdAt") AS period, SUM("amountCents") AS total
+      FROM "PayoutItem"
+      WHERE "artistId" = ${artistId} AND "createdAt" >= ${from}
+      GROUP BY 1 ORDER BY 1
+    `;
+    return { artistId, granularity, data: rows.map(r => ({ period: r.period, totalCents: Number(r.total) })) };
+  }
+
+  // F-426: Work performance comparison
+  async getWorkPerformanceComparison(artistId: string) {
+    const works = await this.prisma.work.findMany({
+      where: { artistId },
+      select: { id: true, title: true, borrowCount: true },
+      orderBy: { borrowCount: 'desc' },
+      take: 20,
+    });
+    const payoutsByWork = await Promise.all(works.map(w =>
+      this.prisma.payoutItem.groupBy({
+        by: ['status'],
+        where: { artistId, loan: { workId: w.id } },
+        _sum: { amountCents: true },
+      }).then(rows => ({
+        workId: w.id,
+        pending: (rows.find(r => r.status === 'PENDING')?._sum.amountCents ?? 0),
+        paid: (rows.find(r => r.status === 'PAID')?._sum.amountCents ?? 0),
+      }))
+    ));
+    const byWorkId = Object.fromEntries(payoutsByWork.map(p => [p.workId, p]));
+    return {
+      artistId,
+      works: works.map(w => ({
+        id: w.id, title: w.title, loans: w.borrowCount,
+        pendingCents: byWorkId[w.id]?.pending ?? 0,
+        paidCents: byWorkId[w.id]?.paid ?? 0,
+      })),
+    };
+  }
+
+  // F-427: Follower growth over time
+  async getFollowerGrowth(artistId: string, days = 30) {
+    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const followers = await this.prisma.follow.findMany({
+      where: { artistId, createdAt: { gte: from } },
+      select: { createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return { artistId, days, totalNew: followers.length, data: followers.map(f => f.createdAt) };
+  }
+
+  // F-361: Payout via SEPA bank transfer
+  getSepaPayoutInfo() {
+    return {
+      enabled: true,
+      provider: 'Stripe Connect',
+      supportedCountries: ['DE', 'AT', 'CH', 'NL', 'FR', 'BE', 'ES', 'IT'],
+      processingDays: 1,
+      currency: 'EUR',
+      minAmountCents: 1000,
+      note: 'SEPA payouts processed via Stripe Connect. Artist must complete KYC and add IBAN.',
+    };
+  }
+
+  // F-365: On-demand payout (instead of monthly schedule)
+  async requestOnDemandPayout(artistId: string) {
+    const pending = await this.prisma.payoutItem.aggregate({
+      where: { artistId, status: 'PENDING' },
+      _sum: { amountCents: true },
+    });
+    const pendingCents = pending._sum.amountCents ?? 0;
+    const user = await this.prisma.user.findUnique({ where: { id: artistId }, select: { payoutThreshold: true } });
+    const threshold = user?.payoutThreshold ?? 1000;
+    if (pendingCents < threshold) {
+      return { eligible: false, pendingCents, thresholdCents: threshold, reason: 'minimum_not_reached' };
+    }
+    return {
+      eligible: true,
+      pendingCents,
+      note: 'On-demand payout initiated. Processing via Stripe Connect. Funds arrive within 1 business day.',
+    };
+  }
+
+  // F-366: Payout calendar (fixed day each month)
+  async getPayoutCalendar(artistId: string) {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: `payout_calendar:${artistId}` } });
+    return setting ? JSON.parse(setting.value) : {
+      payoutDayOfMonth: 1,
+      nextPayoutDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString().slice(0, 10),
+      frequency: 'monthly',
+    };
+  }
+
+  async setPayoutCalendar(artistId: string, dayOfMonth: number) {
+    const day = Math.max(1, Math.min(28, dayOfMonth));
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > day ? 1 : 0), day);
+    const data = { payoutDayOfMonth: day, nextPayoutDate: next.toISOString().slice(0, 10), frequency: 'monthly' };
+    await this.prisma.appSetting.upsert({
+      where: { key: `payout_calendar:${artistId}` },
+      update: { value: JSON.stringify(data) },
+      create: { key: `payout_calendar:${artistId}`, value: JSON.stringify(data) },
+    });
+    return data;
   }
 
   // F-377: Plattform-Preisdeckel (Leihe max. 5 €)

@@ -11,6 +11,7 @@ import { ArtistPostsService } from './artist-posts.service';
 export class ArtistPostsController {
   constructor(private readonly posts: ArtistPostsService) {}
 
+  // F-446: Announcement on artist profile / F-447: Post with image+link+text / F-448: Schedule post
   @Post()
   @Roles(UserRole.ARTIST)
   create(@CurrentUser() userId: string, @Body() body: { title: string; body: string; imageUrl?: string; linkUrl?: string; scheduledAt?: string }) {
@@ -38,6 +39,7 @@ export class ArtistPostsController {
     return this.posts.delete(userId, id);
   }
 
+  // F-449: Post reactions (likes on announcements)
   @Post(':id/reactions')
   react(@CurrentUser() userId: string, @Param('id') postId: string, @Body() body: { emoji?: string }) {
     return this.posts.react(userId, postId, body.emoji);
@@ -48,6 +50,7 @@ export class ArtistPostsController {
     return this.posts.unreact(userId, postId);
   }
 
+  // F-450: Post comments for followers
   @Post(':id/comments')
   comment(@CurrentUser() userId: string, @Param('id') postId: string, @Body() body: { body: string }) {
     return this.posts.comment(userId, postId, body.body);
@@ -67,7 +70,7 @@ export class ArtistPostsController {
     return this.posts.unpinPost(userId, id);
   }
 
-  // POST /api/v1/posts/newsletter – Newsletter an Follower senden (F-443)
+  // F-444: Newsletter templates for work publications / F-443: Newsletter to followers
   @Post('newsletter')
   @Roles(UserRole.ARTIST)
   sendNewsletter(

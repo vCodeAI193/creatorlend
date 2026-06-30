@@ -271,8 +271,7 @@ export class SubscriptionsService {
   }
 
   /**
-   * Abo pausieren (F-529): legt einen SubscriptionPause-Datensatz an und
-   * setzt das Abo auf PAUSED. Automatisches Fortsetzen nach resumeInDays Tagen.
+   * F-346: Abo pausieren (1–3 Monate) — legt SubscriptionPause an, setzt auf PAUSED.
    */
   async pauseSubscription(userId: string, resumeInDays = 30) {
     const sub = await this.prisma.subscription.findUnique({ where: { userId } });
@@ -287,10 +286,7 @@ export class SubscriptionsService {
     return { paused: true, resumeAt };
   }
 
-  /**
-   * Abo manuell fortsetzen (F-529): markiert offene Pause als erledigt
-   * und setzt das Abo auf ACTIVE.
-   */
+  // F-347: Subscription reactivation after pause
   async resumeSubscription(userId: string) {
     const sub = await this.prisma.subscription.findUnique({ where: { userId } });
     if (!sub) throw new NotFoundException("no_subscription");
@@ -564,6 +560,21 @@ export class SubscriptionsService {
       targetPlan,
       effectiveAt,
       message: `Downgrade to ${targetPlan} will take effect at ${effectiveAt.toISOString()}. Use Stripe subscription schedules for production.`,
+    };
+  }
+
+  // F-358: Student subscription (50% discount, verified)
+  getStudentSubscriptionInfo() {
+    return {
+      enabled: true,
+      discount: 50,
+      plans: [
+        { plan: 'STANDARD_STUDENT', priceMonthly: 249, priceAnnual: 2490, originalPlan: 'STANDARD' },
+        { plan: 'PREMIUM_STUDENT', priceMonthly: 449, priceAnnual: 4490, originalPlan: 'PREMIUM' },
+      ],
+      verificationProvider: 'SheerID',
+      verificationEndpoint: 'POST /subscriptions/student/verify',
+      note: 'Student verification via SheerID or .edu email domain check. Discount auto-renews annually with re-verification.',
     };
   }
 

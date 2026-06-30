@@ -485,4 +485,10 @@ export class SubscriptionsController {
   ) {
     return this.billingStubs.applyPriceFreeze(userId, currentPriceCents);
   }
+
+  // F-358: Student subscription info
+  @Get("student-discount")
+  getStudentSubscriptionInfo() {
+    return this.subscriptions.getStudentSubscriptionInfo();
+  }
 }

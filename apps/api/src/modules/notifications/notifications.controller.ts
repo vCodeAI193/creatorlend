@@ -35,7 +35,7 @@ export class NotificationsController {
     return this.notifications.list(userId, unread === "true", type);
   }
 
-  // GET /api/v1/notifications/unread-count (F-403)
+  // F-671: In-App Notification Bell with Unread Count / F-403
   @Get("unread-count")
   async unreadCount(@CurrentUser() userId: string) {
     return this.notifications.countUnread(userId);
@@ -53,7 +53,7 @@ export class NotificationsController {
     return this.notifications.markAllRead(userId);
   }
 
-  // POST /api/v1/notifications/mark-all-read (F-403)
+  // F-672: Mark-All-As-Read / F-403
   @Post("mark-all-read")
   markAllReadV2(@CurrentUser() userId: string) {
     return this.notifications.markAllReadV2(userId);
@@ -337,5 +337,44 @@ export class NotificationsController {
   @Get("analytics")
   getNotificationAnalytics() {
     return this.stubs.getNotificationAnalytics();
+  }
+
+  // F-492: Push notification on new loan (config)
+  @Get("push/loan-config")
+  getPushLoanNotificationConfig() {
+    return {
+      enabled: true,
+      trigger: 'NEW_LOAN',
+      channels: ['push', 'in_app'],
+      note: 'Artist receives push notification when a listener borrows their work.',
+    };
+  }
+
+  // F-644: Push notification scheduling (optimal time)
+  @Get("push/schedule-config")
+  getPushScheduleConfig() {
+    return {
+      enabled: false,
+      algorithm: 'ML-based optimal send time per user',
+      timeZoneAware: true,
+      quietHours: { start: '22:00', end: '08:00' },
+      note: 'Send push at optimal time per user based on engagement patterns.',
+    };
+  }
+
+  // F-645: Notification channel preferences (In-App / Push / Email per type)
+  @Get("channel-matrix")
+  getNotificationChannelMatrix() {
+    return {
+      channels: ['in_app', 'push', 'email'],
+      eventTypes: [
+        { type: 'NEW_LOAN', defaultChannels: ['in_app', 'push', 'email'] },
+        { type: 'NEW_FOLLOWER', defaultChannels: ['in_app', 'push'] },
+        { type: 'NEW_COMMENT', defaultChannels: ['in_app', 'push'] },
+        { type: 'PAYOUT_PROCESSED', defaultChannels: ['in_app', 'email'] },
+        { type: 'NEWSLETTER', defaultChannels: ['email'] },
+      ],
+      note: 'User can toggle each channel per event type via PUT /notifications/preferences.',
+    };
   }
 }

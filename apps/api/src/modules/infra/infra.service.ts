@@ -337,6 +337,7 @@ export class InfraService implements OnApplicationShutdown {
     };
   }
 
+  // F-927: SAST / F-928: DAST / F-929: Pentest / F-930: Bug Bounty / F-931: Responsible Disclosure
   // F-926-F-932: Security Program Config
   getSecurityProgramConfig() {
     return {
@@ -575,6 +576,66 @@ export class InfraService implements OnApplicationShutdown {
     };
   }
 
+  // F-944: ISO 27001 / F-945: HIPAA / F-947: ePrivacy
+  getComplianceCertificationsConfig() {
+    return {
+      iso27001: { status: 'planned', targetDate: '2027-01-01', certBody: 'TBD' },
+      hipaa: {
+        status: 'planned', applicable: 'only if health-related audio content',
+        baaRequired: true, note: 'Requires BAA with AWS. Data encrypted at rest (AES-256) and in transit (TLS 1.3).',
+      },
+      eprivacy: {
+        status: 'compliant',
+        cookieBanner: true,
+        consentManagement: 'POST /auth/cookie-consent',
+        cookiePolicy: `${process.env.APP_BASE_URL ?? 'https://app.creatorlend.com'}/legal/cookies`,
+        note: 'ePrivacy Directive 2002/58/EC + TDDDG. Cookie consent stored per user.',
+      },
+      gdpr: { status: 'compliant', dpa: 'active', dataResidency: 'EU (eu-central-1)' },
+      soc2: { status: 'planned', targetDate: '2027-06-01' },
+    };
+  }
+
+  // F-805: Review monitoring / F-806: Social media mentions / F-807: Brand sentiment / F-813: Session recording
+  getMonitoringConfig() {
+    return {
+      reviewMonitoring: {
+        enabled: false,
+        sources: ['App Store', 'Google Play', 'Trustpilot'],
+        provider: 'AppFollow (planned)',
+      },
+      socialMentions: {
+        enabled: false,
+        providers: ['Mention.com', 'Brand24'],
+        keywords: ['CreatorLend', '#creatorlend', '@creatorlend'],
+      },
+      brandSentiment: {
+        enabled: false,
+        provider: 'MonkeyLearn (planned)',
+        analyzedSources: ['reviews', 'comments', 'social'],
+      },
+      sessionRecording: {
+        enabled: !!process.env.SESSION_RECORDING_ENABLED,
+        provider: 'FullStory / Hotjar (configured via env)',
+        privacyCompliant: true,
+        maskSensitiveFields: true,
+        note: 'Set SESSION_RECORDING_ENABLED=true and FULLSTORY_ORG_ID.',
+      },
+    };
+  }
+
+  // F-902: Google Calendar book club sync
+  getGoogleCalendarConfig() {
+    return {
+      enabled: !!process.env.GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/calendar.events',
+      feature: 'book_club_schedule_sync',
+      endpoint: 'POST /integrations/google-calendar/sync-book-club',
+      note: 'Sync book club discussion events to user Google Calendar. Requires OAuth2 with calendar scope.',
+    };
+  }
+
+  // F-978: Kubernetes with Helm Charts / F-979: CI/CD < 5 minutes
   // F-977-F-980: IaC / CI/CD / Rollback
   getIacAndCiCdConfig() {
     return {

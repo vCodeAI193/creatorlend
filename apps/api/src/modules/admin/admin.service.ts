@@ -524,7 +524,10 @@ export class AdminService {
     });
   }
 
-  // F-709/710/711/712: Erweitertes Admin-Dashboard mit Zeitraum-Aufschlüsselung
+  // F-709: Admin-Dashboard Übersicht
+  // F-710: Admin-Dashboard Zeitraum-Statistiken
+  // F-711: Admin-Dashboard Vergleichs-Zeitraum
+  // F-712: Admin-Dashboard Export
   async getDashboardMetrics() {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());

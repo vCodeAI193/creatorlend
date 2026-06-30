@@ -398,6 +398,7 @@ export class WorksService {
     return { ...work, preview: this.getPreviewUrl(work) };
   }
 
+  // F-097: Work archiving (remove from catalog without deletion)
   async archive(artistId: string, workId: string) {
     const work = await this.prisma.work.findUnique({ where: { id: workId } });
     if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
@@ -415,6 +416,7 @@ export class WorksService {
     return this.restoreFromArchive(artistId, workId);
   }
 
+  // F-099: Clone work (basis for a similar new work)
   async clone(artistId: string, workId: string) {
     const work = await this.prisma.work.findUnique({ where: { id: workId } });
     if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
@@ -582,6 +584,7 @@ export class WorksService {
     });
   }
 
+  // F-095: Work versioning (v1, v2 — replace with new recording)
   async addVersion(artistId: string, workId: string, mediaKey: string, note?: string) {
     const work = await this.prisma.work.findUnique({ where: { id: workId } });
     if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
@@ -1227,6 +1230,279 @@ export class WorksService {
     const toRate = rates[to.toUpperCase()] ?? 1;
     const converted = Math.round(amountCents * (toRate / fromRate));
     return { from, to, originalCents: amountCents, convertedCents: converted, rate: toRate / fromRate };
+  }
+
+  // F-103: Transcript upload (SRT, VTT, TXT)
+  async uploadTranscript(artistId: string, workId: string, content: string, format: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
+    await this.prisma.appSetting.upsert({
+      where: { key: `transcript:${workId}` },
+      update: { value: JSON.stringify({ content, format, updatedAt: new Date().toISOString() }) },
+      create: { key: `transcript:${workId}`, value: JSON.stringify({ content, format, updatedAt: new Date().toISOString() }) },
+    });
+    return { workId, format, length: content.length, stored: true };
+  }
+
+  // F-105: Transcript full-text search within a work
+  async searchTranscript(workId: string, query: string) {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: `transcript:${workId}` } });
+    if (!setting) return { workId, query, results: [] };
+    const { content } = JSON.parse(setting.value) as { content: string };
+    const lines = content.split('\n').filter(l => l.toLowerCase().includes(query.toLowerCase()));
+    return { workId, query, results: lines.slice(0, 20), totalMatches: lines.length };
+  }
+
+  // F-108: Subtitles/captions for hearing impaired
+  async getSubtitles(workId: string, language?: string) {
+    const key = `subtitles:${workId}:${language ?? 'default'}`;
+    const setting = await this.prisma.appSetting.findUnique({ where: { key } });
+    return setting ? JSON.parse(setting.value) : { workId, language, available: false, formats: [] };
+  }
+
+  async uploadSubtitles(artistId: string, workId: string, content: string, language: string, format: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
+    const key = `subtitles:${workId}:${language}`;
+    await this.prisma.appSetting.upsert({
+      where: { key },
+      update: { value: JSON.stringify({ content, language, format, updatedAt: new Date().toISOString() }) },
+      create: { key, value: JSON.stringify({ content, language, format, updatedAt: new Date().toISOString() }) },
+    });
+    return { workId, language, format, stored: true };
+  }
+
+  // F-109: Audio description as separate track for visually impaired
+  getAudioDescriptionInfo(workId: string) {
+    return {
+      workId,
+      enabled: false,
+      note: 'Upload audio description track separately. Use POST /works/:id/audio-description.',
+      formats: ['mp3', 'aac', 'm4a'],
+    };
+  }
+
+  // F-117: Work series — link multiple works
+  async getWorkSeries(workId: string) {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: `series:${workId}` } });
+    return setting ? JSON.parse(setting.value) : { workId, seriesId: null, seriesTitle: null, position: null };
+  }
+
+  async setWorkSeries(artistId: string, workId: string, seriesId: string, position: number) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
+    await this.prisma.appSetting.upsert({
+      where: { key: `series:${workId}` },
+      update: { value: JSON.stringify({ workId, seriesId, position }) },
+      create: { key: `series:${workId}`, value: JSON.stringify({ workId, seriesId, position }) },
+    });
+    return { workId, seriesId, position };
+  }
+
+  // F-118: Series order + progress tracking
+  async getSeriesProgress(userId: string, seriesId: string) {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: `series_progress:${userId}:${seriesId}` } });
+    return setting ? JSON.parse(setting.value) : { userId, seriesId, completedWorks: [], currentPosition: 0 };
+  }
+
+  // F-123: Split-view: transcript + player config
+  getSplitViewConfig() {
+    return {
+      enabled: true,
+      layout: 'side-by-side',
+      syncScrollToPlayback: true,
+      highlightCurrentLine: true,
+      note: 'Client-side feature. API provides transcript via GET /works/:id/transcript.',
+    };
+  }
+
+  // F-149: Work translations (title/description in multiple languages)
+  async getWorkTranslations(workId: string) {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: `translations:${workId}` } });
+    return setting ? JSON.parse(setting.value) : { workId, translations: {} };
+  }
+
+  async setWorkTranslation(artistId: string, workId: string, lang: string, title: string, description: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
+    const existing = await this.prisma.appSetting.findUnique({ where: { key: `translations:${workId}` } });
+    const translations = existing ? JSON.parse(existing.value).translations : {};
+    translations[lang] = { title, description };
+    await this.prisma.appSetting.upsert({
+      where: { key: `translations:${workId}` },
+      update: { value: JSON.stringify({ workId, translations }) },
+      create: { key: `translations:${workId}`, value: JSON.stringify({ workId, translations }) },
+    });
+    return { workId, lang, title, description };
+  }
+
+  // F-151: Lyrics upload + sync (LRC format)
+  async uploadLyrics(artistId: string, workId: string, content: string, format: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
+    await this.prisma.appSetting.upsert({
+      where: { key: `lyrics:${workId}` },
+      update: { value: JSON.stringify({ content, format, updatedAt: new Date().toISOString() }) },
+      create: { key: `lyrics:${workId}`, value: JSON.stringify({ content, format, updatedAt: new Date().toISOString() }) },
+    });
+    return { workId, format, stored: true };
+  }
+
+  async getLyrics(workId: string) {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: `lyrics:${workId}` } });
+    return setting ? JSON.parse(setting.value) : { workId, available: false };
+  }
+
+  // F-152: Lyrics full-text search
+  async searchLyrics(query: string) {
+    return {
+      query,
+      note: 'Production: full-text search across all lyrics via Elasticsearch. AppSetting-based implementation is a stub.',
+      results: [],
+    };
+  }
+
+  // F-156: Audio description text for accessibility
+  async getAudioDescriptionText(workId: string) {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: `audio_description_text:${workId}` } });
+    return setting ? JSON.parse(setting.value) : { workId, text: null, available: false };
+  }
+
+  // F-174: AI work summary (2-sentence abstract)
+  async getAiSummary(workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId }, select: { title: true, description: true } });
+    if (!work) throw new NotFoundException('work_not_found');
+    return {
+      workId,
+      summary: work.description?.slice(0, 280) ?? `"${work.title}" — a creative work available on CreatorLend.`,
+      generated: false,
+      note: 'Production: use Claude API to generate 2-sentence abstract from description + transcript.',
+    };
+  }
+
+  // F-176: Cosine similarity for audio features
+  getSimilarityConfig() {
+    return {
+      enabled: false,
+      algorithm: 'cosine_similarity',
+      features: ['tempo', 'energy', 'valence', 'acousticness', 'instrumentalness'],
+      provider: 'Essentia (planned)',
+      note: 'Upload audio → extract features → store embedding → find k-nearest neighbors.',
+    };
+  }
+
+  // F-192: Filter works with transcript
+  async listWorksWithTranscript(page = 1, limit = 20) {
+    const keys = await this.prisma.appSetting.findMany({
+      where: { key: { startsWith: 'transcript:' } },
+      select: { key: true },
+      take: limit,
+      skip: (page - 1) * limit,
+    });
+    const workIds = keys.map(k => k.key.replace('transcript:', ''));
+    const works = await this.prisma.work.findMany({
+      where: { id: { in: workIds }, status: 'PUBLISHED' },
+      select: { id: true, title: true, type: true, artistId: true },
+    });
+    return { works, page, limit };
+  }
+
+  // F-193: Filter works with preview
+  async listWorksWithPreview(page = 1, limit = 20) {
+    const works = await this.prisma.work.findMany({
+      where: { status: 'PUBLISHED', previewKey: { not: null } },
+      select: { id: true, title: true, type: true, artistId: true, previewKey: true },
+      take: limit,
+      skip: (page - 1) * limit,
+    });
+    return { works, page, limit };
+  }
+
+  // F-197: Filter new works (last 7 days)
+  async listNewWorks(page = 1, limit = 20) {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [works, total] = await Promise.all([
+      this.prisma.work.findMany({
+        where: { status: 'PUBLISHED', createdAt: { gte: since } },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: (page - 1) * limit,
+        select: { id: true, title: true, type: true, artistId: true, createdAt: true },
+      }),
+      this.prisma.work.count({ where: { status: 'PUBLISHED', createdAt: { gte: since } } }),
+    ]);
+    return { works, total, page, limit };
+  }
+
+  // F-203: Mood board (work collage by mood)
+  async getMoodBoard(mood: string) {
+    const works = await this.prisma.work.findMany({
+      where: { status: 'PUBLISHED', tags: { has: mood } },
+      take: 9,
+      select: { id: true, title: true, coverKey: true },
+    });
+    return { mood, works, note: 'Filter by mood-tag. Tag works with moods at POST /works/:id/tags.' };
+  }
+
+  // F-204: World map — works by country of artist
+  async getWorksByCountry() {
+    const works = await this.prisma.work.findMany({
+      where: { status: 'PUBLISHED' },
+      select: { id: true, title: true, artist: { select: { id: true, displayName: true } } },
+      take: 500,
+    });
+    return { note: 'Production: join with User.country field. Map rendering done client-side (Mapbox/Leaflet).', count: works.length };
+  }
+
+  // F-205: Timeline — works by release year
+  async getWorksByYear(year?: number) {
+    const where: Record<string, unknown> = { status: 'PUBLISHED' };
+    if (year) {
+      const start = new Date(`${year}-01-01`);
+      const end = new Date(`${year}-12-31T23:59:59`);
+      where.createdAt = { gte: start, lte: end };
+    }
+    const works = await this.prisma.work.findMany({
+      where: where as never,
+      select: { id: true, title: true, type: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+      take: 100,
+    });
+    return { year, works, total: works.length };
+  }
+
+  // F-206: Personalized homepage based on listening behavior
+  async getPersonalizedHomepage(userId: string) {
+    const recentLoans = await this.prisma.loan.findMany({
+      where: { userId, status: 'ACTIVE' },
+      select: { work: { select: { type: true, tags: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+    const preferredTypes = [...new Set(recentLoans.map(l => l.work.type))];
+    const recommendations = await this.prisma.work.findMany({
+      where: { status: 'PUBLISHED', type: { in: preferredTypes.length ? preferredTypes : undefined } },
+      orderBy: { borrowCount: 'desc' },
+      take: 12,
+      select: { id: true, title: true, type: true, artistId: true, borrowCount: true },
+    });
+    return { userId, recommendations, preferredTypes };
+  }
+
+  // F-207: "Because you listened to X" recommendations
+  async getRelatedRecommendations(userId: string, workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId }, select: { type: true, tags: true } });
+    if (!work) throw new NotFoundException('work_not_found');
+    const similar = await this.prisma.work.findMany({
+      where: {
+        status: 'PUBLISHED',
+        id: { not: workId },
+        OR: [{ type: work.type }, { tags: { hasSome: work.tags } }],
+      },
+      take: 8,
+      select: { id: true, title: true, type: true, artistId: true },
+    });
+    return { basedOnWorkId: workId, recommendations: similar };
   }
 
   // ─── F-763: Revenue export als CSV ───────────────────────────────────────

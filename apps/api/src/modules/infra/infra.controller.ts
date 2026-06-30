@@ -273,4 +273,22 @@ export class InfraController {
   iacAndCiCd() {
     return this.infra.getIacAndCiCdConfig();
   }
+
+  // F-944/945/947: Compliance certifications (ISO 27001, HIPAA, ePrivacy)
+  @Get('compliance')
+  getComplianceCertifications() {
+    return this.infra.getComplianceCertificationsConfig();
+  }
+
+  // F-805/806/807/813: Monitoring config (reviews, social mentions, sentiment, session recording)
+  @Get('monitoring-config')
+  getMonitoringConfig() {
+    return this.infra.getMonitoringConfig();
+  }
+
+  // F-902: Google Calendar book club sync config
+  @Get('google-calendar-config')
+  getGoogleCalendarConfig() {
+    return this.infra.getGoogleCalendarConfig();
+  }
 }

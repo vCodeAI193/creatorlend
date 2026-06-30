@@ -165,4 +165,28 @@ export class MobileController {
   advancedPlayerConfig() {
     return this.mobile.getAdvancedPlayerConfig();
   }
+
+  // F-837: App shortcuts (Siri Intents)
+  @Get('shortcuts')
+  getAppShortcuts() {
+    return this.mobile.getAppShortcutsConfig();
+  }
+
+  // F-840/841/842: Mobile accessibility
+  @Get('accessibility')
+  getMobileAccessibility() {
+    return this.mobile.getMobileAccessibilityConfig();
+  }
+
+  // F-845/846: App performance targets
+  @Get('performance-targets')
+  getAppPerformanceTargets() {
+    return this.mobile.getAppPerformanceTargets();
+  }
+
+  // F-849: Offline bookmarks config
+  @Get('offline-bookmarks')
+  getOfflineBookmarkConfig() {
+    return this.mobile.getOfflineBookmarkConfig();
+  }
 }

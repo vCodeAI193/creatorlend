@@ -504,7 +504,7 @@ export class WorksController {
     return this.chapters.remove(userId, workId, markId);
   }
 
-  // POST /api/v1/works/:id/transcripts – Transkript anlegen/aktualisieren (ARTIST)
+  // F-103: Transcript upload / F-105: Transcript search — POST /api/v1/works/:id/transcripts
   @Post(":id/transcripts")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ARTIST)
@@ -572,7 +572,7 @@ export class WorksController {
     return this.works.getWorkQrCode(id);
   }
 
-  // GET /api/v1/works/:id/subtitles – Untertitel-Tracks auflisten
+  // F-108: Subtitles/captions — GET /api/v1/works/:id/subtitles
   @Get(":id/subtitles")
   listSubtitles(@Param("id") workId: string) {
     return this.subtitles.list(workId);
@@ -614,7 +614,7 @@ export class WorksController {
     return this.subtitles.setDefault(userId, workId, trackId);
   }
 
-  // GET /api/v1/works/:id/lyrics – Liedtext abrufen
+  // F-151: Lyrics upload+sync / F-152: Lyrics search — GET /api/v1/works/:id/lyrics
   @Get(":id/lyrics")
   getLyrics(@Param("id") workId: string) {
     return this.lyrics.get(workId);
@@ -2034,5 +2034,135 @@ export class WorksController {
   @UseGuards(JwtAuthGuard)
   getSupportChannelConfig(@Param("id") artistId: string) {
     return this.artistStubs.getSupportChannelConfig(artistId);
+  }
+
+  // F-109: Audio description info
+  @Get(':id/audio-description')
+  getAudioDescriptionInfo(@Param('id') workId: string) {
+    return this.works.getAudioDescriptionInfo(workId);
+  }
+
+  // F-117: Work series
+  @Get(':id/series')
+  getWorkSeries(@Param('id') workId: string) {
+    return this.works.getWorkSeries(workId);
+  }
+
+  @Post(':id/series')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setWorkSeries(
+    @CurrentUser() artistId: string,
+    @Param('id') workId: string,
+    @Body('seriesId') seriesId: string,
+    @Body('position') position: number,
+  ) {
+    return this.works.setWorkSeries(artistId, workId, seriesId, position ?? 1);
+  }
+
+  // F-118: Series progress tracking
+  @Get('series/:seriesId/progress')
+  @UseGuards(JwtAuthGuard)
+  getSeriesProgress(@CurrentUser() userId: string, @Param('seriesId') seriesId: string) {
+    return this.works.getSeriesProgress(userId, seriesId);
+  }
+
+  // F-123: Split-view config
+  @Get('config/split-view')
+  getSplitViewConfig() {
+    return this.works.getSplitViewConfig();
+  }
+
+  // F-149: Work translations
+  @Get(':id/translations')
+  getWorkTranslations(@Param('id') workId: string) {
+    return this.works.getWorkTranslations(workId);
+  }
+
+  @Post(':id/translations')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setWorkTranslation(
+    @CurrentUser() artistId: string,
+    @Param('id') workId: string,
+    @Body('lang') lang: string,
+    @Body('title') title: string,
+    @Body('description') description: string,
+  ) {
+    return this.works.setWorkTranslation(artistId, workId, lang, title, description);
+  }
+
+  // F-152: Lyrics search
+  @Get('search/lyrics')
+  searchLyrics(@Query('q') query: string) {
+    return this.works.searchLyrics(query ?? '');
+  }
+
+  // F-156: Audio description text
+  @Get(':id/audio-description/text')
+  getAudioDescriptionText(@Param('id') workId: string) {
+    return this.works.getAudioDescriptionText(workId);
+  }
+
+  // F-174: AI summary
+  @Get(':id/ai-summary')
+  getAiSummary(@Param('id') workId: string) {
+    return this.works.getAiSummary(workId);
+  }
+
+  // F-176: Similarity config
+  @Get('config/similarity')
+  getSimilarityConfig() {
+    return this.works.getSimilarityConfig();
+  }
+
+  // F-192: Works with transcript
+  @Get('filter/has-transcript')
+  listWorksWithTranscript(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.works.listWorksWithTranscript(Number(page ?? 1), Number(limit ?? 20));
+  }
+
+  // F-193: Works with preview
+  @Get('filter/has-preview')
+  listWorksWithPreview(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.works.listWorksWithPreview(Number(page ?? 1), Number(limit ?? 20));
+  }
+
+  // F-197: New works (last 7 days)
+  @Get('filter/new')
+  listNewWorks(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.works.listNewWorks(Number(page ?? 1), Number(limit ?? 20));
+  }
+
+  // F-203: Mood board
+  @Get('discovery/mood-board')
+  getMoodBoard(@Query('mood') mood: string) {
+    return this.works.getMoodBoard(mood ?? 'chill');
+  }
+
+  // F-204: Works by country
+  @Get('discovery/world-map')
+  getWorksByCountry() {
+    return this.works.getWorksByCountry();
+  }
+
+  // F-205: Works timeline by year
+  @Get('discovery/timeline')
+  getWorksByYear(@Query('year') year?: string) {
+    return this.works.getWorksByYear(year ? Number(year) : undefined);
+  }
+
+  // F-206: Personalized homepage
+  @Get('discovery/personalized')
+  @UseGuards(JwtAuthGuard)
+  getPersonalizedHomepage(@CurrentUser() userId: string) {
+    return this.works.getPersonalizedHomepage(userId);
+  }
+
+  // F-207: "Because you listened to X" recommendations
+  @Get(':id/recommendations')
+  @UseGuards(JwtAuthGuard)
+  getRelatedRecommendations(@CurrentUser() userId: string, @Param('id') workId: string) {
+    return this.works.getRelatedRecommendations(userId, workId);
   }
 }

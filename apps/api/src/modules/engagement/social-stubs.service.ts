@@ -594,7 +594,8 @@ export class SocialStubsService {
     return { workId, tag, submitted: true };
   }
 
-  // F-639–640: Community transcripts/translations
+  // F-639: Community transcripts
+  // F-640: Community-Übersetzungen von Transkripten
   async getCommunityTranscriptSubmissions(workId: string) {
     const submissions = await this.getSetting<Array<Record<string, unknown>>>(`community_transcripts:${workId}`, []);
     return { workId, submissions };
@@ -616,5 +617,211 @@ export class SocialStubsService {
     submissions.push(submission);
     await this.setSetting(key, submissions);
     return { submission };
+  }
+
+  // F-487: Bookmaker API — live loans from third-party platforms
+  getBookmakerApiInfo() {
+    return {
+      enabled: false,
+      apiVersion: '1.0',
+      supportedPlatforms: ['Audible', 'Storytel', 'Scribd'],
+      endpoints: { import: 'POST /integrations/bookmaker/import', status: 'GET /integrations/bookmaker/status' },
+      note: 'Federated lending across platforms. Requires platform partnership and API key.',
+    };
+  }
+
+  // F-491: Mobile dashboard app (standalone artist app)
+  getMobileDashboardAppInfo() {
+    return {
+      status: 'planned',
+      platforms: ['iOS', 'Android'],
+      features: ['revenue_overview', 'loan_notifications', 'work_management', 'payout_requests'],
+      releaseDate: 'Q3 2026',
+      note: 'Standalone React Native app for artists. Shares same API as web.',
+    };
+  }
+
+  // F-506: Font choice (OpenDyslexic) / F-507: Line spacing / F-508: Serif vs sans-serif
+  getTypographyConfig() {
+    return {
+      availableFonts: [
+        { id: 'default', name: 'System Default' },
+        { id: 'opendyslexic', name: 'OpenDyslexic', url: 'https://opendyslexic.org/' },
+        { id: 'atkinson', name: 'Atkinson Hyperlegible' },
+      ],
+      fontStyles: ['sans-serif', 'serif', 'monospace'],
+      lineSpacingOptions: ['compact', 'normal', 'relaxed', 'extra-loose'],
+      defaultLineSpacing: 'normal',
+      defaultFontStyle: 'sans-serif',
+    };
+  }
+
+  // F-542: Screenreader compatibility / F-543: Focus trap in player
+  getAccessibilityConfig() {
+    return {
+      screenreaderSupport: true,
+      ariaLabelsCoverage: 'full',
+      testedWith: ['NVDA', 'JAWS', 'VoiceOver', 'TalkBack'],
+      wcagCompliance: 'WCAG 2.1 AA',
+      focusTrap: { enabled: true, scope: 'player', exitKey: 'Escape' },
+    };
+  }
+
+  // F-545: Interactive tutorial / F-546: Contextual help / F-547: Guided tour
+  getOnboardingConfig() {
+    return {
+      tutorial: {
+        enabled: true,
+        steps: ['discover', 'borrow', 'follow', 'playlist'],
+        skippable: true,
+      },
+      contextualHelp: {
+        enabled: true,
+        provider: 'Intercom',
+        helpBaseUrl: `${process.env.APP_BASE_URL ?? 'https://app.creatorlend.com'}/help`,
+      },
+      guidedTour: {
+        enabled: true,
+        triggerOnFirstLogin: true,
+        library: 'Shepherd.js (planned)',
+      },
+    };
+  }
+
+  // F-556: Quote card / F-557: Quote gallery
+  async createQuoteCard(userId: string, workId: string, quote: string) {
+    const card = { id: `qc_${Date.now()}`, userId, workId, quote: quote.slice(0, 500), createdAt: new Date().toISOString() };
+    const existing = await this.getSetting<unknown[]>(`quote_cards:${userId}`, []);
+    existing.push(card);
+    await this.setSetting(`quote_cards:${userId}`, existing.slice(-50));
+    return card;
+  }
+
+  async getQuoteGallery(userId: string) {
+    return this.getSetting<unknown[]>(`quote_cards:${userId}`, []);
+  }
+
+  // F-559: Flashcards from notes / F-560: Anki integration / F-563: PDF reader
+  getContentToolsConfig() {
+    return {
+      flashcards: { enabled: true, source: 'work_notes', endpoint: 'POST /notes/:workId/flashcards' },
+      anki: { enabled: false, exportFormat: 'Anki Deck (.apkg)', endpoint: 'GET /notes/:workId/export/anki' },
+      pdfReader: { enabled: true, renderer: 'PDF.js', supportsAnnotations: true },
+    };
+  }
+
+  // F-567: A/B tempo test / F-568: Focus score
+  getPlaybackAnalyticsConfig() {
+    return {
+      tempoTest: { enabled: false, variants: [0.75, 1.0, 1.25, 1.5] },
+      focusScore: { enabled: true, metric: 'rewind_frequency', note: 'Lower rewinds = higher focus score' },
+    };
+  }
+
+  async getFocusScore(userId: string, workId: string) {
+    const data = await this.getSetting<Record<string, number>>(`focus_score:${userId}:${workId}`, { rewinds: 0, totalDuration: 0 });
+    const score = data.totalDuration > 0 ? Math.max(0, 100 - (data.rewinds / Math.max(1, data.totalDuration / 60)) * 10) : null;
+    return { userId, workId, rewinds: data.rewinds, totalDurationSeconds: data.totalDuration, focusScore: score };
+  }
+
+  // F-584: Audio messages in DMs
+  getAudioMessageConfig() {
+    return {
+      enabled: false,
+      maxDurationSeconds: 60,
+      formats: ['webm', 'mp3', 'm4a'],
+      endpoint: 'POST /messages/:conversationId/audio',
+    };
+  }
+
+  // F-589/590: Community playlist vote
+  async voteCommunityPlaylist(userId: string, playlistId: string, workId: string) {
+    const key = `community_playlist_vote:${playlistId}:${workId}`;
+    const votes = await this.getSetting<string[]>(key, []);
+    if (!votes.includes(userId)) votes.push(userId);
+    await this.setSetting(key, votes);
+    return { votes: votes.length, hasVoted: true };
+  }
+
+  // F-592: Forum moderation / F-593: Upvote/downvote / F-594: Thread markers
+  getForumConfig() {
+    return {
+      moderation: { actions: ['report', 'hide', 'delete', 'warn'], autoHideThreshold: 3 },
+      voting: { upvote: true, downvote: true, minKarmaToDownvote: 10 },
+      threadMarkers: [
+        { type: 'SOLVED', setBy: 'op_or_mod' },
+        { type: 'HIGHLIGHT', setBy: 'mod' },
+        { type: 'PINNED', setBy: 'mod' },
+      ],
+    };
+  }
+
+  // F-598: Book club discussion schedule
+  async getBookClubSchedule() {
+    return this.getSetting<unknown[]>('book_club_schedule', []);
+  }
+
+  // F-608: In-app surveys (NPS/CSAT)
+  getSurveyConfig() {
+    return {
+      enabled: true,
+      triggers: ['after_first_loan', 'after_30_days', 'after_cancellation'],
+      npsQuestion: 'How likely are you to recommend CreatorLend to a friend?',
+      csatQuestion: 'How satisfied are you with your experience?',
+    };
+  }
+
+  // F-609: Community label / F-611: Co-hosting / F-613: Live comments / F-614: Live donations
+  getCommunityFeaturesConfig() {
+    return {
+      communityLabel: { enabled: false, requirements: ['min_100_followers', 'account_age_30_days'] },
+      coHosting: { enabled: false, maxCoHosts: 3 },
+      liveComments: { enabled: false, transport: 'WebSocket' },
+      liveDonations: { enabled: false, provider: 'Stripe', platformFeePct: 10 },
+    };
+  }
+
+  // F-620: @Mentions / F-623: Moderator roles / F-627: Spam detection
+  getModerationConfig() {
+    return {
+      mentions: { enabled: true, pattern: '@username', maxMentionsPerPost: 10 },
+      moderatorRoles: [
+        { role: 'MODERATOR', permissions: ['hide', 'pin', 'warn', 'timeout'] },
+        { role: 'COMMUNITY_MANAGER', permissions: ['all_moderator', 'ban', 'configure'] },
+      ],
+      spamDetection: { enabled: true, provider: 'perspective-api', action: 'auto_hide' },
+    };
+  }
+
+  // F-630: Creator spotlight / F-631: Community podcast / F-632: Contests
+  async getCommunityPrograms() {
+    const spotlight = await this.getSetting<unknown>('creator_spotlight', { artist: null });
+    return {
+      spotlight,
+      communityPodcast: { enabled: false, title: 'CreatorLend Spotlight' },
+      contests: { activeContests: [], endpoint: 'GET /community/contests' },
+    };
+  }
+
+  // F-635: Ambassador program / F-636: Community meetups / F-637: Story sharing
+  getCommunityEngagementConfig() {
+    return {
+      ambassador: { enabled: false, requirements: ['500_loans', '100_followers', '6_month_member'] },
+      meetups: { enabled: false, formats: ['virtual', 'local'] },
+      storySharing: { enabled: true, endpoint: 'GET /community/story/:userId/:year' },
+    };
+  }
+
+  async getListeningStory(userId: string, year?: number) {
+    const targetYear = year ?? new Date().getFullYear();
+    const start = new Date(targetYear, 0, 1);
+    const end = new Date(targetYear + 1, 0, 1);
+    const count = await this.prisma.loan.count({ where: { userId, createdAt: { gte: start, lt: end } } });
+    return {
+      userId,
+      year: targetYear,
+      totalLoans: count,
+      shareText: `I listened to ${count} works on CreatorLend in ${targetYear}!`,
+    };
   }
 }

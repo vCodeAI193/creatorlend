@@ -670,4 +670,74 @@ export class PayoutsController {
   getDonationReceipt(@CurrentUser() userId: string, @Query("year") year?: string) {
     return this.stubs.getDonationReceipt(userId, year ? Number(year) : new Date().getFullYear());
   }
+
+  // F-422: Dashboard widget config (drag-and-drop)
+  @Get("dashboard/widgets")
+  getDashboardWidgetConfig(@CurrentUser() userId: string) {
+    return this.payouts.getDashboardWidgetConfig(userId);
+  }
+
+  @Post("dashboard/widgets")
+  setDashboardWidgetConfig(
+    @CurrentUser() userId: string,
+    @Body("widgets") widgets: Array<{ id: string; position: number; enabled: boolean }>,
+  ) {
+    return this.payouts.setDashboardWidgetConfig(userId, widgets ?? []);
+  }
+
+  // F-424: Revenue chart daily
+  @Get("revenue/chart/daily")
+  getRevenuechartDaily(@CurrentUser() userId: string, @Query("days") days?: string) {
+    return this.payouts.getRevenuechartDaily(userId, days ? Number(days) : 30);
+  }
+
+  // F-425: Revenue chart weekly/monthly/yearly
+  @Get("revenue/chart")
+  getRevenueChart(
+    @CurrentUser() userId: string,
+    @Query("granularity") granularity?: string,
+  ) {
+    const g = ['week', 'month', 'year'].includes(granularity ?? '') ? granularity as 'week' | 'month' | 'year' : 'month';
+    return this.payouts.getRevenueChart(userId, g);
+  }
+
+  // F-426: Work performance comparison
+  @Get("revenue/works/performance")
+  getWorkPerformanceComparison(@CurrentUser() userId: string) {
+    return this.payouts.getWorkPerformanceComparison(userId);
+  }
+
+  // F-427: Follower growth
+  @Get("followers/growth")
+  getFollowerGrowth(@CurrentUser() userId: string, @Query("days") days?: string) {
+    return this.payouts.getFollowerGrowth(userId, days ? Number(days) : 30);
+  }
+
+  // F-361: SEPA payout info
+  @Get("sepa/info")
+  getSepaPayoutInfo() {
+    return this.payouts.getSepaPayoutInfo();
+  }
+
+  // F-365: On-demand payout request
+  @Post("on-demand")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  requestOnDemandPayout(@CurrentUser() userId: string) {
+    return this.payouts.requestOnDemandPayout(userId);
+  }
+
+  // F-366: Payout calendar
+  @Get("calendar")
+  @UseGuards(JwtAuthGuard)
+  getPayoutCalendar(@CurrentUser() userId: string) {
+    return this.payouts.getPayoutCalendar(userId);
+  }
+
+  @Post("calendar")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setPayoutCalendar(@CurrentUser() userId: string, @Body("dayOfMonth") dayOfMonth: number) {
+    return this.payouts.setPayoutCalendar(userId, dayOfMonth ?? 1);
+  }
 }
