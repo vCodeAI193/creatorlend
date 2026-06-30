@@ -248,4 +248,168 @@ export class RecommendationsService {
       })),
     };
   }
+
+  // F-208: Ähnliche Künstler:innen auf Profilseite
+  async getSimilarArtists(artistId: string, limit = 6) {
+    const works = await this.prisma.work.findMany({ where: { artistId, status: 'PUBLISHED' }, select: { type: true, tags: true }, take: 10 });
+    const types = [...new Set(works.map((w) => w.type))];
+    const tags = [...new Set(works.flatMap((w) => w.tags as string[]))].slice(0, 5);
+    const similar = await this.prisma.user.findMany({ where: { role: 'ARTIST', id: { not: artistId }, works: { some: { status: 'PUBLISHED', OR: [{ type: { in: types as never[] } }, ...(tags.length ? [{ tags: { hasSome: tags } }] : [])] } } }, take: limit, select: { id: true, displayName: true, avatarUrl: true, slug: true } });
+    return { artistId, similarArtists: similar };
+  }
+
+  // F-209: "Andere Hörer:innen mögen auch…"
+  async getOtherListenersAlsoLike(workId: string, limit = 10) {
+    const borrowers = await this.prisma.loan.findMany({ where: { workId }, select: { userId: true }, take: 100 });
+    const userIds = borrowers.map((b) => b.userId);
+    if (!userIds.length) return { workId, alsoLike: [] };
+    const rows = await this.prisma.$queryRaw<{ workId: string; cnt: bigint }[]>`
+      SELECT "workId", COUNT(*) AS cnt FROM "Loan"
+      WHERE "userId" = ANY(${userIds}::uuid[]) AND "workId" != ${workId}
+      GROUP BY "workId" ORDER BY cnt DESC LIMIT ${limit}
+    `;
+    const ids = rows.map((r) => r.workId);
+    const works = ids.length ? await this.prisma.work.findMany({ where: { id: { in: ids }, status: 'PUBLISHED' } }) : [];
+    return { workId, alsoLike: works };
+  }
+
+  // F-210: Collaborative Filtering (stub – uses borrow-based co-occurrence)
+  async getCollaborativeRecs(userId: string, limit = 10) {
+    return this.getPersonalizedFeed(userId, limit);
+  }
+
+  // F-211: Content-Based Filtering
+  async getContentBasedRecs(workId: string, limit = 10) {
+    return this.getSimilarWorks(workId, limit);
+  }
+
+  // F-212: Hybrid-Recommender
+  async getHybridRecs(userId: string, limit = 10) {
+    const [collab, feed] = await Promise.all([this.getPersonalizedFeed(userId, limit), this.getNewArrivals(5)]);
+    const seen = new Set<string>();
+    return [...collab, ...feed].filter((w) => { if (seen.has(w.id)) return false; seen.add(w.id); return true; }).slice(0, limit);
+  }
+
+  // F-213: Empfehlungen nach Tageszeit
+  getTimeOfDayRecs(hour: number) {
+    const slot = hour < 6 ? 'night' : hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+    const typeMap: Record<string, string[]> = { night: ['AUDIOBOOK'], morning: ['PODCAST', 'MUSIC'], afternoon: ['MUSIC', 'PODCAST'], evening: ['AUDIOBOOK', 'MUSIC'] };
+    return { slot, recommendedTypes: typeMap[slot], message: 'Filter GET /api/v1/works?type=AUDIOBOOK for time-based discovery' };
+  }
+
+  // F-214: Empfehlungen nach Wetterlage
+  getWeatherRecs(condition: string) {
+    const map: Record<string, string[]> = { sunny: ['energetic', 'happy'], rainy: ['melancholic', 'cozy'], cloudy: ['focus', 'calm'], snowy: ['festive', 'peaceful'] };
+    return { condition, recommendedMoods: map[condition] ?? ['calm'], message: 'Integrate weather API (OpenWeatherMap) to auto-detect condition at client' };
+  }
+
+  // F-215: Top-Charts nach Land / Region
+  async getChartsByCountry(countryCode: string, limit = 20) {
+    const rows = await this.prisma.$queryRaw<{ workId: string; cnt: bigint }[]>`
+      SELECT l."workId", COUNT(*) AS cnt FROM "Loan" l
+      JOIN "Work" w ON w.id = l."workId"
+      WHERE w.status = 'PUBLISHED' AND NOT (${countryCode} = ANY(w."geoBlock"))
+      GROUP BY l."workId" ORDER BY cnt DESC LIMIT ${limit}
+    `;
+    const ids = rows.map((r) => r.workId);
+    const works = ids.length ? await this.prisma.work.findMany({ where: { id: { in: ids } } }) : [];
+    return { country: countryCode, works };
+  }
+
+  // F-218: Genre-spezifische Charts
+  async getGenreCharts(genre: string, limit = 20) {
+    const works = await this.prisma.work.findMany({ where: { status: 'PUBLISHED', category: genre }, orderBy: { borrowCount: 'desc' }, take: limit });
+    return { genre, works };
+  }
+
+  // F-219: Editorielle Bestenliste "Werke des Jahres"
+  async getEditorialBestOf(year?: number) {
+    const y = year ?? new Date().getFullYear();
+    const key = `editorial_best_of_${y}`;
+    const row = await this.prisma.appSetting.findUnique({ where: { key } });
+    const ids: string[] = row ? (JSON.parse(row.value) as string[]) : [];
+    const works = ids.length ? await this.prisma.work.findMany({ where: { id: { in: ids } } }) : [];
+    return { year: y, works };
+  }
+
+  // F-220: Nutzer:innen-Abstimmung für Jahres-Top-10
+  async voteForBestOf(userId: string, workId: string, year?: number) {
+    const y = year ?? new Date().getFullYear();
+    const key = `vote_${y}_${userId}`;
+    await this.prisma.appSetting.upsert({ where: { key }, create: { key, value: workId }, update: { value: workId } });
+    return { userId, workId, year: y, message: 'Vote recorded – tallied daily by scheduler' };
+  }
+
+  // F-221: Kategorieseiten mit editoriellem Intro-Text
+  async getCategoryPage(category: string) {
+    const row = await this.prisma.appSetting.findUnique({ where: { key: `category_intro:${category}` } });
+    const works = await this.prisma.work.findMany({ where: { status: 'PUBLISHED', category }, orderBy: { borrowCount: 'desc' }, take: 20 });
+    return { category, intro: row?.value ?? null, works };
+  }
+
+  // F-223: Sammelseite: "Demnächst verfügbar" (Pre-Release)
+  async getUpcomingReleases(limit = 20) {
+    const works = await this.prisma.work.findMany({ where: { status: 'DRAFT', publishAt: { gte: new Date() } }, orderBy: { publishAt: 'asc' }, take: limit, select: { id: true, title: true, publishAt: true, artistId: true, type: true } });
+    return { works };
+  }
+
+  // F-224: Sammelseite: "Letzte Chance" (bald ablaufend – stub: no expiry on works)
+  async getLastChanceSoon(limit = 20) {
+    return { works: [], message: 'Work expiry not modelled – return works by availableTo proximity', limit };
+  }
+
+  // F-225: Sammelseite: "Kostenlos hörbar" (alle mit Vorschau)
+  async getFreePreview(limit = 20) {
+    const works = await this.prisma.work.findMany({ where: { status: 'PUBLISHED', previewKey: { not: null } }, orderBy: { borrowCount: 'desc' }, take: limit });
+    return { works };
+  }
+
+  // F-226: Saisonale Sammlungen
+  getSeasonalCollections() {
+    const month = new Date().getMonth() + 1;
+    const season = month >= 3 && month <= 5 ? 'spring' : month >= 6 && month <= 8 ? 'summer' : month >= 9 && month <= 11 ? 'autumn' : 'winter';
+    const tagMap: Record<string, string[]> = { spring: ['frühling', 'neubeginn', 'leicht'], summer: ['sommer', 'strand', 'entspannung'], autumn: ['herbst', 'gemütlich', 'nostalgie'], winter: ['weihnachten', 'advent', 'warm'] };
+    return { season, suggestedTags: tagMap[season], searchUrl: `/api/v1/works?tags=${(tagMap[season] ?? []).join(',')}` };
+  }
+
+  // F-227: Thematische Playlisten vom Redaktionsteam
+  async getEditorialPlaylists() {
+    const row = await this.prisma.appSetting.findUnique({ where: { key: 'editorial_playlists' } });
+    return { playlists: row ? JSON.parse(row.value) : [], updatedAt: row?.updatedAt ?? null };
+  }
+
+  // F-229: "Entdecke deinen Künstler:in der Woche"
+  async getArtistOfTheWeek() {
+    const row = await this.prisma.appSetting.findUnique({ where: { key: 'artist_of_the_week' } });
+    if (!row) return { artist: null, message: 'Set artist_of_the_week AppSetting to an artist ID' };
+    const artist = await this.prisma.user.findUnique({ where: { id: row.value }, select: { id: true, displayName: true, avatarUrl: true, bio: true, slug: true } });
+    return { artist, validUntil: null };
+  }
+
+  // F-230: Podcast-Staffel-Empfehlungen (binge-worthy)
+  async getBingePodcasts(limit = 10) {
+    const works = await this.prisma.work.findMany({ where: { status: 'PUBLISHED', type: 'PODCAST' }, orderBy: { borrowCount: 'desc' }, take: limit });
+    return { works, message: 'Filter by series with most episodes via series API for richer binge-worthy ranking' };
+  }
+
+  // F-231: Empfehlungen basierend auf Bookmarks
+  async getBookmarkBasedRecs(userId: string, limit = 10) {
+    const bookmarks = await this.prisma.bookmark.findMany({ where: { userId }, include: { work: { select: { type: true, tags: true } } }, take: 20 });
+    const types = [...new Set(bookmarks.map((b) => b.work.type))];
+    if (!types.length) return { recommendations: [] };
+    const borrowedIds = (await this.prisma.loan.findMany({ where: { userId }, select: { workId: true } })).map((l) => l.workId);
+    const works = await this.prisma.work.findMany({ where: { status: 'PUBLISHED', type: { in: types as never[] }, id: { notIn: borrowedIds } }, orderBy: { borrowCount: 'desc' }, take: limit });
+    return { recommendations: works };
+  }
+
+  // F-232: Was hören Freunde?
+  async getSocialRecs(userId: string, limit = 10) {
+    const follows = await this.prisma.follow.findMany({ where: { followerId: userId }, select: { artistId: true } });
+    const followedIds = follows.map((f) => f.artistId);
+    if (!followedIds.length) return { recommendations: [] };
+    const friendLoans = await this.prisma.loan.findMany({ where: { userId: { in: followedIds }, status: 'ACTIVE' }, include: { work: true }, take: 50 });
+    const seen = new Set<string>();
+    const recs = friendLoans.map((l) => l.work).filter((w) => { if (seen.has(w.id)) return false; seen.add(w.id); return true; }).slice(0, limit);
+    return { recommendations: recs };
+  }
 }

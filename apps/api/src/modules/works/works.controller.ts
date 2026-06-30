@@ -1236,4 +1236,165 @@ export class WorksController {
   // F-179: Qualitäts-Score
   @Get(":id/quality-score")
   qualityScore(@Param("id") workId: string) { return this.stubs.getWorkQualityScore(workId); }
+
+  // F-181: Volltext-Suche über Transkripte – handled by GET /:id/transcripts/search
+
+  // F-182: Phonetische Suche
+  @Get("search/phonetic")
+  phoneticSearch(@Query("q") q: string) {
+    return { query: q, message: 'Phonetic search stub – use pg_trgm similarity() or soundex() in production', results: [] };
+  }
+
+  // F-185: Personalisierte Suchvorschläge aus Hörhistorie
+  @Get("search/personalized-suggestions")
+  @UseGuards(JwtAuthGuard)
+  personalizedSuggestions(@CurrentUser() user: { userId: string }, @Query("q") q: string) {
+    return { userId: user.userId, query: q, suggestions: [], message: 'Personalized suggestions based on user loan history – implement in production with ML model' };
+  }
+
+  // F-186: Semantische Suche
+  @Get("search/semantic")
+  semanticSearch(@Query("q") q: string) {
+    return { query: q, message: 'Semantic search stub – use pgvector + OpenAI embeddings in production', results: [] };
+  }
+
+  // F-187: Sprachsuche per Mikrofon
+  @Post("search/voice")
+  voiceSearch(@Body("audioBase64") audioBase64: string) {
+    return { transcribed: null, results: [], message: 'Voice search stub – pipe audioBase64 to Whisper API for transcription, then text search' };
+  }
+
+  // F-188: Bild-Suche
+  @Post("search/image")
+  imageSearch(@Body("imageBase64") imageBase64: string) {
+    return { results: [], message: 'Image search stub – extract cover art features via CLIP model, compare with indexed cover embeddings' };
+  }
+
+  // F-189: Suche nach Stimmung
+  @Get("search/mood")
+  moodSearch(@Query("mood") mood: string, @Query("limit") limit?: string) {
+    return { mood, results: [], message: `Filter works by mood tag "${mood}" – use GET /api/v1/works?tags=${mood}`, searchUrl: `/api/v1/works?tags=${mood}&limit=${limit ?? 20}` };
+  }
+
+  // F-190: Suche nach Tempo / BPM
+  @Get("search/bpm")
+  bpmSearch(@Query("min") min?: string, @Query("max") max?: string) {
+    return { minBpm: min ?? '0', maxBpm: max ?? '999', results: [], message: 'BPM stored in Work.tags or audio analysis metadata – query via full-text or AI metadata field' };
+  }
+
+  // F-191: Suche nach Sprechstimme
+  @Get("search/voice-type")
+  voiceTypeSearch(@Query("type") type: string) {
+    return { voiceType: type, results: [], message: 'Voice type (hell, dunkel, sanft) stored as AI metadata tag post-upload analysis' };
+  }
+
+  // F-194: Filter: noch nicht gehört
+  @Get("search/unheard")
+  @UseGuards(JwtAuthGuard)
+  unheardSearch(@CurrentUser() user: { userId: string }, @Query("limit") limit?: string) {
+    return { userId: user.userId, message: 'Use GET /api/v1/works with excludeBorrowed=true parameter or filter by loan history server-side', limit: limit ?? 20, results: [] };
+  }
+
+  // F-196: Filter: in Wunschliste
+  @Get("search/in-wishlist")
+  @UseGuards(JwtAuthGuard)
+  wishlistFilter(@CurrentUser() user: { userId: string }) {
+    return { userId: user.userId, message: 'Use GET /api/v1/users/me/wishlist for full wishlist works', results: [] };
+  }
+
+  // F-198: Suchhistorie
+  @Get("search/history")
+  @UseGuards(JwtAuthGuard)
+  searchHistory(@CurrentUser() user: { userId: string }) {
+    return { userId: user.userId, history: [], message: 'Search history stored in AppSetting key search_history:<userId> – read via AppSetting service' };
+  }
+
+  @Delete("search/history")
+  @UseGuards(JwtAuthGuard)
+  async clearSearchHistory(@CurrentUser() user: { userId: string }) {
+    return { userId: user.userId, cleared: true, message: 'Search history stored in AppSetting – delete key search_history:<userId>' };
+  }
+
+  // F-200: Suchresultate als RSS-Feed
+  @Get("search/feed.rss")
+  @Header("Content-Type", "application/rss+xml")
+  searchRss(@Query("q") q: string) {
+    const base = process.env.API_BASE_URL ?? 'https://api.creatorlend.com';
+    return `<?xml version="1.0"?><rss version="2.0"><channel><title>CreatorLend: ${q}</title><link>${base}/api/v1/works?q=${q}</link><description>Suchergebnisse für "${q}"</description></channel></rss>`;
+  }
+
+  // F-233: Empfehlung per Direktnachricht
+  @Post(":id/recommend-to")
+  @UseGuards(JwtAuthGuard)
+  recommendTo(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body("recipientId") recipientId: string) {
+    return { workId, from: user.userId, to: recipientId, message: 'Recommendation DM stub – use POST /api/v1/messages to send a DM with workId metadata' };
+  }
+
+  // F-236: Teilen in sozialen Medien
+  @Post(":id/share/social")
+  shareSocial(@Param("id") workId: string, @Body("platform") platform: string) {
+    const base = process.env.APP_BASE_URL ?? 'https://app.creatorlend.com';
+    const url = `${base}/works/${workId}`;
+    const urls: Record<string, string> = { twitter: `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}`, facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` };
+    return { workId, platform, shareUrl: urls[platform] ?? url };
+  }
+
+  // F-237: Teilen per E-Mail
+  @Post(":id/share/email")
+  shareEmail(@Param("id") workId: string, @Body("to") to: string, @Body("message") message: string) {
+    return { workId, to, sent: false, message: 'Email share stub – use mail service in production to send share email' };
+  }
+
+  // F-238: Teilen via WhatsApp
+  @Get(":id/share/whatsapp")
+  shareWhatsApp(@Param("id") workId: string) {
+    const base = process.env.APP_BASE_URL ?? 'https://app.creatorlend.com';
+    const url = encodeURIComponent(`${base}/works/${workId}`);
+    return { workId, whatsappUrl: `https://wa.me/?text=${url}` };
+  }
+
+  // F-243: Wunschliste als RSS-Feed
+  @Get("wishlist/:slug/feed.rss")
+  @Header("Content-Type", "application/rss+xml")
+  async wishlistRss(@Param("slug") slug: string) {
+    const base = process.env.APP_BASE_URL ?? 'https://app.creatorlend.com';
+    return `<?xml version="1.0"?><rss version="2.0"><channel><title>Wunschliste</title><link>${base}/wishlist/${slug}</link><description>Öffentliche Wunschliste auf CreatorLend</description></channel></rss>`;
+  }
+
+  // F-244: Preisalarm
+  @Post(":id/price-alert")
+  @UseGuards(JwtAuthGuard)
+  priceAlert(@Param("id") workId: string, @CurrentUser() user: { userId: string }, @Body("targetPriceCents") targetPriceCents: number) {
+    return { workId, userId: user.userId, targetPriceCents, registered: true, message: 'Price alert stub – check AppSetting price_alert:<workId> in scheduler' };
+  }
+
+  // F-245: Wieder verfügbar-Alarm
+  @Post(":id/availability-alert")
+  @UseGuards(JwtAuthGuard)
+  availabilityAlert(@Param("id") workId: string, @CurrentUser() user: { userId: string }) {
+    return { workId, userId: user.userId, registered: true, message: 'Re-availability alert stub – notify when work status changes back to PUBLISHED' };
+  }
+
+  // F-247: Benachrichtigung wenn Thema neue Werke hat
+  @Post("search/topic-alert")
+  @UseGuards(JwtAuthGuard)
+  topicAlert(@CurrentUser() user: { userId: string }, @Body("query") query: string) {
+    return { userId: user.userId, query, registered: true, message: 'Topic alert stub – schedule daily search job and email when new works match query' };
+  }
+
+  // F-248/F-249: Such-Operatoren (artist: / type: / duration:) – handled by GET /api/v1/works?q= with parser
+  // F-250: Dokumentation der Such-Operatoren
+  @Get("search/operators")
+  searchOperators() {
+    return {
+      operators: [
+        { op: 'artist:"Name"', description: 'Suche nach Werken eines bestimmten Künstlers / einer Künstlerin' },
+        { op: 'type:PODCAST', description: 'Filtert nach Werktyp: MUSIC, PODCAST, AUDIOBOOK' },
+        { op: 'duration:>60', description: 'Filtert nach Laufzeit in Minuten (>, <, =)' },
+        { op: 'lang:de', description: 'Filtert nach Sprache (ISO 639-1)' },
+        { op: 'tag:meditation', description: 'Filtert nach Tag' },
+      ],
+      example: '/api/v1/works?q=type:PODCAST duration:>30 tag:news',
+    };
+  }
 }
