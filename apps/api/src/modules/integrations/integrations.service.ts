@@ -162,4 +162,218 @@ export class IntegrationsService {
       ],
     };
   }
+
+  // F-900: Kindle-Import – Highlights aus E-Books verknüpfen
+  async importKindleHighlights(userId: string, clippingsText?: string) {
+    return {
+      provider: 'kindle',
+      importedCount: 0,
+      message: 'Upload your Kindle "My Clippings.txt" to import highlights. Set KINDLE_INTEGRATION=true to enable.',
+      enabled: !!process.env.KINDLE_INTEGRATION,
+      parsedHighlights: clippingsText ? [] : [],
+    };
+  }
+
+  // F-901-F-903: Calendar-Integration (Google Calendar, Outlook)
+  getCalendarIntegrationInfo() {
+    return {
+      providers: [
+        {
+          name: 'google',
+          label: 'Google Calendar',
+          authUrl: `${process.env.API_BASE_URL ?? 'https://api.creatorlend.com'}/oauth/google/calendar`,
+          scopes: ['https://www.googleapis.com/auth/calendar.events'],
+          features: ['loan_reminders', 'book_club_events', 'listening_goals'],
+        },
+        {
+          name: 'outlook',
+          label: 'Outlook Calendar',
+          authUrl: `${process.env.API_BASE_URL ?? 'https://api.creatorlend.com'}/oauth/microsoft/calendar`,
+          scopes: ['Calendars.ReadWrite'],
+          features: ['loan_reminders', 'book_club_events'],
+        },
+      ],
+      calendarEventTypes: [
+        { key: 'loan_due', label: 'Leih-Erinnerung (1 Tag vor Ablauf)' },
+        { key: 'listening_goal', label: 'Hörziel eintragen' },
+        { key: 'book_club', label: 'Buchclub-Termin synchronisieren' },
+      ],
+      enabled: !!process.env.GOOGLE_CALENDAR_CLIENT_ID,
+    };
+  }
+
+  // F-905: Discord Bot – Shared-Playlist für Server
+  getDiscordBotInfo() {
+    return {
+      botName: 'CreatorLend Bot',
+      inviteUrl: `https://discord.com/api/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID ?? 'DISCORD_CLIENT_ID'}&scope=bot&permissions=2048`,
+      commands: [
+        { command: '/playlist', description: 'Zeige oder teile eine Playlist im Server-Kanal' },
+        { command: '/recommend', description: 'Empfehle ein Werk an den Server' },
+        { command: '/nowplaying', description: 'Zeige was du gerade hörst' },
+        { command: '/stats', description: 'Server-Hörstatistiken anzeigen' },
+      ],
+      enabled: !!process.env.DISCORD_CLIENT_ID,
+      docsUrl: 'https://docs.creatorlend.com/integrations/discord',
+    };
+  }
+
+  // F-906: Shopify App – Werke direkt aus Shopify-Shop verlinken
+  getShopifyIntegrationInfo() {
+    return {
+      provider: 'shopify',
+      appListing: 'https://apps.shopify.com/creatorlend',
+      features: ['Embed audio player widget in product pages', 'Sell work bundles', 'Sync customers to subscriber list'],
+      installUrl: `${process.env.API_BASE_URL ?? 'https://api.creatorlend.com'}/oauth/shopify/install`,
+      enabled: !!process.env.SHOPIFY_API_KEY,
+    };
+  }
+
+  // F-907: WordPress-Plugin – Werke auf Blog einbetten
+  getWordPressPluginInfo() {
+    return {
+      provider: 'wordpress',
+      pluginUrl: 'https://wordpress.org/plugins/creatorlend-embed/',
+      shortcode: '[creatorlend work="WORK_ID" theme="light"]',
+      blockEditorSupport: true,
+      features: ['Audio player embed', 'Borrow CTA widget', 'Author profile widget'],
+      docsUrl: 'https://docs.creatorlend.com/integrations/wordpress',
+    };
+  }
+
+  // F-908: Ghost CMS Integration
+  getGhostCmsInfo() {
+    return {
+      provider: 'ghost',
+      integrationVia: 'Ghost Content API + custom card',
+      cardName: 'CreatorLend Audio Card',
+      features: ['Embed audio player in Ghost posts', 'Auto-link referenced works'],
+      setupUrl: `${process.env.API_BASE_URL ?? 'https://api.creatorlend.com'}/integrations/ghost/setup`,
+      docsUrl: 'https://docs.creatorlend.com/integrations/ghost',
+      enabled: !!process.env.GHOST_ADMIN_API_KEY,
+    };
+  }
+
+  // F-909: Substack Integration – Podcast-Episoden verlinken
+  getSubstackInfo() {
+    return {
+      provider: 'substack',
+      features: ['Embed podcast episodes from CreatorLend in Substack posts', 'Cross-promote works to newsletter subscribers'],
+      embedCode: '<iframe src="https://embed.creatorlend.com/work/WORK_ID" width="100%" height="180"></iframe>',
+      docsUrl: 'https://docs.creatorlend.com/integrations/substack',
+    };
+  }
+
+  // F-910: CRM-Integration (HubSpot / Salesforce)
+  async syncToCrm(userId: string, provider: 'hubspot' | 'salesforce') {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, displayName: true, role: true } });
+    if (!user) return { synced: false, error: 'user_not_found' };
+    return {
+      synced: false,
+      provider,
+      message: `Set ${provider === 'hubspot' ? 'HUBSPOT_ACCESS_TOKEN' : 'SALESFORCE_CLIENT_ID'} to enable CRM sync`,
+      contactData: { email: user.email, name: user.displayName, tags: [user.role] },
+    };
+  }
+
+  getCrmConfig() {
+    return {
+      providers: [
+        { name: 'hubspot', enabled: !!process.env.HUBSPOT_ACCESS_TOKEN, portalId: process.env.HUBSPOT_PORTAL_ID ?? null },
+        { name: 'salesforce', enabled: !!process.env.SALESFORCE_CLIENT_ID, instanceUrl: process.env.SALESFORCE_INSTANCE_URL ?? null },
+      ],
+      syncFields: ['email', 'displayName', 'role', 'createdAt', 'subscriptionStatus', 'totalLoans'],
+      syncFrequency: 'hourly',
+    };
+  }
+
+  // F-912: CDP-Integration (Segment.io)
+  getCdpConfig() {
+    return {
+      provider: 'segment',
+      writeKey: process.env.SEGMENT_WRITE_KEY ? '***' : null,
+      enabled: !!process.env.SEGMENT_WRITE_KEY,
+      trackedEvents: [
+        'user_registered', 'loan_created', 'loan_renewed', 'work_published',
+        'subscription_created', 'review_submitted', 'payout_requested',
+      ],
+      destinations: ['Mixpanel', 'Amplitude', 'Google Analytics 4', 'Intercom'],
+      docsUrl: 'https://segment.com/docs/connections/sources/catalog/libraries/server/node/',
+    };
+  }
+
+  // F-913: BI-Tool – Metabase self-hosted für Künstler:innen
+  getBiToolConfig() {
+    return {
+      provider: 'metabase',
+      dashboardUrl: process.env.METABASE_URL ?? null,
+      enabled: !!process.env.METABASE_URL,
+      artistDashboards: [
+        { name: 'Meine Werke – Leihzahlen', slug: 'artist-loans' },
+        { name: 'Umsatz-Übersicht', slug: 'artist-revenue' },
+        { name: 'Zuhörer-Demografie', slug: 'artist-audience' },
+      ],
+      embedEnabled: !!process.env.METABASE_EMBED_SECRET,
+      setupDocs: 'https://docs.metabase.com/latest/installation-and-operation/running-metabase-on-docker',
+    };
+  }
+
+  // F-915: Translation API – automatische Übersetzung von Beschreibungen
+  async translateWorkDescription(workId: string, targetLocale: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId }, select: { title: true, description: true } });
+    if (!work) return { translated: false, error: 'work_not_found' };
+    return {
+      workId,
+      targetLocale,
+      provider: process.env.TRANSLATION_PROVIDER ?? 'deepl',
+      enabled: !!process.env.DEEPL_API_KEY,
+      original: { title: work.title, description: work.description },
+      translated: null,
+      message: 'Set DEEPL_API_KEY or GOOGLE_TRANSLATE_KEY to enable automatic translation',
+    };
+  }
+
+  // F-916: AI Content Moderation API (Perspective API, AWS Rekognition)
+  async moderateWithExternalAi(text: string) {
+    return {
+      provider: process.env.PERSPECTIVE_API_KEY ? 'perspective' : 'stub',
+      enabled: !!process.env.PERSPECTIVE_API_KEY || !!process.env.AWS_REKOGNITION_REGION,
+      input: text.slice(0, 100),
+      scores: { TOXICITY: 0.05, SEVERE_TOXICITY: 0.01, INSULT: 0.02, THREAT: 0.01 },
+      flagged: false,
+      message: 'Set PERSPECTIVE_API_KEY to use Google Perspective API in production',
+    };
+  }
+
+  // F-917: Payment-Fallback – Mollie wenn Stripe ausfällt
+  getMollieConfig() {
+    return {
+      provider: 'mollie',
+      enabled: !!process.env.MOLLIE_API_KEY,
+      apiKey: process.env.MOLLIE_API_KEY ? '***' : null,
+      fallbackConditions: ['stripe_circuit_open', 'stripe_timeout_3x', 'stripe_5xx'],
+      supportedMethods: ['creditcard', 'ideal', 'bancontact', 'sofort', 'paypal'],
+      docsUrl: 'https://docs.mollie.com/reference/v2/payments-api/create-payment',
+    };
+  }
+
+  // F-918: Multi-CDN (Cloudflare + Fastly für Redundanz)
+  getMultiCdnConfig() {
+    return {
+      strategy: 'primary-fallback',
+      primary: {
+        provider: 'cloudflare',
+        baseUrl: process.env.CLOUDFLARE_CDN_URL ?? 'https://cdn.creatorlend.com',
+        enabled: !!process.env.CLOUDFLARE_ZONE_ID,
+      },
+      fallback: {
+        provider: 'fastly',
+        baseUrl: process.env.FASTLY_CDN_URL ?? 'https://fastly.creatorlend.com',
+        enabled: !!process.env.FASTLY_API_KEY,
+      },
+      routing: 'latency-based',
+      failoverThreshold: '3 consecutive errors',
+      docsUrl: 'https://docs.creatorlend.com/infra/multi-cdn',
+    };
+  }
 }

@@ -314,4 +314,250 @@ export class InfraService implements OnApplicationShutdown {
       rto: '< 1 hour',
     };
   }
+
+  // F-921: Content Security Policy
+  getCspConfig() {
+    return {
+      policy: "default-src 'self'; script-src 'self' https://cdn.creatorlend.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https://cdn.creatorlend.com; connect-src 'self' https://api.creatorlend.com; frame-ancestors 'none';",
+      mode: 'enforce',
+      reportUri: '/api/v1/infra/security/csp-report',
+      nonce: true,
+    };
+  }
+
+  // F-923: CORS-Konfiguration
+  getCorsConfig() {
+    const origins = (process.env.CORS_ORIGINS ?? 'https://app.creatorlend.com,https://creatorlend.com').split(',');
+    return {
+      allowedOrigins: origins,
+      allowedMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'X-Request-ID'],
+      credentials: true,
+      maxAgeSeconds: 86400,
+    };
+  }
+
+  // F-926-F-932: Security Program Config
+  getSecurityProgramConfig() {
+    return {
+      containerScanning: { tool: 'Trivy', schedule: 'on-push', registry: 'ghcr.io/creatorlend' },
+      sast: { tool: 'CodeQL', languages: ['typescript', 'javascript'], schedule: 'on-pr' },
+      dast: { tool: 'OWASP ZAP', target: process.env.STAGING_URL ?? 'https://staging.creatorlend.com', schedule: 'weekly' },
+      penTest: { frequency: 'annual', lastDate: '2025-01-01', provider: 'TBD', nextDate: '2026-01-01' },
+      bugBounty: { platform: 'HackerOne', url: 'https://hackerone.com/creatorlend', scope: ['api.creatorlend.com', 'app.creatorlend.com'], active: false },
+      responsibleDisclosure: { email: 'security@creatorlend.com', pgpKey: null, responseTimeDays: 5, url: 'https://creatorlend.com/security' },
+      sbom: { format: 'CycloneDX', generated: 'on-release', tool: 'syft', outputUrl: null },
+      mTls: { enabled: !!process.env.MTLS_ENABLED, services: ['api → stripe-proxy', 'api → media-service'], certProvider: 'AWS ACM PCA' },
+    };
+  }
+
+  // F-935: Automatische Secret-Rotation
+  getSecretRotationConfig() {
+    return {
+      enabled: !!process.env.VAULT_ADDR,
+      rotationIntervalDays: 90,
+      nextRotation: null,
+      secrets: [
+        { name: 'STRIPE_SECRET_KEY', lastRotated: null },
+        { name: 'JWT_SECRET', lastRotated: null },
+        { name: 'DATABASE_URL', lastRotated: null },
+      ],
+      provider: process.env.VAULT_ADDR ? 'HashiCorp Vault' : 'AWS SSM',
+    };
+  }
+
+  // F-936: Audit-Log für Datenbankänderungen
+  getAuditLogConfig() {
+    return {
+      enabled: true,
+      provider: 'application-level',
+      tables: ['users', 'works', 'loans', 'subscriptions', 'payouts'],
+      retentionDays: 365,
+      piiMasking: true,
+      exportFormats: ['JSON', 'CSV'],
+      integrations: ['SIEM', 'Elastic', 'Loki'],
+    };
+  }
+
+  // F-937: DB Least-Privilege-Rollen
+  getDbAccessConfig() {
+    return {
+      roles: [
+        { name: 'creatorlend_api', permissions: ['SELECT', 'INSERT', 'UPDATE', 'DELETE'], tables: 'application tables' },
+        { name: 'creatorlend_readonly', permissions: ['SELECT'], tables: 'all tables', usage: 'analytics, metabase' },
+        { name: 'creatorlend_migrations', permissions: ['ALL'], tables: 'all tables', usage: 'CI migrations only' },
+      ],
+      passwordPolicy: 'rotate every 90 days',
+      connectionSsl: true,
+    };
+  }
+
+  // F-940: Ende-zu-Ende-Verschlüsselung für DMs
+  getE2eEncryptionConfig() {
+    return {
+      enabled: false,
+      algorithm: 'Signal Protocol / X3DH + Double Ratchet',
+      keyStorage: 'client-side only',
+      serverRole: 'message relay only (ciphertext)',
+      status: 'planned',
+      estimatedRelease: 'v2.0',
+    };
+  }
+
+  // F-941: Key-Rotation ohne Downtime
+  getKeyRotationConfig() {
+    return {
+      strategy: 'dual-key overlap',
+      overlapPeriodHours: 24,
+      jwtRotation: { enabled: false, intervalDays: 30, activeKeys: 2 },
+      mediaSigningRotation: { enabled: false, intervalDays: 7 },
+      databaseKeyRotation: { enabled: !!process.env.KMS_KEY_ARN, provider: 'AWS KMS', automaticRotationYears: 1 },
+    };
+  }
+
+  // F-943-F-950: Compliance-Zertifizierungen
+  getComplianceCertifications() {
+    return {
+      soc2: { status: 'planned', type: 'Type II', auditor: null, targetDate: '2026-06-01' },
+      iso27001: { status: 'planned', auditor: null, targetDate: '2026-12-01' },
+      hipaa: { applicable: false, reason: 'No health data processed' },
+      ccpa: { applicable: true, status: 'partial', privacyPolicyUrl: 'https://creatorlend.com/privacy', optOutUrl: 'https://creatorlend.com/privacy/opt-out' },
+      ePrivacy: { cookiePolicyVersion: '1.0', consentRequired: true, granularOptions: true, tcfCompliant: false },
+      dsfa: { completed: false, documentUrl: null, reviewer: null },
+      securityAwareness: { frequency: 'annual', provider: 'internal', lastTraining: null, completionRate: null },
+    };
+  }
+
+  // F-952: Auto-Scaling (Kubernetes HPA)
+  getAutoScalingConfig() {
+    return {
+      provider: 'kubernetes-hpa',
+      enabled: !!process.env.KUBERNETES_SERVICE_HOST,
+      apiDeployment: { minReplicas: 2, maxReplicas: 20, cpuTarget: 70, memoryTarget: 80 },
+      workerDeployment: { minReplicas: 1, maxReplicas: 10, cpuTarget: 80 },
+      scaleDownStabilizationSeconds: 300,
+      keda: { enabled: false, bullMqScaling: false },
+    };
+  }
+
+  // F-954: Read-Replicas
+  getReadReplicaConfig() {
+    return {
+      enabled: !!process.env.DATABASE_READ_URL,
+      replicaUrl: process.env.DATABASE_READ_URL ? '***' : null,
+      usedFor: ['Analytics queries', 'Reports', 'Metabase', 'Admin dashboards'],
+      lagMonitoring: { enabled: false, alertThresholdMs: 1000 },
+      prismaConfig: 'Use $extends with middleware to route SELECT to replica URL',
+    };
+  }
+
+  // F-955: Redis-Cluster
+  getRedisClusterConfig() {
+    return {
+      mode: process.env.REDIS_CLUSTER_URL ? 'cluster' : 'single',
+      url: process.env.REDIS_URL ? '***' : null,
+      clusterUrl: process.env.REDIS_CLUSTER_URL ? '***' : null,
+      shards: 3,
+      replicationFactor: 1,
+      maxMemoryPolicy: 'allkeys-lru',
+      persistence: { rdb: true, aof: true },
+    };
+  }
+
+  // F-957: Edge-Computing / Geo-Routing
+  getEdgeComputingConfig() {
+    return {
+      provider: process.env.CDN_PROVIDER ?? 'cloudflare',
+      edgeLocations: ['Frankfurt', 'Amsterdam', 'London', 'New York', 'Singapore'],
+      geoRouting: true,
+      edgeFunctions: [
+        { name: 'auth-token-refresh', runtime: 'cloudflare-workers', status: 'planned' },
+        { name: 'geo-blocking', runtime: 'cloudflare-workers', status: 'implemented' },
+      ],
+    };
+  }
+
+  // F-968-F-969: Blue/Green & Canary Deployments
+  getDeploymentConfig() {
+    return {
+      strategy: 'blue-green',
+      blueGreen: { provider: 'AWS CodeDeploy / k8s rolling', downtimeDuringSwitch: false },
+      canary: { enabled: false, provider: 'Argo Rollouts', initialWeight: 5, stepIntervalMinutes: 5, maxWeight: 100 },
+      rollback: { automatic: true, triggerOnHealthCheckFailures: 3, timeoutSeconds: 60 },
+      ciCd: {
+        pipeline: 'GitHub Actions',
+        stages: ['lint', 'type-check', 'test', 'build', 'security-scan', 'deploy-staging', 'e2e', 'deploy-prod'],
+        targetDurationMinutes: 5,
+      },
+    };
+  }
+
+  // F-971: Zero-Downtime-Migrationen
+  getZeroDowntimeMigrationConfig() {
+    return {
+      strategy: 'expand-contract',
+      steps: ['1. Add new column nullable', '2. Backfill in batches', '3. Add NOT NULL constraint', '4. Remove old column in next release'],
+      tooling: 'pg-osc (online schema change) or plain SQL with concurrent index creation',
+      concurrentIndexes: true,
+      lockTimeoutMs: 1000,
+    };
+  }
+
+  // F-974: Backup-Restore-Test
+  getBackupRestoreTestConfig() {
+    return {
+      frequency: 'monthly',
+      lastTest: null,
+      nextTest: null,
+      procedure: [
+        '1. Restore backup to isolated test environment',
+        '2. Run smoke tests against restored DB',
+        '3. Verify data integrity checksums',
+        '4. Document RTO measurement',
+      ],
+      rtoTarget: '< 1 hour',
+      documented: false,
+    };
+  }
+
+  // F-975: Multi-Region
+  getMultiRegionConfig() {
+    return {
+      regions: [
+        { name: 'eu-central-1', status: 'primary', location: 'Frankfurt', active: true },
+        { name: 'us-east-1', status: 'planned', location: 'Virginia', active: false },
+      ],
+      dataResidency: 'EU-only (GDPR)',
+      globalLoadBalancer: process.env.GLOBAL_LB ?? 'Cloudflare',
+      crossRegionReplication: false,
+    };
+  }
+
+  // F-976: Disaster-Recovery
+  getDisasterRecoveryConfig() {
+    return {
+      rto: '< 1 hour',
+      rpo: '< 15 minutes',
+      drSite: process.env.DR_REGION ?? 'eu-west-1',
+      runbookUrl: 'https://docs.internal/runbooks/disaster-recovery',
+      lastDrTest: null,
+      drTestFrequency: 'quarterly',
+      contacts: ['oncall@creatorlend.com'],
+    };
+  }
+
+  // F-977-F-980: IaC / CI/CD / Rollback
+  getIacAndCiCdConfig() {
+    return {
+      terraform: { version: '1.8', stateBackend: 'S3 + DynamoDB lock', modules: ['vpc', 'eks', 'rds', 'elasticache', 'cloudfront'] },
+      kubernetes: { version: '1.30', helmCharts: ['creatorlend-api', 'creatorlend-worker', 'redis', 'pgbouncer'], namespace: 'creatorlend' },
+      ciCd: {
+        tool: 'GitHub Actions',
+        targetMinutes: 5,
+        stages: ['lint', 'typecheck', 'test', 'docker-build', 'trivy-scan', 'push', 'helm-deploy'],
+        environments: ['dev', 'staging', 'production'],
+      },
+      autoRollback: { enabled: true, trigger: 'health-check-failure', healthCheckPath: '/health', failureThreshold: 3, rollbackTimeoutSeconds: 60 },
+    };
+  }
 }

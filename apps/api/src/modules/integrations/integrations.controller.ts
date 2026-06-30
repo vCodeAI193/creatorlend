@@ -74,6 +74,83 @@ export class IntegrationsController {
   goodreadsRecs(@CurrentUser() user: { userId: string }) {
     return this.integrations.getGoodreadsRecommendations(user.userId);
   }
+
+  // F-900: Kindle-Import
+  @Post('kindle/import')
+  @UseGuards(JwtAuthGuard)
+  kindleImport(@CurrentUser() user: { userId: string }, @Body('clippingsText') clippingsText?: string) {
+    return this.integrations.importKindleHighlights(user.userId, clippingsText);
+  }
+
+  // F-901-F-903: Calendar-Integration
+  @Get('calendar')
+  calendarInfo() {
+    return this.integrations.getCalendarIntegrationInfo();
+  }
+
+  // F-905: Discord Bot
+  @Get('discord')
+  discordBot() {
+    return this.integrations.getDiscordBotInfo();
+  }
+
+  // F-906: Shopify
+  @Get('shopify')
+  shopifyInfo() {
+    return this.integrations.getShopifyIntegrationInfo();
+  }
+
+  // F-907: WordPress Plugin
+  @Get('wordpress')
+  wordpressInfo() {
+    return this.integrations.getWordPressPluginInfo();
+  }
+
+  // F-908: Ghost CMS
+  @Get('ghost')
+  ghostInfo() {
+    return this.integrations.getGhostCmsInfo();
+  }
+
+  // F-909: Substack
+  @Get('substack')
+  substackInfo() {
+    return this.integrations.getSubstackInfo();
+  }
+
+  // F-910: CRM Config
+  @Get('crm')
+  crmConfig() {
+    return this.integrations.getCrmConfig();
+  }
+
+  // F-912: CDP (Segment.io)
+  @Get('cdp')
+  cdpConfig() {
+    return this.integrations.getCdpConfig();
+  }
+
+  // F-913: BI-Tool Metabase
+  @Get('bi')
+  biToolConfig() {
+    return this.integrations.getBiToolConfig();
+  }
+
+  // F-915: Translation API
+  @Get('translate/:workId')
+  @UseGuards(JwtAuthGuard)
+  translateWork(
+    @Param('workId') workId: string,
+    @Query('locale') locale: string,
+  ) {
+    return this.integrations.translateWorkDescription(workId, locale ?? 'en');
+  }
+
+  // F-918: Multi-CDN config
+  @Get('multi-cdn')
+  multiCdn() {
+    return this.integrations.getMultiCdnConfig();
+  }
 }
 
 // Admin: Marketing & IP
@@ -99,5 +176,23 @@ export class AdminIntegrationsController {
   @Post('klaviyo/sync')
   klaviyoSync(@Body('segment') segment: string) {
     return this.integrations.syncSegmentToKlaviyo(segment);
+  }
+
+  // F-910: CRM-Sync für einzelnen User
+  @Post('crm/:provider/sync/:userId')
+  crmSync(@Param('provider') provider: string, @Param('userId') userId: string) {
+    return this.integrations.syncToCrm(userId, provider as 'hubspot' | 'salesforce');
+  }
+
+  // F-916: AI Content Moderation API
+  @Post('ai-moderation')
+  aiModerate(@Body('text') text: string) {
+    return this.integrations.moderateWithExternalAi(text ?? '');
+  }
+
+  // F-917: Mollie Payment Fallback
+  @Get('mollie')
+  mollieConfig() {
+    return this.integrations.getMollieConfig();
   }
 }

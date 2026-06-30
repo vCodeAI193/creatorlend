@@ -147,4 +147,118 @@ export class InfraController {
   releaseNotes() {
     return this.infra.getReleaseNotes();
   }
+
+  // F-921: CSP-Konfiguration
+  @Get('security/csp')
+  cspConfig() {
+    return this.infra.getCspConfig();
+  }
+
+  // F-923: CORS-Konfiguration
+  @Get('security/cors')
+  corsConfig() {
+    return this.infra.getCorsConfig();
+  }
+
+  // F-926-F-932: Security Program (SAST, DAST, Bug Bounty, etc.)
+  @Get('security/program')
+  securityProgram() {
+    return this.infra.getSecurityProgramConfig();
+  }
+
+  // F-935: Secret-Rotation
+  @Get('security/secret-rotation')
+  secretRotation() {
+    return this.infra.getSecretRotationConfig();
+  }
+
+  // F-936: Audit-Log-Konfiguration
+  @Get('security/audit-log')
+  auditLogConfig() {
+    return this.infra.getAuditLogConfig();
+  }
+
+  // F-937: DB Least-Privilege
+  @Get('db/access')
+  dbAccessConfig() {
+    return this.infra.getDbAccessConfig();
+  }
+
+  // F-940: E2E-Verschlüsselung für DMs
+  @Get('security/e2e-encryption')
+  e2eEncryption() {
+    return this.infra.getE2eEncryptionConfig();
+  }
+
+  // F-941: Key-Rotation
+  @Get('security/key-rotation')
+  keyRotation() {
+    return this.infra.getKeyRotationConfig();
+  }
+
+  // F-943-F-950: Compliance-Zertifizierungen
+  @Get('security/certifications')
+  complianceCertifications() {
+    return this.infra.getComplianceCertifications();
+  }
+
+  // F-952: Auto-Scaling (HPA)
+  @Get('scaling/auto')
+  autoScaling() {
+    return this.infra.getAutoScalingConfig();
+  }
+
+  // F-954: Read-Replicas
+  @Get('db/read-replicas')
+  readReplicas() {
+    return this.infra.getReadReplicaConfig();
+  }
+
+  // F-955: Redis-Cluster
+  @Get('db/redis-cluster')
+  redisCluster() {
+    return this.infra.getRedisClusterConfig();
+  }
+
+  // F-957: Edge-Computing
+  @Get('edge')
+  edgeComputing() {
+    return this.infra.getEdgeComputingConfig();
+  }
+
+  // F-968-F-969: Deployment-Strategie (Blue/Green, Canary)
+  @Get('deployment')
+  deploymentConfig() {
+    return this.infra.getDeploymentConfig();
+  }
+
+  // F-971: Zero-Downtime-Migrationen
+  @Get('db/zero-downtime-migrations')
+  zeroDowntimeMigrations() {
+    return this.infra.getZeroDowntimeMigrationConfig();
+  }
+
+  // F-974: Backup-Restore-Test
+  @Get('backup/restore-test')
+  backupRestoreTest() {
+    return this.infra.getBackupRestoreTestConfig();
+  }
+
+  // F-975: Multi-Region
+  @Get('regions')
+  multiRegion() {
+    return this.infra.getMultiRegionConfig();
+  }
+
+  // F-976: Disaster-Recovery
+  @Get('disaster-recovery')
+  disasterRecovery() {
+    return this.infra.getDisasterRecoveryConfig();
+  }
+
+  // F-977-F-980: IaC, CI/CD, Auto-Rollback
+  @Get('iac')
+  iacAndCiCd() {
+    return this.infra.getIacAndCiCdConfig();
+  }
 }
