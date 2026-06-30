@@ -546,6 +546,18 @@ export class InfraService implements OnApplicationShutdown {
     };
   }
 
+  // F-972: Backup-Strategy (täglich + stündliche WAL-Archive)
+  getBackupStrategyConfig() {
+    return {
+      fullBackup: { schedule: 'daily_at_2am', retention: '35 days', provider: 'AWS RDS automated backups' },
+      walArchive: { schedule: 'continuous (every ~5 min)', retentionDays: 7, storage: 'S3', compression: 'lz4' },
+      crossRegionCopy: { enabled: !!process.env.BACKUP_CROSS_REGION, targetRegion: process.env.BACKUP_REGION ?? 'eu-west-1' },
+      encryptionAtRest: true,
+      encryptionKey: 'AWS KMS',
+      note: 'configure_via_rds_automated_backup_settings_and_wal_g_for_self_hosted',
+    };
+  }
+
   // F-977-F-980: IaC / CI/CD / Rollback
   getIacAndCiCdConfig() {
     return {

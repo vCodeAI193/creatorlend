@@ -249,4 +249,34 @@ export class AdminIntegrationsController {
   mollieConfig() {
     return this.integrations.getMollieConfig();
   }
+
+  // F-875: API Rate Limiting Config
+  @Get('rate-limiting')
+  rateLimiting() {
+    return this.integrations.getRateLimitingConfig();
+  }
+
+  // F-886: Webhook Dashboard
+  @Get('webhook-dashboard')
+  webhookDashboard() {
+    return this.integrations.getWebhookDashboardConfig();
+  }
+
+  // F-888: Make (Integromat)
+  @Get('make')
+  makeIntegration() {
+    return this.integrations.getMakeIntegrationInfo();
+  }
+
+  // F-889: n8n
+  @Get('n8n')
+  n8nIntegration() {
+    return this.integrations.getN8nIntegrationInfo();
+  }
+
+  // F-890: IFTTT
+  @Get('ifttt')
+  iftttIntegration() {
+    return this.integrations.getIftttIntegrationInfo();
+  }
 }

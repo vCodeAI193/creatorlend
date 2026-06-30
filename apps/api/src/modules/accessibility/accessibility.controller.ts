@@ -29,4 +29,28 @@ export class AccessibilityController {
   ariaConfig() {
     return this.a11y.getAriaConfig();
   }
+
+  // F-982: Automatische Tests (axe-core CI)
+  @Get('automated-testing')
+  automatedTesting() {
+    return this.a11y.getAutomatedTestingConfig();
+  }
+
+  // F-983: Manuelle Audit-Konfiguration
+  @Get('manual-audit')
+  manualAudit() {
+    return this.a11y.getManualAuditConfig();
+  }
+
+  // F-985: Skip-Navigation
+  @Get('skip-nav')
+  skipNav() {
+    return this.a11y.getSkipNavigationConfig();
+  }
+
+  // F-987: Zoom-Kompatibilität
+  @Get('zoom-compatibility')
+  zoomCompatibility() {
+    return this.a11y.getZoomCompatibilityConfig();
+  }
 }

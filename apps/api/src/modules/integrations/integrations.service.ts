@@ -492,4 +492,69 @@ export class IntegrationsService {
       docsUrl: 'https://docs.creatorlend.com/infra/multi-cdn',
     };
   }
+
+  // F-875: API Rate Limiting Config
+  getRateLimitingConfig() {
+    return {
+      tiers: [
+        { plan: 'free', requestsPerMinute: 30, burstMultiplier: 2 },
+        { plan: 'standard', requestsPerMinute: 200, burstMultiplier: 3 },
+        { plan: 'premium', requestsPerMinute: 1000, burstMultiplier: 5 },
+        { plan: 'api_partner', requestsPerMinute: 5000, burstMultiplier: 10 },
+      ],
+      implementation: 'nestjs-throttler + Redis sliding window',
+      headers: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset', 'Retry-After'],
+      status429Body: { error: 'rate_limit_exceeded', retryAfterSeconds: 60 },
+    };
+  }
+
+  // F-886: Webhook Dashboard Logs
+  getWebhookDashboardConfig() {
+    return {
+      dashboardUrl: '/admin/webhooks',
+      features: ['delivery_logs', 'retry_status', 'payload_inspector', 'resend_button'],
+      retentionDays: 30,
+      implementation: 'webhook_delivery_logs_stored_in_postgres',
+      note: 'see_GET_/api/v1/webhooks/subscriptions_for_management_api',
+    };
+  }
+
+  // F-888: Make (Integromat) Integration
+  getMakeIntegrationInfo() {
+    return {
+      provider: 'make.com',
+      appName: 'CreatorLend',
+      triggers: ['new_loan', 'loan_expired', 'payment_received', 'new_user'],
+      actions: ['get_work', 'get_user', 'send_notification'],
+      apiKey: 'configure_via_make_app_api_key_module',
+      docsUrl: 'https://docs.creatorlend.com/integrations/make',
+      status: 'planned',
+    };
+  }
+
+  // F-889: n8n Integration
+  getN8nIntegrationInfo() {
+    return {
+      provider: 'n8n',
+      selfHosted: true,
+      webhookNodes: ['CreatorLend Trigger'],
+      httpNodes: ['REST API calls via generic HTTP node'],
+      credentialType: 'header_auth',
+      exampleWorkflows: ['loan_expiry_slack_alert', 'new_user_crm_sync', 'payment_google_sheet'],
+      docsUrl: 'https://docs.creatorlend.com/integrations/n8n',
+      status: 'planned',
+    };
+  }
+
+  // F-890: IFTTT Applets
+  getIftttIntegrationInfo() {
+    return {
+      provider: 'ifttt',
+      triggers: ['new_loan_started', 'loan_expiring_soon'],
+      actions: ['send_email', 'log_to_google_sheet'],
+      webhookUrl: `${process.env.API_BASE_URL ?? 'https://api.creatorlend.com'}/webhooks/ifttt`,
+      docsUrl: 'https://docs.creatorlend.com/integrations/ifttt',
+      status: 'planned',
+    };
+  }
 }

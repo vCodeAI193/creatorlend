@@ -848,6 +848,84 @@ export class AdminController {
     return this.analytics.getCostAnalysis();
   }
 
+  // GET /api/v1/admin/analytics/self-service/:artistId – Self-Service-Portal (F-761)
+  @Get("analytics/self-service/:artistId")
+  selfServicePortal(@Param("artistId") artistId: string) {
+    return this.analytics.getSelfServiceAnalyticsPortalInfo(artistId);
+  }
+
+  // GET /api/v1/admin/analytics/custom-dashboards – Custom-Dashboards (F-762)
+  @Get("analytics/custom-dashboards")
+  customDashboards() {
+    return this.analytics.getCustomDashboardsInfo();
+  }
+
+  // GET /api/v1/admin/analytics/export-config – Daten-Export Konfiguration (F-763)
+  @Get("analytics/export-config")
+  dataExportConfig() {
+    return this.analytics.getDataExportConfig();
+  }
+
+  // GET /api/v1/admin/analytics/realtime-stream – Echtzeit-Daten-Stream (F-764)
+  @Get("analytics/realtime-stream")
+  realtimeStream() {
+    return this.analytics.getRealtimeStreamInfo();
+  }
+
+  // GET /api/v1/admin/analytics/cac – Customer Acquisition Cost (F-769)
+  @Get("analytics/cac")
+  customerAcquisitionCost() {
+    return this.analytics.getCustomerAcquisitionCost();
+  }
+
+  // GET /api/v1/admin/analytics/drop-off – Drop-Off-Analyse (F-776)
+  @Get("analytics/drop-off")
+  dropOffAnalysis() {
+    return this.analytics.getDropOffAnalysis();
+  }
+
+  // GET /api/v1/admin/analytics/ab-test-results – A/B-Test-Ergebnisse (F-787)
+  @Get("analytics/ab-test-results")
+  abTestResults() {
+    return this.analytics.getAbTestResults();
+  }
+
+  // GET /api/v1/admin/analytics/bi-export – BI-Tool-Export (F-788)
+  @Get("analytics/bi-export")
+  biExportConfig() {
+    return this.analytics.getBusinessIntelligenceExportConfig();
+  }
+
+  // GET /api/v1/admin/analytics/data-warehouse – Data-Warehouse-Integration (F-789)
+  @Get("analytics/data-warehouse")
+  dataWarehouse() {
+    return this.analytics.getDataWarehouseConfig();
+  }
+
+  // GET /api/v1/admin/analytics/etl – ETL-Pipeline (F-790)
+  @Get("analytics/etl")
+  etlPipeline() {
+    return this.analytics.getEtlPipelineConfig();
+  }
+
+  // GET /api/v1/admin/analytics/churn-model – Prädiktives Churn-Modell (F-791)
+  @Get("analytics/churn-model")
+  churnModel() {
+    return this.analytics.getPredictiveChurnModel();
+  }
+
+  // GET /api/v1/admin/analytics/recommendation-model – Empfehlungs-Modell (F-792)
+  @Get("analytics/recommendation-model")
+  recommendationModel() {
+    return this.analytics.getRecommendationModelConfig();
+  }
+
+  // GET /api/v1/admin/analytics/privacy-providers – Plausible/Umami (F-799)
+  @Get("analytics/privacy-providers")
+  privacyProviders() {
+    return this.analytics.getPrivacyFriendlyAnalyticsProviders();
+  }
+
   // POST /api/v1/admin/users/:id/notes – Admin-Notiz hinzufügen (F-716)
   @Post("users/:id/notes")
   addUserNote(

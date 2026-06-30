@@ -40,4 +40,10 @@ export class I18nController {
     const safe = SUPPORTED_LOCALES.includes(locale as SupportedLocale) ? (locale as SupportedLocale) : 'de';
     return { formatted: this.i18n.formatCurrency(Number(amount), safe, currency) };
   }
+
+  // GET /api/v1/i18n/rtl – RTL-Support Konfiguration (F-992)
+  @Get('rtl')
+  rtlConfig() {
+    return this.i18n.getRtlConfig();
+  }
 }

@@ -70,4 +70,57 @@ export class AccessibilityService {
       ],
     };
   }
+
+  // F-982: Automatische Accessibility-Tests in CI (axe-core)
+  getAutomatedTestingConfig() {
+    return {
+      tool: 'axe-core',
+      integration: '@axe-core/playwright',
+      ciStage: 'e2e-accessibility',
+      rulesets: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'],
+      failOn: ['critical', 'serious'],
+      reportFormat: 'html',
+      currentPassRate: null,
+      note: 'add_axe_to_playwright_e2e_suite_fail_build_on_critical_violations',
+    };
+  }
+
+  // F-983: Manuelle Accessibility-Prüfung
+  getManualAuditConfig() {
+    return {
+      frequency: 'quarterly',
+      lastAuditDate: null,
+      nextAuditDate: null,
+      auditors: ['internal_qa', 'external_a11y_consultant'],
+      scope: ['core_user_flows', 'player', 'checkout', 'settings'],
+      assistiveTechnologies: ['NVDA + Chrome', 'JAWS + Edge', 'VoiceOver + Safari', 'TalkBack + Chrome Android'],
+      note: 'hire_users_with_disabilities_as_testers_for_realistic_feedback',
+    };
+  }
+
+  // F-985: Skip-Navigation-Link
+  getSkipNavigationConfig() {
+    return {
+      implementation: 'visually_hidden_link_becomes_visible_on_focus',
+      html: '<a href="#main-content" class="skip-nav">Zum Hauptinhalt springen</a>',
+      cssClass: 'sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50',
+      targets: [
+        { id: 'main-content', label: 'Hauptinhalt' },
+        { id: 'main-nav', label: 'Navigation' },
+        { id: 'search', label: 'Suche' },
+      ],
+    };
+  }
+
+  // F-987: Bildschirm-Lupen-Kompatibilität (200% Zoom)
+  getZoomCompatibilityConfig() {
+    return {
+      minSupportedZoom: 200,
+      implementation: 'responsive_design_no_horizontal_scroll_at_200pct',
+      breakpoints: { mobile: '320px', tablet: '768px', desktop: '1280px' },
+      textResize: 'relative_units_em_rem_only',
+      viewportMeta: '<meta name="viewport" content="width=device-width, initial-scale=1">',
+      note: 'test_with_browser_zoom_200pct_and_windows_magnifier',
+    };
+  }
 }

@@ -103,6 +103,21 @@ export class I18nService {
     }));
   }
 
+  // F-992: RTL-Support (Arabisch, Hebräisch)
+  getRtlConfig() {
+    return {
+      supportedRtlLocales: ['ar', 'he'],
+      implementationStatus: 'planned',
+      cssStrategy: 'logical_properties',
+      htmlDir: 'auto',
+      examples: [
+        { locale: 'ar', dir: 'rtl', label: 'العربية' },
+        { locale: 'he', dir: 'rtl', label: 'עברית' },
+      ],
+      note: 'add_rtl_locales_to_SUPPORTED_LOCALES_and_use_CSS_logical_properties_margin_inline_start_etc',
+    };
+  }
+
   // F-996: Translation Management System (Crowdin/Phrase stub)
   getTmsStatus() {
     return {

@@ -256,6 +256,12 @@ export class InfraController {
     return this.infra.getDisasterRecoveryConfig();
   }
 
+  // F-972: Backup-Strategy
+  @Get('backup-strategy')
+  backupStrategy() {
+    return this.infra.getBackupStrategyConfig();
+  }
+
   // F-977-F-980: IaC, CI/CD, Auto-Rollback
   @Get('iac')
   iacAndCiCd() {
