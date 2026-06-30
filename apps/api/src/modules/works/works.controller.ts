@@ -830,6 +830,24 @@ export class WorksController {
     return this.works.getWorkQrCode(id);
   }
 
+  // GET /api/v1/works/analytics-portal – Self-Service-Analytics-Portal (F-761)
+  @Get("analytics-portal")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  analyticsPortal(@CurrentUser() userId: string) {
+    return this.works.getAnalyticsPortal(userId);
+  }
+
+  // GET /api/v1/works/revenue-export.csv – Revenue-Export als CSV (F-763)
+  @Get("revenue-export.csv")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  @Header("Content-Type", "text/csv; charset=utf-8")
+  @Header("Content-Disposition", 'attachment; filename="revenue.csv"')
+  async revenueExportCsv(@CurrentUser() userId: string) {
+    return this.works.exportRevenueAsCsv(userId);
+  }
+
   // PATCH /api/v1/works/:id/license – Lizenztyp setzen (F-112)
   @Patch(":id/license")
   @UseGuards(JwtAuthGuard, RolesGuard)

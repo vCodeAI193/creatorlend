@@ -135,6 +135,21 @@ export class MailService {
     });
   }
 
+  // F-663: Bounce-Handling – ungültige E-Mails deaktivieren
+  async handleBounce(email: string, bounceType: 'hard' | 'soft', reason?: string): Promise<void> {
+    this.logger.warn(`[BOUNCE] ${bounceType} bounce for ${email}: ${reason ?? 'unknown'}`);
+    // Production: update user.emailBounced = true in DB; unsubscribe from non-transactional emails
+    // SES: parse SNS notification from https://docs.aws.amazon.com/ses/latest/dg/notification-contents.html
+    // SendGrid: parse webhook event type "bounce" from https://docs.sendgrid.com/for-developers/tracking-events/event
+  }
+
+  // F-664: Spam-Beschwerde-Handling (Feedback-Loop)
+  async handleSpamComplaint(email: string, source?: string): Promise<void> {
+    this.logger.warn(`[SPAM_COMPLAINT] complaint for ${email} from ${source ?? 'unknown'}`);
+    // Production: immediately unsubscribe email from all marketing; keep only critical transactional
+    // SES: parse SNS complaint notification; SendGrid: parse webhook event type "spamreport"
+  }
+
   // F-419: Preiserhöhungs-Ankündigung 30 Tage vorher
   async sendPriceIncreaseNotification(to: string, displayName: string, newPriceCents: number, effectiveDate: Date): Promise<void> {
     const firstName = displayName.split(' ')[0];

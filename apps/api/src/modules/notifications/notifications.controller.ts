@@ -120,6 +120,12 @@ export class NotificationsController {
     return this.notifications.unpinNotification(userId, id);
   }
 
+  // GET /api/v1/notifications/grouped – Benachrichtigungs-Grouping (F-641)
+  @Get("grouped")
+  grouped(@CurrentUser() userId: string) {
+    return this.notifications.getGrouped(userId);
+  }
+
   // GET /api/v1/notifications/web-push/config – VAPID public key (F-650)
   @Get("web-push/config")
   webPushConfig() {

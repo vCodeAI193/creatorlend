@@ -1123,4 +1123,56 @@ export class WorksService {
       orderBy: { featuredAt: 'desc' },
     });
   }
+
+  // ─── F-761: Self-Service-Analytics-Portal ────────────────────────────────
+
+  async getAnalyticsPortal(artistId: string) {
+    const works = await this.prisma.work.findMany({
+      where: { artistId, status: 'PUBLISHED' },
+      select: { id: true, title: true, loanPriceCents: true, createdAt: true },
+    });
+    const workIds = works.map((w) => w.id);
+    const [totalLoans, activeLoans, totalRevenue, followers, avgRating] = await Promise.all([
+      this.prisma.loan.count({ where: { workId: { in: workIds } } }),
+      this.prisma.loan.count({ where: { workId: { in: workIds }, status: 'ACTIVE' } }),
+      this.prisma.payoutItem.aggregate({ where: { loan: { workId: { in: workIds } } }, _sum: { amountCents: true } }),
+      this.prisma.follow.count({ where: { artistId } }),
+      this.prisma.review.aggregate({ where: { workId: { in: workIds } }, _avg: { rating: true } }),
+    ]);
+    return {
+      publishedWorks: works.length,
+      totalLoans,
+      activeLoans,
+      totalRevenueCents: totalRevenue._sum.amountCents ?? 0,
+      followers,
+      avgRating: Math.round((avgRating._avg.rating ?? 0) * 10) / 10,
+      works: works.map((w) => ({ id: w.id, title: w.title, priceCents: w.loanPriceCents })),
+    };
+  }
+
+  // ─── F-763: Revenue export als CSV ───────────────────────────────────────
+
+  async exportRevenueAsCsv(artistId: string): Promise<string> {
+    const works = await this.prisma.work.findMany({
+      where: { artistId },
+      select: { id: true, title: true },
+    });
+    const workMap = Object.fromEntries(works.map((w) => [w.id, w.title]));
+    const items = await this.prisma.payoutItem.findMany({
+      where: { loan: { work: { artistId } } },
+      include: { loan: { select: { workId: true, createdAt: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    const header = 'date,work_id,work_title,amount_cents,status';
+    const rows = items.map((i) =>
+      [
+        i.createdAt.toISOString().slice(0, 10),
+        i.loan.workId,
+        JSON.stringify(workMap[i.loan.workId] ?? ''),
+        i.amountCents,
+        i.status,
+      ].join(','),
+    );
+    return [header, ...rows].join('\n');
+  }
 }

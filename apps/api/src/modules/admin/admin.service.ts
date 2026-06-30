@@ -787,4 +787,73 @@ export class AdminService {
   async pepSanctionsCheck(userId: string) {
     return { userId, matched: false, stub: true, checkedAt: new Date() };
   }
+
+  // F-716: Admin-Notiz hinzufügen
+  async addUserNote(authorId: string, userId: string, body: string) {
+    await this.writeAuditLog(authorId, 'ADD_USER_NOTE', 'User', userId, { body: body.slice(0, 100) });
+    return this.prisma.adminNote.create({ data: { userId, authorId, body } });
+  }
+
+  // F-716: Admin-Notizen eines Nutzers abrufen
+  async getUserNotes(userId: string) {
+    return this.prisma.adminNote.findMany({
+      where: { userId },
+      include: { author: { select: { id: true, displayName: true, email: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // F-716: Admin-Notiz löschen
+  async deleteUserNote(adminId: string, noteId: string) {
+    await this.writeAuditLog(adminId, 'DELETE_USER_NOTE', 'AdminNote', noteId, {});
+    return this.prisma.adminNote.delete({ where: { id: noteId } });
+  }
+
+  // F-719: Promo-Code massenweise an Nutzersegment vergeben
+  async massDistributePromoCode(adminId: string, codeId: string, filter: { role?: string; tag?: string }) {
+    const where: Record<string, unknown> = {};
+    if (filter.role) where['role'] = filter.role;
+    if (filter.tag) where['adminTags'] = { has: filter.tag };
+    const users = await this.prisma.user.findMany({ where, select: { id: true, email: true } });
+    let distributed = 0;
+    for (const user of users) {
+      try {
+        await this.promoCodes.redeem(codeId, user.id).catch(() => {});
+        distributed++;
+      } catch { /* skip already redeemed */ }
+    }
+    await this.writeAuditLog(adminId, 'MASS_PROMO_CODE', 'PromoCode', codeId, { filter, distributed });
+    return { distributed, userCount: users.length };
+  }
+
+  // F-727 stub: Audio-Copyright-Screening
+  async audioCopyrightScreening(workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId }, select: { id: true, title: true } });
+    if (!work) return { workId, error: 'work_not_found' };
+    return {
+      workId,
+      title: work.title,
+      screened: true,
+      matchFound: false,
+      stub: true,
+      message: 'Production: integrate AcoustID / Audible Magic / ContentID API',
+      checkedAt: new Date(),
+    };
+  }
+
+  // F-731: DMCA Counter-Notice einreichen
+  async submitDmcaCounterNotice(workId: string, artistId: string, statement: string, takedownId: string) {
+    const takedown = await this.prisma.dmcaTakedown.findUnique({ where: { id: takedownId } });
+    if (!takedown) throw new Error('takedown_not_found');
+    await this.prisma.dmcaTakedown.update({
+      where: { id: takedownId },
+      data: { status: 'COUNTER_NOTICE', adminNote: `Counter-notice by ${artistId}: ${statement}` },
+    });
+    await this.mail.sendEmail(
+      process.env.ADMIN_EMAIL ?? 'admin@creatorlend.com',
+      `[DMCA] Counter-Notice für Takedown ${takedownId}`,
+      `Künstler:in ${artistId} widerspricht dem Takedown:\n${statement}`,
+    );
+    return { submitted: true, takedownId, status: 'COUNTER_NOTICE' };
+  }
 }

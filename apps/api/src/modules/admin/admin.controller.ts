@@ -777,4 +777,53 @@ export class AdminController {
   cdnBandwidth() {
     return this.analytics.getCdnBandwidthUsage();
   }
+
+  // POST /api/v1/admin/users/:id/notes – Admin-Notiz hinzufügen (F-716)
+  @Post("users/:id/notes")
+  addUserNote(
+    @CurrentUser() adminId: string,
+    @Param("id") userId: string,
+    @Body("body") body: string,
+  ) {
+    return this.admin.addUserNote(adminId, userId, body);
+  }
+
+  // GET /api/v1/admin/users/:id/notes – Admin-Notizen abrufen (F-716)
+  @Get("users/:id/notes")
+  getUserNotes(@Param("id") userId: string) {
+    return this.admin.getUserNotes(userId);
+  }
+
+  // DELETE /api/v1/admin/notes/:noteId – Admin-Notiz löschen (F-716)
+  @Delete("notes/:noteId")
+  deleteUserNote(@CurrentUser() adminId: string, @Param("noteId") noteId: string) {
+    return this.admin.deleteUserNote(adminId, noteId);
+  }
+
+  // POST /api/v1/admin/promo-codes/:codeId/mass-distribute – Promo-Code verteilen (F-719)
+  @Post("promo-codes/:codeId/mass-distribute")
+  massDistributePromoCode(
+    @CurrentUser() adminId: string,
+    @Param("codeId") codeId: string,
+    @Body("filter") filter: { role?: string; tag?: string },
+  ) {
+    return this.admin.massDistributePromoCode(adminId, codeId, filter ?? {});
+  }
+
+  // POST /api/v1/admin/works/:id/copyright-screen – Audio-Copyright-Screening (F-727)
+  @Post("works/:id/copyright-screen")
+  audioCopyrightScreen(@Param("id") id: string) {
+    return this.admin.audioCopyrightScreening(id);
+  }
+
+  // POST /api/v1/admin/dmca/:id/counter-notice – DMCA Counter-Notice (F-731)
+  @Post("dmca/:id/counter-notice")
+  dmcaCounterNotice(
+    @CurrentUser() adminId: string,
+    @Param("id") takedownId: string,
+    @Body("workId") workId: string,
+    @Body("statement") statement: string,
+  ) {
+    return this.admin.submitDmcaCounterNotice(workId, adminId, statement, takedownId);
+  }
 }

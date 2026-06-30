@@ -347,4 +347,27 @@ export class NotificationsService {
     });
     return { success: true, message: 'push_subscription_removed' };
   }
+
+  // F-641: Benachrichtigungs-Grouping – bündelt gleichartige Notifs der letzten Stunde
+  async getGrouped(userId: string) {
+    const since = new Date(Date.now() - 60 * 60 * 1000);
+    const recent = await this.prisma.notification.findMany({
+      where: { userId, createdAt: { gte: since } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const groups: Record<string, { type: string; count: number; latest: string; ids: string[] }> = {};
+    for (const n of recent) {
+      if (!groups[n.type]) {
+        groups[n.type] = { type: n.type, count: 0, latest: n.title, ids: [] };
+      }
+      groups[n.type].count++;
+      groups[n.type].ids.push(n.id);
+    }
+    const older = await this.prisma.notification.findMany({
+      where: { userId, createdAt: { lt: since } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    return { grouped: Object.values(groups), older };
+  }
 }
