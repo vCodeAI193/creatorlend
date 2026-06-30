@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -42,6 +42,28 @@ export class SupportController {
     @Body('score') score: number,
   ) {
     return this.support.submitCsat(userId, id, score);
+  }
+
+  // GET /api/v1/support/feature-requests – Community-Feature-Requests (F-605)
+  @Get('feature-requests')
+  listFeatureRequests(@Query('sortBy') sortBy?: 'votes' | 'newest') {
+    return this.support.listFeatureRequests(sortBy ?? 'votes');
+  }
+
+  // POST /api/v1/support/feature-requests – Feature-Request erstellen (F-605)
+  @Post('feature-requests')
+  createFeatureRequest(
+    @CurrentUser() userId: string,
+    @Body('title') title: string,
+    @Body('description') description: string,
+  ) {
+    return this.support.createFeatureRequest(userId, title, description ?? '');
+  }
+
+  // PUT /api/v1/support/feature-requests/:id/vote – Feature-Request abstimmen (F-605)
+  @Put('feature-requests/:id/vote')
+  voteFeatureRequest(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.support.voteFeatureRequest(userId, id);
   }
 }
 

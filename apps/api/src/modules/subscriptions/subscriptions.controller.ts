@@ -173,4 +173,34 @@ export class SubscriptionsController {
   reactivate(@CurrentUser() userId: string) {
     return this.subscriptions.reactivate(userId);
   }
+
+  // GET /api/v1/subscriptions/payment-methods – Verfügbare Zahlungsmethoden (F-335/336/338/339)
+  @Get("payment-methods")
+  getPaymentMethods() {
+    return this.subscriptions.getAvailablePaymentMethods();
+  }
+
+  // GET /api/v1/subscriptions/payment-methods/sepa – SEPA-Info (F-335)
+  @Get("payment-methods/sepa")
+  sepaInfo() {
+    return this.subscriptions.getSepaInfo();
+  }
+
+  // GET /api/v1/subscriptions/payment-methods/paypal – PayPal-Info (F-336)
+  @Get("payment-methods/paypal")
+  paypalInfo() {
+    return this.subscriptions.getPaypalInfo();
+  }
+
+  // GET /api/v1/subscriptions/payment-methods/apple-pay – Apple Pay-Info (F-338)
+  @Get("payment-methods/apple-pay")
+  applePayInfo() {
+    return this.subscriptions.getApplePayInfo();
+  }
+
+  // GET /api/v1/subscriptions/payment-methods/google-pay – Google Pay-Info (F-339)
+  @Get("payment-methods/google-pay")
+  googlePayInfo() {
+    return this.subscriptions.getGooglePayInfo();
+  }
 }

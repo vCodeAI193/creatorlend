@@ -119,4 +119,22 @@ export class NotificationsController {
   unpinNotification(@CurrentUser() userId: string, @Param("id") id: string) {
     return this.notifications.unpinNotification(userId, id);
   }
+
+  // GET /api/v1/notifications/web-push/config – VAPID public key (F-650)
+  @Get("web-push/config")
+  webPushConfig() {
+    return this.notifications.getWebPushConfig();
+  }
+
+  // POST /api/v1/notifications/web-push/subscribe – Browser-Push-Subscription speichern (F-650)
+  @Post("web-push/subscribe")
+  subscribePush(@CurrentUser() userId: string, @Body() subscription: Record<string, unknown>) {
+    return this.notifications.savePushSubscription(userId, subscription);
+  }
+
+  // DELETE /api/v1/notifications/web-push/unsubscribe – Subscription entfernen (F-650)
+  @Delete("web-push/unsubscribe")
+  unsubscribePush(@CurrentUser() userId: string, @Body("endpoint") endpoint: string) {
+    return this.notifications.removePushSubscription(userId, endpoint);
+  }
 }

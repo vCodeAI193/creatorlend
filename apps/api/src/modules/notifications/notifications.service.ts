@@ -303,4 +303,48 @@ export class NotificationsService {
     if (!notif) throw new NotFoundException('notification_not_found');
     return this.prisma.notification.update({ where: { id }, data: { pinnedAt: null } });
   }
+
+  // F-650: Web Push API – VAPID public key
+  getWebPushConfig() {
+    return {
+      vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? 'REPLACE_WITH_VAPID_PUBLIC_KEY',
+      applicationServerKey: process.env.VAPID_PUBLIC_KEY ?? 'REPLACE_WITH_VAPID_PUBLIC_KEY',
+      message: 'Generate VAPID keys with: npx web-push generate-vapid-keys',
+    };
+  }
+
+  // F-650: Store browser push subscription
+  async savePushSubscription(userId: string, subscription: Record<string, unknown>) {
+    // Store subscription in user metadata (production: dedicated PushSubscription table)
+    const existing = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { socialLinks: true },
+    });
+    const meta = (existing?.socialLinks as Record<string, unknown>) ?? {};
+    const subs: unknown[] = Array.isArray(meta._pushSubscriptions) ? (meta._pushSubscriptions as unknown[]) : [];
+    const endpoint = subscription['endpoint'] as string;
+    const filtered = subs.filter((s) => (s as Record<string, unknown>)['endpoint'] !== endpoint);
+    filtered.push({ ...subscription, savedAt: new Date().toISOString() });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { socialLinks: { ...meta, _pushSubscriptions: filtered } as Prisma.InputJsonValue },
+    });
+    return { success: true, message: 'push_subscription_saved' };
+  }
+
+  // F-650: Remove browser push subscription
+  async removePushSubscription(userId: string, endpoint: string) {
+    const existing = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { socialLinks: true },
+    });
+    const meta = (existing?.socialLinks as Record<string, unknown>) ?? {};
+    const subs: unknown[] = Array.isArray(meta._pushSubscriptions) ? (meta._pushSubscriptions as unknown[]) : [];
+    const filtered = subs.filter((s) => (s as Record<string, unknown>)['endpoint'] !== endpoint);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { socialLinks: { ...meta, _pushSubscriptions: filtered } as Prisma.InputJsonValue },
+    });
+    return { success: true, message: 'push_subscription_removed' };
+  }
 }

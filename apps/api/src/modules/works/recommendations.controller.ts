@@ -40,4 +40,10 @@ export class RecommendationsController {
   dailyMix(@CurrentUser() userId: string) {
     return this.recs.getDailyMix(userId);
   }
+
+  // GET /api/v1/recommendations/trending-tags – Trending Tag Cloud (F-618)
+  @Get('trending-tags')
+  trendingTags(@Query('period') period?: 'day' | 'week' | 'month', @Query('limit') limit?: string) {
+    return this.recs.getTrendingTags(period ?? 'week', limit ? Number(limit) : 50);
+  }
 }

@@ -196,4 +196,56 @@ export class RecommendationsService {
     const order = new Map(ids.map((id, i) => [id, i]));
     return works.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   }
+
+  // F-618: Trending-Themen-Tag-Cloud
+  async getTrendingTags(period: 'day' | 'week' | 'month' = 'week', limit = 50) {
+    const msMap = { day: 86400000, week: 604800000, month: 2592000000 };
+    const since = new Date(Date.now() - (msMap[period] ?? msMap.week));
+
+    // Get recently borrowed works
+    const rows = await this.prisma.$queryRaw<{ workId: string; cnt: bigint }[]>`
+      SELECT "workId", COUNT(*) AS cnt
+      FROM "Loan"
+      WHERE "createdAt" >= ${since}
+      GROUP BY "workId"
+      ORDER BY cnt DESC
+      LIMIT 200
+    `;
+    if (rows.length === 0) return { tags: [] };
+
+    const ids = rows.map((r) => r.workId);
+    const cntMap = new Map(rows.map((r) => [r.workId, Number(r.cnt)]));
+
+    const works = await this.prisma.work.findMany({
+      where: { id: { in: ids }, status: 'PUBLISHED' },
+      select: { id: true, tags: true, type: true },
+    });
+
+    // Aggregate tag weights by loan count
+    const tagWeight = new Map<string, number>();
+    for (const w of works) {
+      const weight = cntMap.get(w.id) ?? 1;
+      for (const tag of w.tags) {
+        tagWeight.set(tag, (tagWeight.get(tag) ?? 0) + weight);
+      }
+      // Also include type as a virtual tag
+      tagWeight.set(w.type.toLowerCase(), (tagWeight.get(w.type.toLowerCase()) ?? 0) + weight);
+    }
+
+    const sorted = [...tagWeight.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([tag, weight]) => ({ tag, weight }));
+
+    const maxWeight = sorted[0]?.weight ?? 1;
+    return {
+      period,
+      tags: sorted.map(({ tag, weight }) => ({
+        tag,
+        weight,
+        // Normalize to 1-5 scale for UI sizing
+        size: Math.ceil((weight / maxWeight) * 5),
+      })),
+    };
+  }
 }

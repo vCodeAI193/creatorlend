@@ -63,4 +63,38 @@ export class SupportService {
       orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
     });
   }
+
+  // F-605: Community-Feature-Requests – in-memory store (kein dediziertes DB-Modell im MVP)
+  // Production: replace with FeatureRequest + FeatureRequestVote Prisma models
+  private featureRequests: Map<string, { id: string; title: string; description: string; authorId: string; votes: Set<string>; createdAt: string }> = new Map();
+  private nextId = 1;
+
+  listFeatureRequests(sortBy: 'votes' | 'newest' = 'votes') {
+    const items = [...this.featureRequests.values()].map((r) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      authorId: r.authorId,
+      voteCount: r.votes.size,
+      createdAt: r.createdAt,
+    }));
+    if (sortBy === 'votes') items.sort((a, b) => b.voteCount - a.voteCount);
+    else items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return items;
+  }
+
+  createFeatureRequest(userId: string, title: string, description: string) {
+    const id = String(this.nextId++);
+    this.featureRequests.set(id, { id, title, description, authorId: userId, votes: new Set([userId]), createdAt: new Date().toISOString() });
+    return { id, title, description, voteCount: 1, createdAt: this.featureRequests.get(id)!.createdAt };
+  }
+
+  voteFeatureRequest(userId: string, id: string) {
+    const req = this.featureRequests.get(id);
+    if (!req) throw new NotFoundException('feature_request_not_found');
+    const alreadyVoted = req.votes.has(userId);
+    if (alreadyVoted) req.votes.delete(userId);
+    else req.votes.add(userId);
+    return { id, voteCount: req.votes.size, voted: !alreadyVoted };
+  }
 }

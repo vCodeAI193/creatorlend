@@ -416,4 +416,65 @@ export class SubscriptionsService {
     }
     return { resumed: duePauses.length };
   }
+
+  // F-335: SEPA-Lastschrift – Stripe SEPA Debit stub
+  getSepaInfo() {
+    return {
+      method: 'sepa_debit',
+      provider: 'Stripe SEPA Debit',
+      supported: true,
+      currencies: ['EUR'],
+      countries: ['DE', 'AT', 'CH', 'NL', 'BE', 'FR', 'ES', 'IT'],
+      setupUrl: 'https://stripe.com/docs/payments/sepa-debit',
+      message: 'Enable Stripe SEPA Debit in your Stripe Dashboard, then use payment_method_types: ["sepa_debit"] in checkout session',
+    };
+  }
+
+  // F-336: PayPal – stub info (Stripe PayPal or Braintree)
+  getPaypalInfo() {
+    return {
+      method: 'paypal',
+      provider: 'Stripe PayPal or Braintree',
+      supported: true,
+      setupUrl: 'https://stripe.com/docs/payments/paypal',
+      message: 'Enable PayPal in Stripe Dashboard under Payment methods, or integrate Braintree SDK',
+      clientId: process.env.PAYPAL_CLIENT_ID ?? null,
+    };
+  }
+
+  // F-338: Apple Pay – Stripe stub
+  getApplePayInfo() {
+    return {
+      method: 'apple_pay',
+      provider: 'Stripe Apple Pay',
+      supported: true,
+      domainVerification: 'https://stripe.com/docs/apple-pay',
+      message: 'Register your domain with Apple via Stripe Dashboard → Payment methods → Apple Pay',
+      merchantIdentifier: process.env.APPLE_MERCHANT_ID ?? 'merchant.de.creatorlend',
+    };
+  }
+
+  // F-339: Google Pay – Stripe stub
+  getGooglePayInfo() {
+    return {
+      method: 'google_pay',
+      provider: 'Stripe Google Pay',
+      supported: true,
+      setupUrl: 'https://stripe.com/docs/google-pay',
+      message: 'Google Pay is automatically enabled when using Stripe Payment Element; no separate setup needed',
+      environment: process.env.NODE_ENV === 'production' ? 'PRODUCTION' : 'TEST',
+    };
+  }
+
+  getAvailablePaymentMethods() {
+    return {
+      methods: [
+        { id: 'card', name: 'Kreditkarte', provider: 'Stripe', enabled: true },
+        { id: 'sepa_debit', name: 'SEPA-Lastschrift', provider: 'Stripe SEPA Debit', enabled: true },
+        { id: 'paypal', name: 'PayPal', provider: 'Stripe PayPal', enabled: false, comingSoon: true },
+        { id: 'apple_pay', name: 'Apple Pay', provider: 'Stripe Apple Pay', enabled: true },
+        { id: 'google_pay', name: 'Google Pay', provider: 'Stripe Google Pay', enabled: true },
+      ],
+    };
+  }
 }
