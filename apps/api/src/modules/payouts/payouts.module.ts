@@ -5,10 +5,11 @@ import { PayoutsScheduler } from "./payouts.scheduler";
 import { TipsService } from "./tips.service";
 import { TaxStatementService } from "./tax-statement.service";
 import { InvoiceService } from "./invoice.service";
+import { PaymentsStubsService } from "./payments-stubs.service";
 
 @Module({
   controllers: [PayoutsController],
-  providers: [PayoutsService, PayoutsScheduler, TipsService, TaxStatementService, InvoiceService],
-  exports: [PayoutsService, TipsService, TaxStatementService, InvoiceService],
+  providers: [PayoutsService, PayoutsScheduler, TipsService, TaxStatementService, InvoiceService, PaymentsStubsService],
+  exports: [PayoutsService, TipsService, TaxStatementService, InvoiceService, PaymentsStubsService],
 })
 export class PayoutsModule {}

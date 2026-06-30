@@ -4,8 +4,10 @@ import {
   Delete,
   Get,
   HttpCode,
+  Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -17,6 +19,7 @@ import { CurrentUser } from "../../common/current-user.decorator";
 import { SubscriptionsService } from "./subscriptions.service";
 import { GiftCodesService } from "./gift-codes.service";
 import { StudentDiscountService } from "./student-discount.service";
+import { BillingStubsService } from "./billing-stubs.service";
 import { PlanDto } from "./dto/plan.dto";
 
 /** Abo-Verwaltung (Stripe Billing; Dev-Aktivierung ohne Stripe). */
@@ -28,6 +31,7 @@ export class SubscriptionsController {
     private readonly subscriptions: SubscriptionsService,
     private readonly giftCodes: GiftCodesService,
     private readonly studentDiscount: StudentDiscountService,
+    private readonly billingStubs: BillingStubsService,
   ) {}
 
   // POST /api/v1/subscriptions – Abo abschließen (Stripe Checkout)
@@ -226,5 +230,259 @@ export class SubscriptionsController {
   @Get("payment-methods/google-pay")
   googlePayInfo() {
     return this.subscriptions.getGooglePayInfo();
+  }
+
+  // ─── F-330/F-331/F-332/F-333: Freemium & Ads ─────────────────────────
+
+  // GET /api/v1/subscriptions/freemium/works – Freemium-Werke (F-330)
+  @Get("freemium/works")
+  getFreemiumWorks(@Query("limit") limit?: string) {
+    return this.billingStubs.getFreemiumWorks(limit ? Number(limit) : 20);
+  }
+
+  // GET /api/v1/subscriptions/ads/config – Audio-Ad-Konfig (F-331)
+  @Get("ads/config")
+  getAudioAdConfig() {
+    return this.billingStubs.getAudioAdConfig();
+  }
+
+  // GET /api/v1/subscriptions/ads/server – Ad-Server-Integration (F-332)
+  @Get("ads/server")
+  getAdServerConfig() {
+    return this.billingStubs.getAdServerConfig();
+  }
+
+  // GET /api/v1/subscriptions/ads/free – Werbefrei für zahlende Nutzer:innen (F-333)
+  @Get("ads/free")
+  isAdFree(@CurrentUser() userId: string) {
+    return this.billingStubs.isAdFree(userId);
+  }
+
+  // ─── F-337/F-340: Alternative Payment Methods ────────────────────────
+
+  // GET /api/v1/subscriptions/payment-methods/klarna – Klarna/BNPL (F-337)
+  @Get("payment-methods/klarna")
+  getKlarnaConfig() {
+    return this.billingStubs.getKlarnaConfig();
+  }
+
+  // GET /api/v1/subscriptions/payment-methods/crypto – Kryptowährung (F-340)
+  @Get("payment-methods/crypto")
+  getCryptoPaymentConfig() {
+    return this.billingStubs.getCryptoPaymentConfig();
+  }
+
+  // ─── F-342/F-343: VAT & Reverse Charge ───────────────────────────────
+
+  // PUT /api/v1/subscriptions/vat-id – USt-ID hinterlegen (F-342)
+  @Put("vat-id")
+  setVatId(
+    @CurrentUser() userId: string,
+    @Body("vatId") vatId: string,
+    @Body("countryCode") countryCode: string,
+  ) {
+    return this.billingStubs.setVatId(userId, vatId, countryCode);
+  }
+
+  // GET /api/v1/subscriptions/vat-id – USt-ID abrufen (F-342)
+  @Get("vat-id")
+  getVatId(@CurrentUser() userId: string) {
+    return this.billingStubs.getVatId(userId);
+  }
+
+  // GET /api/v1/subscriptions/reverse-charge – Reverse-Charge-Status (F-343)
+  @Get("reverse-charge")
+  getReverseChargeStatus(@CurrentUser() userId: string) {
+    return this.billingStubs.getReverseChargeStatus(userId);
+  }
+
+  // ─── F-352/F-353/F-354/F-355/F-356/F-357: Loyalty & Vouchers ────────
+
+  // POST /api/v1/subscriptions/vouchers/stack – Gutschein-Stack einlösen (F-352)
+  @Post("vouchers/stack")
+  redeemMultipleVouchers(@CurrentUser() userId: string, @Body("codes") codes: string[]) {
+    return this.billingStubs.redeemMultipleVouchers(userId, codes);
+  }
+
+  // GET /api/v1/subscriptions/cashback – Cashback-Guthaben (F-353)
+  @Get("cashback")
+  getCashbackBalance(@CurrentUser() userId: string) {
+    return this.billingStubs.getCashbackBalance(userId);
+  }
+
+  // POST /api/v1/subscriptions/cashback/redeem – Punkte einlösen (F-354)
+  @Post("cashback/redeem")
+  redeemCashbackPoints(
+    @CurrentUser() userId: string,
+    @Body("workId") workId: string,
+  ) {
+    return this.billingStubs.redeemCashbackPoints(userId, workId);
+  }
+
+  // GET /api/v1/subscriptions/loyalty – Loyalitätsstufe (F-355)
+  @Get("loyalty")
+  getLoyaltyTier(@CurrentUser() userId: string) {
+    return this.billingStubs.getLoyaltyTier(userId);
+  }
+
+  // GET /api/v1/subscriptions/anniversary – Jubiläums-Bonus (F-356)
+  @Get("anniversary")
+  getAnniversaryBonus(@CurrentUser() userId: string) {
+    return this.billingStubs.getAnniversaryBonus(userId);
+  }
+
+  // POST /api/v1/subscriptions/anniversary/claim – Jubiläums-Bonus einlösen (F-356)
+  @Post("anniversary/claim")
+  claimAnniversaryBonus(@CurrentUser() userId: string) {
+    return this.billingStubs.claimAnniversaryBonus(userId);
+  }
+
+  // GET /api/v1/subscriptions/early-adopter – Früherbucher-Rabatt (F-357)
+  @Get("early-adopter")
+  getEarlyAdopterDiscount(@CurrentUser() userId: string) {
+    return this.billingStubs.getEarlyAdopterDiscount(userId);
+  }
+
+  // ─── F-359/F-360: Special Pricing ────────────────────────────────────
+
+  // POST /api/v1/subscriptions/ngo – NGO-Rabatt beantragen (F-359)
+  @Post("ngo")
+  applyNgoDiscount(
+    @CurrentUser() userId: string,
+    @Body("orgName") orgName: string,
+    @Body("registrationNumber") registrationNumber: string,
+  ) {
+    return this.billingStubs.applyNgoDiscount(userId, orgName, registrationNumber);
+  }
+
+  // POST /api/v1/subscriptions/enterprise – Unternehmensabo anlegen (F-360)
+  @Post("enterprise")
+  createEnterpriseSubscription(
+    @CurrentUser() userId: string,
+    @Body("companyName") companyName: string,
+    @Body("seats") seats: number,
+  ) {
+    return this.billingStubs.createEnterpriseSubscription(userId, companyName, seats);
+  }
+
+  // GET /api/v1/subscriptions/enterprise – Unternehmensabo abrufen (F-360)
+  @Get("enterprise")
+  getEnterpriseSubscription(@CurrentUser() userId: string) {
+    return this.billingStubs.getEnterpriseSubscription(userId);
+  }
+
+  // ─── F-407/F-408/F-409/F-410: Micro & Credits ────────────────────────
+
+  // POST /api/v1/subscriptions/chapter-purchase – Einzelkapitel kaufen (F-407)
+  @Post("chapter-purchase")
+  purchaseChapter(
+    @CurrentUser() userId: string,
+    @Body("workId") workId: string,
+    @Body("chapterIndex") chapterIndex: number,
+  ) {
+    return this.billingStubs.purchaseChapter(userId, workId, chapterIndex);
+  }
+
+  // GET /api/v1/subscriptions/credits – Credit-Guthaben (F-408/F-409)
+  @Get("credits")
+  getCreditBalance(@CurrentUser() userId: string) {
+    return this.billingStubs.getCreditBalance(userId);
+  }
+
+  // POST /api/v1/subscriptions/credits/purchase – Credits kaufen (F-409)
+  @Post("credits/purchase")
+  purchaseCredits(@CurrentUser() userId: string, @Body("amount") amount: number) {
+    return this.billingStubs.purchaseCredits(userId, amount);
+  }
+
+  // POST /api/v1/subscriptions/credits/transfer – Credits übertragen (F-410)
+  @Post("credits/transfer")
+  transferCredits(
+    @CurrentUser() userId: string,
+    @Body("toUserId") toUserId: string,
+    @Body("amount") amount: number,
+  ) {
+    return this.billingStubs.transferCredits(userId, toUserId, amount);
+  }
+
+  // ─── F-412/F-413/F-414/F-415/F-416: Currency & Tax ───────────────────
+
+  // GET /api/v1/subscriptions/vat/eu-compliance – EU-VAT-Report (F-412)
+  @Get("vat/eu-compliance")
+  getEuVatComplianceReport(@Query("year") year?: string, @Query("quarter") quarter?: string) {
+    return this.billingStubs.getEuVatComplianceReport(year ? Number(year) : new Date().getFullYear(), quarter ? Number(quarter) : 1);
+  }
+
+  // GET /api/v1/subscriptions/currencies – Währungsauswahl (F-413)
+  @Get("currencies")
+  getSupportedCurrencies() {
+    return this.billingStubs.getSupportedCurrencies();
+  }
+
+  // PUT /api/v1/subscriptions/currency – Bevorzugte Währung setzen (F-413)
+  @Put("currency")
+  setUserCurrency(@CurrentUser() userId: string, @Body("currency") currency: string) {
+    return this.billingStubs.setUserCurrency(userId, currency);
+  }
+
+  // GET /api/v1/subscriptions/currency/convert – Währungsumrechnung (F-414)
+  @Get("currency/convert")
+  convertCurrency(
+    @Query("amountCents") amountCents?: string,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
+  ) {
+    return this.billingStubs.convertCurrency(Number(amountCents ?? 0), from ?? 'EUR', to ?? 'EUR');
+  }
+
+  // GET /api/v1/subscriptions/ppp/config – PPP-Anpassung (F-415)
+  @Get("ppp/config")
+  getPppConfig() {
+    return this.billingStubs.getPppConfig();
+  }
+
+  // GET /api/v1/subscriptions/local-price/:workId – lokale Preisgestaltung (F-416)
+  @Get("local-price/:workId")
+  getLocalPrice(@Param("workId") workId: string, @Query("country") country?: string) {
+    return this.billingStubs.getLocalPrice(workId, country ?? 'DE');
+  }
+
+  // ─── F-418/F-419/F-420: Renewal & Price Policy ───────────────────────
+
+  // GET /api/v1/subscriptions/renewal-reminder – Verlängerungs-Erinnerung (F-418)
+  @Get("renewal-reminder")
+  getRenewalReminders(@CurrentUser() userId: string) {
+    return this.billingStubs.getRenewalReminders(userId);
+  }
+
+  // GET /api/v1/subscriptions/price-increase – Preiserhöhungs-Ankündigung (F-419)
+  @Get("price-increase")
+  getPriceIncreaseAnnouncement() {
+    return this.billingStubs.getPriceIncreaseAnnouncement();
+  }
+
+  // POST /api/v1/subscriptions/price-increase – Preiserhöhung ankündigen (F-419)
+  @Post("price-increase")
+  @Roles(UserRole.ARTIST)
+  setPriceIncreaseAnnouncement(
+    @Body("newPriceCents") newPriceCents: number,
+    @Body("effectiveDate") effectiveDate: string,
+  ) {
+    return this.billingStubs.setPriceIncreaseAnnouncement(newPriceCents, effectiveDate);
+  }
+
+  // GET /api/v1/subscriptions/price-freeze – Preisschutz-Status (F-420)
+  @Get("price-freeze")
+  getPriceFreezeStatus(@CurrentUser() userId: string) {
+    return this.billingStubs.getPriceFreezeStatus(userId);
+  }
+
+  // POST /api/v1/subscriptions/price-freeze – Preisschutz aktivieren (F-420)
+  @Post("price-freeze")
+  applyPriceFreeze(
+    @CurrentUser() userId: string,
+    @Body("currentPriceCents") currentPriceCents: number,
+  ) {
+    return this.billingStubs.applyPriceFreeze(userId, currentPriceCents);
   }
 }
