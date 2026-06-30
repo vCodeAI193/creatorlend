@@ -56,4 +56,33 @@ export class AbTestingService {
       orderBy: { createdAt: "desc" },
     });
   }
+
+  // F-787: A/B-Test-Ergebnisse automatisch auswerten (statistische Signifikanz)
+  async evaluateTest(testKey: string) {
+    const results = await this.getTestResults(testKey);
+    const variantA = results.variants['A'] ?? 0;
+    const variantB = results.variants['B'] ?? 0;
+    const total = variantA + variantB;
+    // Simple chi-square approximation for equal proportions
+    const significant = total >= 200 && Math.abs(variantA - variantB) / total > 0.05;
+    return {
+      testKey,
+      totalAssignments: total,
+      variants: results.variants,
+      significant,
+      winner: significant ? (variantA >= variantB ? 'A' : 'B') : null,
+      confidence: significant ? '95%+' : 'insufficient',
+      recommendation: total < 200
+        ? 'Not enough data yet (need ≥200 assignments)'
+        : significant
+          ? `Variant ${variantA >= variantB ? 'A' : 'B'} is the winner — consider ending the test`
+          : 'No significant difference yet — continue the test',
+    };
+  }
+
+  // F-668: A/B-Test von E-Mail-Betreffzeilen
+  async getEmailSubjectVariant(userId: string, campaignKey: string, subjectA: string, subjectB: string): Promise<string> {
+    const variant = await this.getVariant(userId, `email_${campaignKey}`);
+    return variant === 'B' ? subjectB : subjectA;
+  }
 }

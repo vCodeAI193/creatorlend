@@ -1150,6 +1150,43 @@ export class WorksService {
     };
   }
 
+  // F-618: Trending-Tag-Cloud (Häufigkeit je Tag über alle PUBLISHED Werke)
+  async getTagCloud(limit = 50): Promise<{ tag: string; count: number }[]> {
+    const works = await this.prisma.work.findMany({
+      where: { status: 'PUBLISHED' },
+      select: { tags: true },
+    });
+    const tagCounts: Record<string, number> = {};
+    for (const w of works) {
+      for (const tag of w.tags) {
+        tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+      }
+    }
+    return Object.entries(tagCounts)
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  }
+
+  // F-376: Preisempfehlung für Künstler:in je WorkType
+  async getPriceRecommendation(workType: string) {
+    const agg = await this.prisma.work.aggregate({
+      where: { type: workType as never, status: 'PUBLISHED', loanPriceCents: { gt: 0 } },
+      _avg: { loanPriceCents: true },
+      _min: { loanPriceCents: true },
+      _max: { loanPriceCents: true },
+    });
+    const avg = Math.round(agg._avg.loanPriceCents ?? 150);
+    return {
+      workType,
+      recommendedCents: avg,
+      minCents: agg._min.loanPriceCents ?? 50,
+      maxCents: agg._max.loanPriceCents ?? 500,
+      platformMinCents: 50,
+      platformMaxCents: 500,
+    };
+  }
+
   // ─── F-763: Revenue export als CSV ───────────────────────────────────────
 
   async exportRevenueAsCsv(artistId: string): Promise<string> {

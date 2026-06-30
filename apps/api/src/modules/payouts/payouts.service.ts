@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { NotificationType } from "../notifications/notification-types";
 import { StripeService } from "../stripe/stripe.service";
+import { MailService } from "../mail/mail.service";
 
 const PAGE_SIZE = 20;
 const PAYOUT_CURRENCY = "eur";
@@ -18,6 +19,7 @@ export class PayoutsService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly stripe: StripeService,
+    private readonly mail: MailService,
   ) {}
 
   /**
@@ -170,7 +172,7 @@ export class PayoutsService {
     });
 
     if (result.count > 0) {
-      // Künstler:in über die Auszahlung informieren (F-083).
+      // Künstler:in über die Auszahlung informieren (F-083 / F-401).
       await this.notifications.create({
         userId: artistId,
         type: NotificationType.PAYOUT_PAID,
@@ -178,6 +180,16 @@ export class PayoutsService {
         body: `${amountCents} Cent aus ${result.count} Ausleihen wurden ausgezahlt.`,
         data: { amountCents, items: result.count },
       });
+      // F-401: E-Mail-Benachrichtigung bei Auszahlung
+      const user = await this.prisma.user.findUnique({ where: { id: artistId }, select: { email: true } });
+      if (user) {
+        const euros = (amountCents / 100).toFixed(2);
+        await this.mail.sendEmail(
+          user.email,
+          `Auszahlung von ${euros} € erfolgt`,
+          `Hallo,\n\ndeine Auszahlung in Höhe von ${euros} € (${result.count} Ausleihen) wurde erfolgreich angewiesen.\n\nDiese E-Mail wurde automatisch generiert.`,
+        ).catch(() => {});
+      }
     }
 
     return { transferred: result.count, amountCents };

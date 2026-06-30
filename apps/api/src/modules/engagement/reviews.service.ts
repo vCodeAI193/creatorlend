@@ -11,6 +11,12 @@ export class ReviewsService {
     const work = await this.prisma.work.findUnique({ where: { id: workId } });
     if (!work || work.status !== "PUBLISHED") throw new NotFoundException("work_not_found");
 
+    // F-628: Anti-Spam – Konto muss mindestens 15 Minuten alt sein
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } });
+    if (user && Date.now() - user.createdAt.getTime() < 15 * 60 * 1000) {
+      throw new BadRequestException('account_too_new_for_posting');
+    }
+
     // F-524: Check if reviewer has an active or expired loan for the work
     const verifiedLoan = await this.prisma.loan.findFirst({
       where: { userId, workId, status: { in: ["ACTIVE", "EXPIRED"] } },

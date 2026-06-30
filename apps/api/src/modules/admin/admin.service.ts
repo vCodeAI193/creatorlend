@@ -857,6 +857,21 @@ export class AdminService {
     return { submitted: true, takedownId, status: 'COUNTER_NOTICE' };
   }
 
+  // F-379: Pressekopie-Code für Journalist:innen (Admin erstellt 100%-Rabatt-Code)
+  async createPressCode(adminId: string, code: string, workId: string, expiresAt?: string) {
+    const result = await this.promoCodes.createPressCode(code, workId, expiresAt);
+    await this.writeAuditLog(adminId, 'CREATE_PRESS_CODE', 'Work', workId, { code });
+    return result;
+  }
+
+  // F-746: Backfill-Job per Admin auslösen (stub – in prod via BullMQ)
+  async triggerBackfill(jobName: string, adminId: string, params: Record<string, unknown> = {}) {
+    const allowedJobs = ['fix-payout-amounts', 'reindex-search', 'recalculate-loan-quotas', 'sync-subscription-status', 'rebuild-recommendations'];
+    if (!allowedJobs.includes(jobName)) throw new Error(`unknown_job: ${jobName}. Allowed: ${allowedJobs.join(', ')}`);
+    await this.writeAuditLog(adminId, 'BACKFILL_JOB', 'System', jobName, { params });
+    return { jobName, params, queued: true, stub: true, allowedJobs, message: 'Production: submit to BullMQ job queue' };
+  }
+
   // F-695: Platform-FAQ (in-memory store)
   private platformFaqs: Array<{ id: string; category: string; question: string; answer: string; sortOrder: number }> = [
     { id: '1', category: 'general', question: 'Was ist CreatorLend?', answer: 'CreatorLend ist eine Plattform, auf der Künstler:innen ihre Werke verleihen und Hörer:innen diese zeitlich begrenzt ausleihen können.', sortOrder: 0 },

@@ -63,4 +63,33 @@ export class PromoCodesService {
   list() {
     return this.prisma.promoCode.findMany({ orderBy: { createdAt: "desc" } });
   }
+
+  // F-383: Künstler:in erstellt Rabattcode für eigene Werke (in plan gespeichert)
+  async createArtistCode(artistId: string, code: string, discountPercent: number, maxUses?: number, expiresAt?: string) {
+    // Verify artist exists
+    const artist = await this.prisma.user.findUnique({ where: { id: artistId }, select: { id: true, role: true } });
+    if (!artist || artist.role !== 'ARTIST') throw new NotFoundException('artist_not_found');
+    return this.prisma.promoCode.create({
+      data: {
+        code,
+        discountPercent,
+        plan: `ARTIST:${artistId}`,
+        maxUses: maxUses ?? 100,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+      },
+    });
+  }
+
+  // F-379: Pressekopien/Review-Copies für Journalist:innen (100% Rabatt, 1 Einlösung)
+  async createPressCode(code: string, workId: string, expiresAt?: string) {
+    return this.prisma.promoCode.create({
+      data: {
+        code,
+        discountPercent: 100,
+        plan: `PRESS:${workId}`,
+        maxUses: 1,
+        expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
 }

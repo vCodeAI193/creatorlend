@@ -37,6 +37,15 @@ export class TrackingController {
   ) {
     return this.tracking.trackPageView({ path, userId, sessionId, referrer, durationMs });
   }
+
+  // POST /api/v1/tracking/influencer-referral – Influencer-Referral tracken (F-803)
+  @Post('influencer-referral')
+  trackInfluencerReferral(
+    @Body('referrerId') referrerId: string,
+    @Body('newUserId') newUserId: string,
+  ) {
+    return this.tracking.trackInfluencerReferral(referrerId, newUserId);
+  }
 }
 
 // Admin-Analytics (F-801)
@@ -65,5 +74,11 @@ export class AdminTrackingController {
   @Get('pageviews')
   getPageViews(@Query('from') from?: string) {
     return this.tracking.getPageViewStats(from);
+  }
+
+  // GET /api/v1/admin/tracking/influencers – Influencer-Statistiken (F-803)
+  @Get('influencers')
+  getInfluencerStats(@Query('from') from?: string, @Query('limit') limit?: string) {
+    return this.tracking.getInfluencerStats(from, limit ? Number(limit) : 20);
   }
 }

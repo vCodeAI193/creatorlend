@@ -23,6 +23,11 @@ describe("PayoutsService – Stripe Connect", () => {
           email: "artist@b.dev",
           stripeConnectAccountId: opts.connectAccountId ?? null,
         }),
+        findUnique: jest.fn().mockResolvedValue({
+          id: "artist-1",
+          email: "artist@b.dev",
+          stripeConnectAccountId: opts.connectAccountId ?? null,
+        }),
         update: jest.fn().mockResolvedValue({}),
       },
     } as never;
@@ -33,7 +38,8 @@ describe("PayoutsService – Stripe Connect", () => {
       createAccountLink: jest.fn().mockResolvedValue("https://connect.stripe.com/setup/acct_new"),
       createTransfer: jest.fn().mockResolvedValue("tr_1"),
     } as never;
-    return { prisma, notifications, stripe, service: new PayoutsService(prisma, notifications, stripe) };
+    const mail = { sendEmail: jest.fn().mockResolvedValue(undefined) } as never;
+    return { prisma, notifications, stripe, mail, service: new PayoutsService(prisma, notifications, stripe, mail) };
   }
 
   it("startOnboarding legt ein Connect-Konto an und liefert den Link", async () => {

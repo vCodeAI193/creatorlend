@@ -29,4 +29,14 @@ export class ContentModerationService {
     ]);
     return { workId, title: titleResult, description: descResult, overallAction: titleResult.flagged || descResult.flagged ? 'REVIEW' : 'ALLOW' };
   }
+
+  // F-728: KI-Auto-Flag bei verdächtigen Werken
+  async autoFlagSuspiciousWork(workId: string): Promise<{ workId: string; flagged: boolean; reason?: string; action: string }> {
+    const result = await this.moderateWork(workId);
+    const flagged = result.overallAction === 'REVIEW';
+    if (flagged) {
+      return { workId, flagged: true, reason: 'AI auto-flag: potentially problematic content detected', action: 'QUEUED_FOR_REVIEW' };
+    }
+    return { workId, flagged: false, action: 'CLEARED' };
+  }
 }

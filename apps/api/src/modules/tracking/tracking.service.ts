@@ -60,6 +60,31 @@ export class TrackingService {
     };
   }
 
+  // F-803: Influencer-Tracking – Registrierung via Influencer-Link
+  async trackInfluencerReferral(referrerId: string, newUserId: string) {
+    return this.prisma.customEvent.create({
+      data: {
+        eventName: 'INFLUENCER_REFERRAL',
+        userId: referrerId,
+        properties: { newUserId },
+      },
+    });
+  }
+
+  // F-803: Influencer-Stats – wer bringt die meisten Registrierungen?
+  async getInfluencerStats(from?: string, limit = 20) {
+    const rows = await this.prisma.$queryRaw<Array<{ userId: string; cnt: bigint }>>`
+      SELECT "userId", COUNT(*) AS cnt
+      FROM "CustomEvent"
+      WHERE "eventName" = 'INFLUENCER_REFERRAL'
+        ${from ? `AND "createdAt" >= ${new Date(from).toISOString()}::timestamp` : ''}
+      GROUP BY "userId"
+      ORDER BY cnt DESC
+      LIMIT ${limit}
+    `;
+    return rows.map((r) => ({ referrerId: r.userId, referrals: Number(r.cnt) }));
+  }
+
   // F-782: Seitenaufrufe tracken
   async trackPageView(data: { path: string; userId?: string; sessionId?: string; referrer?: string; durationMs?: number }) {
     return this.prisma.customEvent.create({

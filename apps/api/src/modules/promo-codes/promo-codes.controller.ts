@@ -27,4 +27,16 @@ export class PromoCodesController {
   ) {
     return this.promoCodes.redeem(code, userId, plan);
   }
+
+  // POST /api/v1/promo-codes/artist – Künstler:in erstellt Rabattcode (F-383)
+  @Post("artist")
+  createArtistCode(
+    @CurrentUser() artistId: string,
+    @Body("code") code: string,
+    @Body("discountPercent") discountPercent: number,
+    @Body("maxUses") maxUses?: number,
+    @Body("expiresAt") expiresAt?: string,
+  ) {
+    return this.promoCodes.createArtistCode(artistId, code, discountPercent, maxUses, expiresAt);
+  }
 }

@@ -337,6 +337,39 @@ export class AdminController {
     return this.abTesting.getTestResults(testKey);
   }
 
+  // GET /api/v1/admin/ab-tests/:testKey/evaluate – A/B-Test statistisch auswerten (F-787)
+  @Get("ab-tests/:testKey/evaluate")
+  evaluateAbTest(@Param("testKey") testKey: string) {
+    return this.abTesting.evaluateTest(testKey);
+  }
+
+  // POST /api/v1/admin/works/:id/auto-flag – AI-Moderation Auto-Flag (F-728)
+  @Post("works/:id/auto-flag")
+  autoFlagWork(@Param("id") id: string) {
+    return this.contentModeration.autoFlagSuspiciousWork(id);
+  }
+
+  // POST /api/v1/admin/backfill – Backfill-Job auslösen (F-746)
+  @Post("backfill")
+  triggerBackfill(
+    @CurrentUser() adminId: string,
+    @Body("jobName") jobName: string,
+    @Body("params") params?: Record<string, unknown>,
+  ) {
+    return this.admin.triggerBackfill(jobName, adminId, params);
+  }
+
+  // POST /api/v1/admin/promo-codes/press-copy – Pressekopie-Code erstellen (F-379)
+  @Post("promo-codes/press-copy")
+  createPressCode(
+    @CurrentUser() adminId: string,
+    @Body("code") code: string,
+    @Body("workId") workId: string,
+    @Body("expiresAt") expiresAt?: string,
+  ) {
+    return this.admin.createPressCode(adminId, code, workId, expiresAt);
+  }
+
   // POST /api/v1/admin/works/:id/moderate-ai – AI Content Moderation stub (F-916)
   @Post("works/:id/moderate-ai")
   moderateWorkAi(@Param("id") id: string) {

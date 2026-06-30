@@ -284,6 +284,18 @@ export class WorksController {
     return this.works.getNewcomerCharts(limit ? Number(limit) : 20);
   }
 
+  // GET /api/v1/works/tag-cloud – Trending-Tag-Cloud (F-618)
+  @Get("tag-cloud")
+  getTagCloud(@Query("limit") limit?: string) {
+    return this.works.getTagCloud(limit ? Number(limit) : 50);
+  }
+
+  // GET /api/v1/works/price-recommendation – Preisempfehlung für WorkType (F-376)
+  @Get("price-recommendation")
+  getPriceRecommendation(@Query("type") type = 'AUDIOBOOK') {
+    return this.works.getPriceRecommendation(type);
+  }
+
   // GET /api/v1/wishlist/:slug – öffentliche Wunschliste (F-241/F-242)
   @Get("/wishlist/:slug")
   publicWishlist(@Param("slug") slug: string) {
