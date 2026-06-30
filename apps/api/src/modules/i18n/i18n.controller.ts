@@ -24,6 +24,12 @@ export class I18nController {
     return { locale: this.i18n.detectLocale(acceptLanguage) };
   }
 
+  // GET /api/v1/i18n/tms – Translation Management System Status (F-996)
+  @Get('tms')
+  tmsStatus() {
+    return this.i18n.getTmsStatus();
+  }
+
   // GET /api/v1/i18n/format?amount=1234&locale=de – Währungsformat (F-993)
   @Get('format')
   formatCurrency(

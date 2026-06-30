@@ -39,4 +39,22 @@ export class InfraController {
   logs() {
     return this.infra.getLogAggregationStatus();
   }
+
+  // F-953: PgBouncer Connection Pooling
+  @Get('db/connection-pooling')
+  connectionPooling() {
+    return this.infra.getConnectionPoolingInfo();
+  }
+
+  // F-956: CDN-Konfiguration
+  @Get('cdn')
+  cdnConfig() {
+    return this.infra.getCdnConfig();
+  }
+
+  // F-963: Query-Plan-Caching
+  @Get('db/query-cache')
+  queryCache() {
+    return this.infra.getQueryCacheInfo();
+  }
 }

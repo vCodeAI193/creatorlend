@@ -68,4 +68,37 @@ export class InfraService implements OnApplicationShutdown {
       retention: '30d',
     };
   }
+
+  // F-953: PgBouncer Connection Pooling Info
+  getConnectionPoolingInfo() {
+    return {
+      provider: process.env.PGBOUNCER_URL ? 'PgBouncer' : 'direct',
+      url: process.env.PGBOUNCER_URL ?? null,
+      maxConnections: Number(process.env.DATABASE_POOL_SIZE ?? 10),
+      mode: 'transaction',
+      docs: 'https://www.pgbouncer.org/config.html',
+    };
+  }
+
+  // F-956: CDN-Konfiguration
+  getCdnConfig() {
+    return {
+      provider: process.env.CDN_PROVIDER ?? 'cloudflare',
+      baseUrl: process.env.MEDIA_CDN_BASE_URL ?? 'https://cdn.creatorlend.com',
+      assetsUrl: process.env.ASSETS_CDN_URL ?? 'https://assets.creatorlend.com',
+      audioSegmentCacheTime: 86400,
+      imagesCacheTime: 604800,
+    };
+  }
+
+  // F-963: Query-Plan-Caching (Prisma prepared statements)
+  getQueryCacheInfo() {
+    return {
+      provider: 'prisma',
+      preparedStatements: true,
+      connectionCachingEnabled: true,
+      recommendation: 'Use prisma.$extends for query-level caching with Redis',
+      redisUrl: process.env.REDIS_URL ?? null,
+    };
+  }
 }

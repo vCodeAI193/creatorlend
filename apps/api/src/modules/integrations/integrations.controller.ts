@@ -23,6 +23,18 @@ export class IntegrationsController {
     return this.integrations.getChangelog();
   }
 
+  // F-879: API-Playground
+  @Get('api/playground')
+  apiPlayground() {
+    return this.integrations.getApiPlaygroundInfo();
+  }
+
+  // F-881: Postman-Collection
+  @Get('api/postman')
+  postmanCollection() {
+    return this.integrations.getPostmanCollection();
+  }
+
   // F-887: Zapier-Trigger-Info
   @Get('zapier/triggers')
   zapierTriggers() {

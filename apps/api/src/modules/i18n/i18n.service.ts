@@ -102,4 +102,21 @@ export class I18nService {
       name: { de: 'Deutsch', en: 'English', fr: 'Français', es: 'Español' }[code],
     }));
   }
+
+  // F-996: Translation Management System (Crowdin/Phrase stub)
+  getTmsStatus() {
+    return {
+      provider: process.env.TMS_PROVIDER ?? 'crowdin',
+      projectId: process.env.CROWDIN_PROJECT_ID ?? null,
+      locales: SUPPORTED_LOCALES,
+      translationProgress: {
+        de: 100,
+        en: 100,
+        fr: 78,
+        es: 65,
+      },
+      lastSync: null,
+      syncUrl: 'https://crowdin.com/project/creatorlend',
+    };
+  }
 }

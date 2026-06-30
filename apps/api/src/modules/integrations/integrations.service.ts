@@ -125,6 +125,30 @@ export class IntegrationsService {
     };
   }
 
+  // F-879: API Playground (Swagger UI info)
+  getApiPlaygroundInfo() {
+    const base = process.env.API_BASE_URL ?? 'https://api.creatorlend.com';
+    return {
+      playgroundUrl: `${base}/api/docs`,
+      provider: 'Swagger UI',
+      version: 'OpenAPI 3.0',
+      interactiveAuth: true,
+      note: 'Authenticate using the /auth/login endpoint, then click "Authorize" and paste your JWT token.',
+    };
+  }
+
+  // F-881: Postman-Collection-Info
+  getPostmanCollection() {
+    return {
+      downloadUrl: `${process.env.API_BASE_URL ?? 'https://api.creatorlend.com'}/api/docs-json`,
+      importInstructions: 'Download the OpenAPI JSON and import it into Postman via File → Import → URL or file.',
+      environment: {
+        baseUrl: process.env.API_BASE_URL ?? 'https://api.creatorlend.com',
+        apiVersion: 'v1',
+      },
+    };
+  }
+
   // F-882: API-Changelog und Deprecation-Policy
   getChangelog() {
     return {
