@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -23,6 +24,7 @@ import { BookmarksService } from "./bookmarks.service";
 import { FaqsService } from "./faqs.service";
 import { ContentFeedbackService } from "./content-feedback.service";
 import { RecommendationsService } from "./recommendations.service";
+import { SocialStubsService } from "./social-stubs.service";
 import { FavoriteDto } from "./dto/favorite.dto";
 import { FollowDto } from "./dto/follow.dto";
 
@@ -41,6 +43,7 @@ export class EngagementController {
     private readonly faqs: FaqsService,
     private readonly contentFeedback: ContentFeedbackService,
     private readonly recommendations: RecommendationsService,
+    private readonly socialStubs: SocialStubsService,
   ) {}
 
   // POST /api/v1/favorites
@@ -360,5 +363,496 @@ export class EngagementController {
   @Delete("recommendations/:id")
   removeRecommendation(@CurrentUser() userId: string, @Param("id") id: string) {
     return this.recommendations.remove(userId, id);
+  }
+
+  // ─── F-571–572: Activity Feed ────────────────────────────────────────────
+
+  @Get("activity-feed")
+  getActivityFeed(@CurrentUser() userId: string) {
+    return this.socialStubs.getActivityFeed(userId);
+  }
+
+  @Get("activity-feed/privacy")
+  getActivityFeedPrivacy(@CurrentUser() userId: string) {
+    return this.socialStubs.getActivityFeedPrivacy(userId);
+  }
+
+  @Put("activity-feed/privacy")
+  setActivityFeedPrivacy(@CurrentUser() userId: string, @Body("isPublic") isPublic: boolean) {
+    return this.socialStubs.setActivityFeedPrivacy(userId, isPublic);
+  }
+
+  // F-573: Friend recommendations
+  @Get("friend-recommendations")
+  getFriendRecommendations(@CurrentUser() userId: string) {
+    return this.socialStubs.getFriendRecommendations(userId);
+  }
+
+  // F-574: Mutual follow
+  @Get("mutual-follow/:targetId")
+  getMutualFollowStatus(@CurrentUser() userId: string, @Param("targetId") targetId: string) {
+    return this.socialStubs.getMutualFollowStatus(userId, targetId);
+  }
+
+  // F-575: Follower list visibility
+  @Get("follower-list/visibility")
+  getFollowerListVisibility(@CurrentUser() userId: string) {
+    return this.socialStubs.getFollowerListVisibility(userId);
+  }
+
+  @Put("follower-list/visibility")
+  setFollowerListVisibility(@CurrentUser() userId: string, @Body("isPublic") isPublic: boolean) {
+    return this.socialStubs.setFollowerListVisibility(userId, isPublic);
+  }
+
+  // F-576: Follower search (social stubs variant)
+  @Get("followers/search-by-name")
+  searchFollowersByName(@CurrentUser() userId: string, @Query("q") q: string) {
+    return this.socialStubs.searchFollowers(userId, q ?? '');
+  }
+
+  // F-577: Block user
+  @Post("block/:blockedId")
+  blockUser(@CurrentUser() userId: string, @Param("blockedId") blockedId: string) {
+    return this.socialStubs.blockUser(userId, blockedId);
+  }
+
+  // F-578: Blocklist
+  @Get("blocklist")
+  getBlocklist(@CurrentUser() userId: string) {
+    return this.socialStubs.getBlocklist(userId);
+  }
+
+  @Delete("block/:blockedId")
+  unblockUser(@CurrentUser() userId: string, @Param("blockedId") blockedId: string) {
+    return this.socialStubs.unblockUser(userId, blockedId);
+  }
+
+  // F-579: Report user
+  @Post("report/user/:targetId")
+  reportUser(
+    @CurrentUser() userId: string,
+    @Param("targetId") targetId: string,
+    @Body("reason") reason: string,
+    @Body("description") description: string,
+  ) {
+    return this.socialStubs.reportUser(userId, targetId, reason, description);
+  }
+
+  // F-580: DM inbox
+  @Get("dm/inbox")
+  getDmInbox(@CurrentUser() userId: string) {
+    return this.socialStubs.getDmInbox(userId);
+  }
+
+  @Get("dm/:otherId")
+  getDmConversation(@CurrentUser() userId: string, @Param("otherId") otherId: string) {
+    return this.socialStubs.getDmConversation(userId, otherId);
+  }
+
+  @Post("dm/:recipientId")
+  sendDm(
+    @CurrentUser() userId: string,
+    @Param("recipientId") recipientId: string,
+    @Body("body") body: string,
+  ) {
+    return this.socialStubs.sendDm(userId, recipientId, body);
+  }
+
+  // F-581: DM preferences
+  @Get("dm/preferences")
+  getDmPreferences(@CurrentUser() userId: string) {
+    return this.socialStubs.getDmPreferences(userId);
+  }
+
+  @Put("dm/preferences")
+  setDmPreferences(@CurrentUser() userId: string, @Body() prefs: Record<string, unknown>) {
+    return this.socialStubs.setDmPreferences(userId, prefs);
+  }
+
+  // F-582: DM reactions
+  @Post("dm/message/:messageId/reaction")
+  addDmReaction(
+    @CurrentUser() userId: string,
+    @Param("messageId") messageId: string,
+    @Body("emoji") emoji: string,
+  ) {
+    return this.socialStubs.addDmReaction(userId, messageId, emoji);
+  }
+
+  // F-583: Group chat
+  @Post("group-chat")
+  createGroupChat(
+    @CurrentUser() userId: string,
+    @Body("participantIds") participantIds: string[],
+    @Body("title") title: string,
+  ) {
+    return this.socialStubs.createGroupChat(userId, participantIds, title);
+  }
+
+  @Get("group-chat/:chatId")
+  getGroupChat(@Param("chatId") chatId: string) {
+    return this.socialStubs.getGroupChat(chatId);
+  }
+
+  // F-585: Work recommendation via DM
+  @Post("dm/:recipientId/recommend-work")
+  sendWorkRecommendationDm(
+    @CurrentUser() userId: string,
+    @Param("recipientId") recipientId: string,
+    @Body("workId") workId: string,
+    @Body("message") message: string,
+  ) {
+    return this.socialStubs.sendWorkRecommendationDm(userId, recipientId, workId, message);
+  }
+
+  // F-586–587: Public recommendations
+  @Post("public-recommendations/:workId")
+  createPublicRecommendation(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body("comment") comment: string,
+  ) {
+    return this.socialStubs.createPublicRecommendation(userId, workId, comment);
+  }
+
+  @Get("public-recommendations/:userId")
+  getPublicRecommendations(@Param("userId") userId: string) {
+    return this.socialStubs.getPublicRecommendations(userId);
+  }
+
+  @Get("recommendation-feed/social")
+  getSocialRecommendationFeed(@CurrentUser() userId: string) {
+    return this.socialStubs.getRecommendationFeed(userId);
+  }
+
+  // F-588–590: Community playlists
+  @Get("community-playlists")
+  getCommunityPlaylists() {
+    return this.socialStubs.getCommunityPlaylists();
+  }
+
+  @Post("community-playlists")
+  createCommunityPlaylist(
+    @CurrentUser() userId: string,
+    @Body("title") title: string,
+    @Body("description") description: string,
+  ) {
+    return this.socialStubs.createCommunityPlaylist(userId, title, description);
+  }
+
+  @Post("community-playlists/:playlistId/vote/:workId")
+  voteAddWorkToPlaylist(
+    @CurrentUser() userId: string,
+    @Param("playlistId") playlistId: string,
+    @Param("workId") workId: string,
+  ) {
+    return this.socialStubs.voteAddWorkToPlaylist(userId, playlistId, workId);
+  }
+
+  // F-591–594: Forum / discussions
+  @Get("discussions/:workId")
+  getWorkDiscussions(@Param("workId") workId: string) {
+    return this.socialStubs.getWorkDiscussions(workId);
+  }
+
+  @Post("discussions/:workId")
+  createDiscussionPost(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body("body") body: string,
+  ) {
+    return this.socialStubs.createDiscussionPost(userId, workId, body);
+  }
+
+  @Post("discussions/:workId/:postId/vote")
+  voteDiscussionPost(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Param("postId") postId: string,
+    @Body("vote") vote: 'up' | 'down',
+  ) {
+    return this.socialStubs.voteDiscussionPost(userId, workId, postId, vote);
+  }
+
+  @Post("discussions/:workId/:postId/solve")
+  markDiscussionSolved(@Param("workId") workId: string, @Param("postId") postId: string) {
+    return this.socialStubs.markDiscussionSolved(workId, postId);
+  }
+
+  // F-595–596: Q&A and Quiz
+  @Get("qa/:workId")
+  getWorkQa(@Param("workId") workId: string) {
+    return this.socialStubs.getWorkQa(workId);
+  }
+
+  @Post("qa/:workId")
+  submitQuestion(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body("question") question: string,
+  ) {
+    return this.socialStubs.submitQuestion(userId, workId, question);
+  }
+
+  @Get("quiz/:workId")
+  getWorkQuiz(@Param("workId") workId: string) {
+    return this.socialStubs.getWorkQuiz(workId);
+  }
+
+  // F-597–598: Book clubs
+  @Post("book-clubs")
+  createBookClub(
+    @CurrentUser() userId: string,
+    @Body("workId") workId: string,
+    @Body("title") title: string,
+    @Body("schedule") schedule: string[],
+  ) {
+    return this.socialStubs.createBookClub(userId, workId, title, schedule);
+  }
+
+  @Get("book-clubs/:clubId")
+  getBookClub(@Param("clubId") clubId: string) {
+    return this.socialStubs.getBookClub(clubId);
+  }
+
+  @Post("book-clubs/:clubId/join")
+  joinBookClub(@CurrentUser() userId: string, @Param("clubId") clubId: string) {
+    return this.socialStubs.joinBookClub(userId, clubId);
+  }
+
+  // F-599: Community events
+  @Get("community-events")
+  getCommunityEvents() {
+    return this.socialStubs.getCommunityEvents();
+  }
+
+  @Post("community-events")
+  createCommunityEvent(
+    @CurrentUser() userId: string,
+    @Body("title") title: string,
+    @Body("startsAt") startsAt: string,
+    @Body("description") description: string,
+  ) {
+    return this.socialStubs.createCommunityEvent(userId, title, startsAt, description);
+  }
+
+  // F-600: Virtual autograph
+  @Post("autograph/:forUserId")
+  createVirtualAutograph(
+    @CurrentUser() userId: string,
+    @Param("forUserId") forUserId: string,
+    @Body("message") message: string,
+  ) {
+    return this.socialStubs.createVirtualAutograph(userId, forUserId, message);
+  }
+
+  // F-601–602: Fan wall and shoutouts
+  @Get("fan-wall/:artistId")
+  getFanWallMessages(@Param("artistId") artistId: string) {
+    return this.socialStubs.getFanWallMessages(artistId);
+  }
+
+  @Post("fan-wall/:artistId")
+  addFanWallMessage(
+    @CurrentUser() userId: string,
+    @Param("artistId") artistId: string,
+    @Body("text") text: string,
+  ) {
+    return this.socialStubs.addFanWallMessage(userId, artistId, text);
+  }
+
+  @Get("shoutouts")
+  getShoutouts(@CurrentUser() userId: string) {
+    return this.socialStubs.getShoutouts(userId);
+  }
+
+  // F-603–604: Leaderboard and weekly challenge
+  @Get("leaderboard/weekly")
+  getWeeklyLeaderboard() {
+    return this.socialStubs.getWeeklyLeaderboard();
+  }
+
+  @Get("community-challenge")
+  getWeeklyChallenge() {
+    return this.socialStubs.getWeeklyChallenge();
+  }
+
+  // F-605–608: Feedback channels
+  @Get("feature-requests")
+  getFeatureRequests() {
+    return this.socialStubs.getFeatureRequests();
+  }
+
+  @Post("feature-requests")
+  submitFeatureRequest(
+    @CurrentUser() userId: string,
+    @Body("title") title: string,
+    @Body("description") description: string,
+  ) {
+    return this.socialStubs.submitFeatureRequest(userId, title, description);
+  }
+
+  @Post("feature-requests/:requestId/vote")
+  voteFeatureRequest(@CurrentUser() userId: string, @Param("requestId") requestId: string) {
+    return this.socialStubs.voteFeatureRequest(userId, requestId);
+  }
+
+  @Post("bug-reports")
+  submitBugReport(
+    @CurrentUser() userId: string,
+    @Body("description") description: string,
+    @Body("context") context: Record<string, unknown>,
+  ) {
+    return this.socialStubs.submitBugReport(userId, description, context);
+  }
+
+  @Post("surveys/:surveyType")
+  submitSurveyResponse(
+    @CurrentUser() userId: string,
+    @Param("surveyType") surveyType: string,
+    @Body() responses: Record<string, unknown>,
+  ) {
+    return this.socialStubs.submitSurveyResponse(userId, surveyType, responses);
+  }
+
+  // F-612–615: Live simulcast
+  @Get("simulcast/:simulcastId")
+  getSimulcast(@Param("simulcastId") simulcastId: string) {
+    return this.socialStubs.getSimulcast(simulcastId);
+  }
+
+  @Post("simulcast/:simulcastId/comments")
+  addSimulcastComment(
+    @CurrentUser() userId: string,
+    @Param("simulcastId") simulcastId: string,
+    @Body("text") text: string,
+  ) {
+    return this.socialStubs.addSimulcastComment(userId, simulcastId, text);
+  }
+
+  @Post("simulcast/:simulcastId/donate")
+  sendSimulcastDonation(
+    @CurrentUser() userId: string,
+    @Param("simulcastId") simulcastId: string,
+    @Body("amountCents") amountCents: number,
+    @Body("message") message: string,
+  ) {
+    return this.socialStubs.sendSimulcastDonation(userId, simulcastId, amountCents, message);
+  }
+
+  // F-616–620: Rankings and trends
+  @Get("rankings/artist-growth")
+  getArtistFollowerGrowthRanking() {
+    return this.socialStubs.getArtistFollowerGrowthRanking();
+  }
+
+  @Get("trending/tags")
+  getTrendingTagCloud() {
+    return this.socialStubs.getTrendingTagCloud();
+  }
+
+  @Get("hashtag/:hashtag")
+  getHashtagFeed(@Param("hashtag") hashtag: string) {
+    return this.socialStubs.getHashtagFeed(hashtag);
+  }
+
+  @Get("mentions")
+  getMentionNotifications(@CurrentUser() userId: string) {
+    return this.socialStubs.getMentionNotifications(userId);
+  }
+
+  // F-622: Trust points
+  @Get("trust-points/:userId")
+  getTrustPoints(@Param("userId") userId: string) {
+    return this.socialStubs.getTrustPoints(userId);
+  }
+
+  // F-624: Community rules
+  @Get("community-rules")
+  getCommunityRules() {
+    return this.socialStubs.getCommunityRules();
+  }
+
+  // F-625–628: Anti-abuse
+  @Get("anti-spam/check")
+  checkAntiSpam(@CurrentUser() userId: string) {
+    return this.socialStubs.checkAntiSpam(userId);
+  }
+
+  // F-629–630: Newsletter opt-in
+  @Get("newsletter/community/preference")
+  getCommunityNewsletterPreference(@CurrentUser() userId: string) {
+    return this.socialStubs.getCommunityNewsletterPreference(userId);
+  }
+
+  @Put("newsletter/community/preference")
+  setCommunityNewsletterPreference(@CurrentUser() userId: string, @Body("optIn") optIn: boolean) {
+    return this.socialStubs.setCommunityNewsletterPreference(userId, optIn);
+  }
+
+  // F-633–635: Community programs
+  @Get("best-of/:year")
+  getBestOfVoting(@Param("year") year: string) {
+    return this.socialStubs.getBestOfVoting(parseInt(year, 10));
+  }
+
+  @Post("best-of/:year/vote")
+  voteBestOf(
+    @CurrentUser() userId: string,
+    @Param("year") year: string,
+    @Body("workId") workId: string,
+  ) {
+    return this.socialStubs.voteBestOf(userId, parseInt(year, 10), workId);
+  }
+
+  @Get("alumni-status")
+  checkAlumniStatus(@CurrentUser() userId: string) {
+    return this.socialStubs.checkAlumniStatus(userId);
+  }
+
+  @Get("ambassador-status")
+  getAmbassadorStatus(@CurrentUser() userId: string) {
+    return this.socialStubs.getAmbassadorStatus(userId);
+  }
+
+  // F-638–640: Community content
+  @Get("content-warning-tags")
+  getContentWarningTags() {
+    return this.socialStubs.getContentWarningTags();
+  }
+
+  @Post("content-warning-tags/:workId")
+  addContentWarningTag(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body("tag") tag: string,
+  ) {
+    return this.socialStubs.addContentWarningTag(userId, workId, tag);
+  }
+
+  @Get("community-transcripts/:workId")
+  getCommunityTranscriptSubmissions(@Param("workId") workId: string) {
+    return this.socialStubs.getCommunityTranscriptSubmissions(workId);
+  }
+
+  @Post("community-transcripts/:workId")
+  submitCommunityTranscript(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body("transcript") transcript: string,
+    @Body("language") language: string,
+  ) {
+    return this.socialStubs.submitCommunityTranscript(userId, workId, transcript, language);
+  }
+
+  @Post("community-translations/:workId")
+  submitCommunityTranslation(
+    @CurrentUser() userId: string,
+    @Param("workId") workId: string,
+    @Body("language") language: string,
+    @Body("translation") translation: string,
+  ) {
+    return this.socialStubs.submitCommunityTranslation(userId, workId, language, translation);
   }
 }
