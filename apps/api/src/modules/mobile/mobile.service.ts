@@ -115,6 +115,22 @@ export class MobileService {
     };
   }
 
+  // F-051: Biometrische Auth in mobiler App (FaceID / Fingerprint) – stub
+  getBiometricAuthConfig() {
+    return {
+      supported: true,
+      types: ['face_id', 'touch_id', 'fingerprint'],
+      fallback: 'pin',
+      message: 'Use react-native-biometrics or expo-local-authentication for native biometric prompt',
+      flow: [
+        '1. Client calls POST /api/v1/auth/biometric/challenge to get a challenge nonce',
+        '2. Client signs nonce with device biometric key (stored in Secure Enclave / TEE)',
+        '3. Client calls POST /api/v1/auth/biometric/verify with signed nonce',
+        '4. Server verifies signature, issues access + refresh tokens',
+      ],
+    };
+  }
+
   // F-859: Universal Links (iOS) / App Links (Android) – AASA + assetlinks
   getUniversalLinksConfig() {
     const appId = process.env.IOS_APP_ID ?? 'de.creatorlend.app';

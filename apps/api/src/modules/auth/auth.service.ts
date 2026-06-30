@@ -117,6 +117,24 @@ export class AuthService {
       },
     }).catch(() => {});
 
+    // F-010: Neues Gerät erkannt → Login-Benachrichtigung per E-Mail
+    const recentSessions = await this.prisma.userSession.count({ where: { userId: user.id } });
+    if (recentSessions === 1 && user.emailVerified) {
+      // First session for user (or effectively new device context)
+      await this.mail.sendNewDeviceLoginEmail(user.email, ip, userAgent).catch(() => {});
+    }
+
+    // F-011: Verdächtiger Login – ungewöhnliche IP/Land
+    const recentIps = await this.prisma.loginHistory.findMany({
+      where: { userId: user.id, success: true, createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+      select: { ip: true },
+      take: 20,
+    }).catch(() => [] as Array<{ ip: string | null }>);
+    const knownIps = new Set(recentIps.map((h) => h.ip).filter(Boolean));
+    if (ip && knownIps.size > 1 && !knownIps.has(ip)) {
+      await this.mail.sendSuspiciousLoginEmail(user.email, ip, userAgent).catch(() => {});
+    }
+
     return tokens;
   }
 
@@ -296,6 +314,85 @@ export class AuthService {
 
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: link.userId } });
     return this.issueTokens(user.id, user.role, generateToken());
+  }
+
+  // F-002/F-003: OAuth Social Login stubs (Google / Apple)
+  socialLoginInfo(provider: 'google' | 'apple') {
+    const clientId = provider === 'google'
+      ? (process.env.GOOGLE_CLIENT_ID ?? 'REPLACE_WITH_GOOGLE_CLIENT_ID')
+      : (process.env.APPLE_CLIENT_ID ?? 'REPLACE_WITH_APPLE_CLIENT_ID');
+    const redirectUri = `${process.env.API_BASE_URL ?? 'https://api.creatorlend.com'}/api/v1/auth/social/${provider}/callback`;
+    const scopes = provider === 'google' ? 'openid email profile' : 'openid email name';
+    return {
+      provider,
+      clientId,
+      redirectUri,
+      scopes,
+      message: `Install @nestjs/passport + passport-${provider === 'google' ? 'google-oauth20' : 'apple'} for full integration`,
+    };
+  }
+
+  async socialLoginCallback(provider: 'google' | 'apple', codeOrToken: string, extra: string) {
+    // Stub: in production, exchange code/token with provider and get user info
+    const email = `stub-${provider}-user-${codeOrToken.substring(0, 8)}@stub.example`;
+    let user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          passwordHash: '',
+          displayName: `${provider.charAt(0).toUpperCase() + provider.slice(1)} User`,
+          role: 'LISTENER',
+          emailVerified: true,
+          referralCode: generateToken().substring(0, 8).toUpperCase(),
+        },
+      });
+    }
+    return this.issueTokens(user.id, user.role, generateToken());
+  }
+
+  // F-020: E-Mail-Adresse ändern mit Re-Verifizierung
+  async requestEmailChange(userId: string, newEmail: string) {
+    const existing = await this.prisma.user.findUnique({ where: { email: newEmail } });
+    if (existing) throw new BadRequestException('email_already_in_use');
+    const token = await this.createAuthToken(userId, 'EMAIL_CHANGE', 60 * 24);
+    // Store new email in token metadata via description field abuse (production: dedicated table)
+    await this.prisma.authToken.update({
+      where: { tokenHash: hashToken(token) },
+      data: { type: `EMAIL_CHANGE:${newEmail}` },
+    }).catch(() => {});
+    await this.mail.sendEmailChangeVerification(newEmail, token).catch(() => {});
+    return { message: 'verification_email_sent', ...(isProd() ? {} : { devToken: token }) };
+  }
+
+  async verifyEmailChange(token: string) {
+    const record = await this.prisma.authToken.findUnique({ where: { tokenHash: hashToken(token) } });
+    if (!record || record.usedAt || !record.type.startsWith('EMAIL_CHANGE:')) {
+      throw new UnauthorizedException('invalid_token');
+    }
+    if (record.expiresAt.getTime() <= Date.now()) throw new UnauthorizedException('token_expired');
+    const newEmail = record.type.replace('EMAIL_CHANGE:', '');
+    await this.prisma.authToken.update({ where: { id: record.id }, data: { usedAt: new Date() } });
+    await this.prisma.user.update({ where: { id: record.userId }, data: { email: newEmail, emailVerified: true } });
+    return { emailChanged: true, newEmail };
+  }
+
+  // F-047: Terms of Service Versioning
+  private readonly CURRENT_TOS_VERSION = process.env.TOS_VERSION ?? '2026-01-01';
+
+  getTosVersion() {
+    return {
+      version: this.CURRENT_TOS_VERSION,
+      url: `${process.env.WEB_BASE_URL ?? 'https://creatorlend.com'}/legal/tos/${this.CURRENT_TOS_VERSION}`,
+      effectiveDate: this.CURRENT_TOS_VERSION,
+      summary: 'CreatorLend Terms of Service – governs the use of the platform, lending, and payouts',
+    };
+  }
+
+  async acceptTos(userId: string, version: string) {
+    if (version !== this.CURRENT_TOS_VERSION) throw new BadRequestException('tos_version_mismatch');
+    await this.prisma.user.update({ where: { id: userId }, data: { termsAcceptedAt: new Date() } });
+    return { accepted: true, version };
   }
 
   // F-001: Passkey / WebAuthn (FIDO2) – Registration Challenge

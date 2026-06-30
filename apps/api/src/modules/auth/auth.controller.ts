@@ -20,8 +20,10 @@ export class AuthController {
     private readonly oauthServer: OAuthServerService,
   ) {}
 
-  // POST /api/v1/auth/register
+  // POST /api/v1/auth/register – mit Rate-Limiting (F-034)
   @Post("register")
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 3_600_000 } })
   register(@Body() body: RegisterDto) {
     return this.auth.register(body);
   }
@@ -159,5 +161,56 @@ export class AuthController {
   @HttpCode(200)
   passkeyAuthVerify(@Body() credential: Record<string, unknown>) {
     return this.auth.passkeyAuthenticationVerify(credential);
+  }
+
+  // F-002: OAuth Google Login – redirect & callback stubs
+  @Get('social/google')
+  googleLogin() {
+    return this.auth.socialLoginInfo('google');
+  }
+
+  @Post('social/google/callback')
+  @HttpCode(200)
+  googleCallback(@Body('code') code: string, @Body('state') state: string) {
+    return this.auth.socialLoginCallback('google', code, state);
+  }
+
+  // F-003: OAuth Apple Login – redirect & callback stubs
+  @Get('social/apple')
+  appleLogin() {
+    return this.auth.socialLoginInfo('apple');
+  }
+
+  @Post('social/apple/callback')
+  @HttpCode(200)
+  appleCallback(@Body('id_token') idToken: string, @Body('user') user?: string) {
+    return this.auth.socialLoginCallback('apple', idToken, user ?? '');
+  }
+
+  // F-020: E-Mail-Adresse ändern mit Re-Verifizierung
+  @Post('change-email/request')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(202)
+  requestEmailChange(@CurrentUser() userId: string, @Body('newEmail') newEmail: string) {
+    return this.auth.requestEmailChange(userId, newEmail);
+  }
+
+  @Post('change-email/verify')
+  @HttpCode(200)
+  verifyEmailChange(@Body('token') token: string) {
+    return this.auth.verifyEmailChange(token);
+  }
+
+  // F-047: Terms of Service – aktuelle Version + Annahme
+  @Get('tos')
+  getTos() {
+    return this.auth.getTosVersion();
+  }
+
+  @Post('tos/accept')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  acceptTos(@CurrentUser() userId: string, @Body('version') version: string) {
+    return this.auth.acceptTos(userId, version);
   }
 }

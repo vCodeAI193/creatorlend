@@ -69,4 +69,10 @@ export class MobileController {
   universalLinksConfig() {
     return this.mobile.getUniversalLinksConfig();
   }
+
+  // F-051: Biometrische Auth Konfiguration
+  @Get('biometric-auth')
+  biometricAuthConfig() {
+    return this.mobile.getBiometricAuthConfig();
+  }
 }
