@@ -34,6 +34,7 @@ import { DiscountCodesService } from "./discount-codes.service";
 import { CategoriesService } from "./categories.service";
 import { UtmService } from "./utm.service";
 import { WorksStubsService } from "./works-stubs.service";
+import { ArtistStubsService } from "./artist-stubs.service";
 import { CreateWorkDto } from "./dto/create-work.dto";
 import { UpdateWorkDto } from "./dto/update-work.dto";
 
@@ -57,6 +58,7 @@ export class WorksController {
     private readonly utm: UtmService,
     private readonly categories: CategoriesService,
     private readonly stubs: WorksStubsService,
+    private readonly artistStubs: ArtistStubsService,
   ) {}
 
   // POST /api/v1/works – Werk einstellen (ARTIST)
@@ -1396,5 +1398,641 @@ export class WorksController {
       ],
       example: '/api/v1/works?q=type:PODCAST duration:>30 tag:news',
     };
+  }
+
+  // ─── F-423 to F-500: Artist Tools ─────────────────────────────────────
+
+  // GET /api/v1/works/artists/:id/realtime-stats – Echtzeit-Statistiken (F-423)
+  @Get("artists/:id/realtime-stats")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getRealtimeStats(@Param("id") artistId: string) {
+    return this.artistStubs.getRealtimeStats(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/analytics/demographics – Demografische Auswertung (F-429)
+  @Get("artists/:id/analytics/demographics")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getDemographicsAnalytics(@Param("id") artistId: string) {
+    return this.artistStubs.getDemographicsAnalytics(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/analytics/devices – Device-Split (F-430)
+  @Get("artists/:id/analytics/devices")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getDeviceSplitAnalytics(@Param("id") artistId: string) {
+    return this.artistStubs.getDeviceSplitAnalytics(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/analytics/time-of-day – Tageszeit-Auswertung (F-431)
+  @Get("artists/:id/analytics/time-of-day")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getTimeOfDayAnalytics(@Param("id") artistId: string) {
+    return this.artistStubs.getTimeOfDayAnalytics(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/analytics/drop-off – Abbruch-Rate (F-432)
+  @Get("artists/:id/analytics/drop-off")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getDropOffRate(@Param("id") artistId: string) {
+    return this.artistStubs.getDropOffRate(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/analytics/avg-duration – Ø Hördauer (F-433)
+  @Get("artists/:id/analytics/avg-duration")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getAvgListeningDuration(@Param("id") artistId: string) {
+    return this.artistStubs.getAvgListeningDuration(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/analytics/renewal-rate – Verlängerungs-Rate (F-434)
+  @Get("artists/:id/analytics/renewal-rate")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getRenewalRateByWork(@Param("id") artistId: string) {
+    return this.artistStubs.getRenewalRateByWork(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/analytics/exchange-rate – Tausch-Rate (F-435)
+  @Get("artists/:id/analytics/exchange-rate")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getExchangeRateByWork(@Param("id") artistId: string) {
+    return this.artistStubs.getExchangeRateByWork(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/analytics/wishlists – Wunschlisten-Zähler (F-436)
+  @Get("artists/:id/analytics/wishlists")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getWishlistCount(@Param("id") artistId: string) {
+    return this.artistStubs.getWishlistCount(artistId);
+  }
+
+  // PUT /api/v1/works/artists/:id/favorites-visibility – Favoriten-Zähler (F-437)
+  @Put("artists/:id/favorites-visibility")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setFavoritesCounterVisibility(@Param("id") artistId: string, @Body("isPublic") isPublic: boolean) {
+    return this.artistStubs.setFavoritesCounterVisibility(artistId, isPublic);
+  }
+
+  // GET /api/v1/works/artists/:id/analytics/share-rate – Share-Rate (F-438)
+  @Get("artists/:id/analytics/share-rate")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getShareRate(@Param("id") artistId: string) {
+    return this.artistStubs.getShareRate(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/analytics/preview-click-rate – Klick-Rate (F-439)
+  @Get("artists/:id/analytics/preview-click-rate")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getPreviewClickRate(@Param("id") artistId: string) {
+    return this.artistStubs.getPreviewClickRate(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/analytics/funnel – Funnel-Visualisierung (F-440)
+  @Get("artists/:id/analytics/funnel")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getFunnelVisualization(@Param("id") artistId: string) {
+    return this.artistStubs.getFunnelVisualization(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/campaigns – Kampagnen-Dashboard (F-442)
+  @Get("artists/:id/campaigns")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getCampaignDashboard(@Param("id") artistId: string) {
+    return this.artistStubs.getCampaignDashboard(artistId);
+  }
+
+  // POST /api/v1/works/:id/broadcast – Broadcast-Nachricht (F-445)
+  @Post(":id/broadcast")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  broadcastToLenders(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body("message") message: string,
+  ) {
+    return this.artistStubs.broadcastToLenders(userId, workId, message);
+  }
+
+  // GET /api/v1/works/artists/:id/welcome-dm – Willkommens-DM Konfig (F-453)
+  @Get("artists/:id/welcome-dm")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getWelcomeAutomationConfig(@Param("id") artistId: string) {
+    return this.artistStubs.getWelcomeAutomationConfig(artistId);
+  }
+
+  // PUT /api/v1/works/artists/:id/welcome-dm – Willkommens-DM setzen (F-453)
+  @Put("artists/:id/welcome-dm")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setWelcomeAutomationConfig(
+    @Param("id") artistId: string,
+    @Body("enabled") enabled: boolean,
+    @Body("message") welcomeMessage: string,
+  ) {
+    return this.artistStubs.setWelcomeAutomationConfig(artistId, enabled, welcomeMessage);
+  }
+
+  // GET /api/v1/works/artists/:id/community – Community-Hub (F-454)
+  @Get("artists/:id/community")
+  getCommunityHub(@Param("id") artistId: string) {
+    return this.artistStubs.getCommunityHub(artistId);
+  }
+
+  // POST /api/v1/works/artists/:id/live-sessions – Live-Session ankündigen (F-456)
+  @Post("artists/:id/live-sessions")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  createLiveSessionAnnouncement(
+    @Param("id") artistId: string,
+    @Body("title") title: string,
+    @Body("scheduledAt") scheduledAt: string,
+    @Body("streamUrl") streamUrl?: string,
+  ) {
+    return this.artistStubs.createLiveSessionAnnouncement(artistId, title, scheduledAt, streamUrl);
+  }
+
+  // GET /api/v1/works/artists/:id/live-sessions – Live-Sessions abrufen (F-456)
+  @Get("artists/:id/live-sessions")
+  getLiveSessions(@Param("id") artistId: string) {
+    return this.artistStubs.getLiveSessions(artistId);
+  }
+
+  // POST /api/v1/works/artists/:id/qa-sessions – Q&A-Session anlegen (F-457)
+  @Post("artists/:id/qa-sessions")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  createQaSession(
+    @Param("id") artistId: string,
+    @Body("title") title: string,
+    @Body("scheduledAt") scheduledAt: string,
+  ) {
+    return this.artistStubs.createQaSession(artistId, title, scheduledAt);
+  }
+
+  // POST /api/v1/works/qa-sessions/:sessionKey/questions – Frage einreichen (F-457)
+  @Post("qa-sessions/:sessionKey/questions")
+  @UseGuards(JwtAuthGuard)
+  submitQaQuestion(
+    @CurrentUser() userId: string,
+    @Param("sessionKey") sessionKey: string,
+    @Body("artistId") artistId: string,
+    @Body("question") question: string,
+  ) {
+    return this.artistStubs.submitQaQuestion(artistId, sessionKey, userId, question);
+  }
+
+  // GET /api/v1/works/artists/:id/blog – Künstler:innen-Blog (F-458)
+  @Get("artists/:id/blog")
+  getBlogPosts(@Param("id") artistId: string) {
+    return this.artistStubs.getBlogPosts(artistId);
+  }
+
+  // POST /api/v1/works/artists/:id/blog – Blog-Beitrag erstellen (F-458)
+  @Post("artists/:id/blog")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  createBlogPost(
+    @Param("id") artistId: string,
+    @Body("title") title: string,
+    @Body("content") content: string,
+    @Body("tags") tags: string[],
+  ) {
+    return this.artistStubs.createBlogPost(artistId, title, content, tags);
+  }
+
+  // GET /api/v1/works/artists/:id/press-kit – Pressebereich (F-459)
+  @Get("artists/:id/press-kit")
+  getPressKit(@Param("id") artistId: string) {
+    return this.artistStubs.getPressKit(artistId);
+  }
+
+  // Put /api/v1/works/artists/:id/press-kit – Pressebereich aktualisieren (F-459)
+  @Put("artists/:id/press-kit")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  updatePressKit(
+    @Param("id") artistId: string,
+    @Body("bio") bio?: string,
+    @Body("pressPhotoUrl") pressPhotoUrl?: string,
+    @Body("discographyPdfUrl") discographyPdfUrl?: string,
+  ) {
+    return this.artistStubs.updatePressKit(artistId, { bio, pressPhotoUrl, discographyPdfUrl });
+  }
+
+  // GET /api/v1/works/artists/:id/epk – EPK Download-URL (F-460)
+  @Get("artists/:id/epk")
+  @UseGuards(JwtAuthGuard)
+  getEpkDownloadUrl(@Param("id") artistId: string) {
+    return this.artistStubs.getEpkDownloadUrl(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/stage-rider – Bühnenrider (F-461)
+  @Get("artists/:id/stage-rider")
+  @UseGuards(JwtAuthGuard)
+  getStageRider(@Param("id") artistId: string) {
+    return this.artistStubs.getStageRider(artistId);
+  }
+
+  // PUT /api/v1/works/artists/:id/stage-rider – Bühnenrider hochladen (F-461)
+  @Put("artists/:id/stage-rider")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  updateStageRider(@Param("id") artistId: string, @Body("documentUrl") documentUrl: string) {
+    return this.artistStubs.updateStageRider(artistId, documentUrl);
+  }
+
+  // GET /api/v1/works/artists/:id/tour-dates – Tourplan (F-462)
+  @Get("artists/:id/tour-dates")
+  getTourDates(@Param("id") artistId: string) {
+    return this.artistStubs.getTourDates(artistId);
+  }
+
+  // POST /api/v1/works/artists/:id/tour-dates – Tourdatum hinzufügen (F-462)
+  @Post("artists/:id/tour-dates")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  addTourDate(
+    @Param("id") artistId: string,
+    @Body("venue") venue: string,
+    @Body("city") city: string,
+    @Body("date") date: string,
+    @Body("ticketUrl") ticketUrl?: string,
+  ) {
+    return this.artistStubs.addTourDate(artistId, venue, city, date, ticketUrl);
+  }
+
+  // GET /api/v1/works/config/event-widget – Veranstaltungs-Widget Konfig (F-463)
+  @Get("config/event-widget")
+  getEventWidgetConfig() {
+    return this.artistStubs.getEventWidgetConfig();
+  }
+
+  // GET /api/v1/works/artists/:id/merch-shop – Merchandise-Shop (F-464)
+  @Get("artists/:id/merch-shop")
+  getMerchShopLink(@Param("id") artistId: string) {
+    return this.artistStubs.getMerchShopLink(artistId);
+  }
+
+  // PUT /api/v1/works/artists/:id/merch-shop – Merchandise-Shop setzen (F-464)
+  @Put("artists/:id/merch-shop")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setMerchShopLink(@Param("id") artistId: string, @Body("shopifyUrl") shopifyUrl: string) {
+    return this.artistStubs.setMerchShopLink(artistId, shopifyUrl);
+  }
+
+  // GET /api/v1/works/artists/:id/merch-showcase – Merch-Showcase (F-465)
+  @Get("artists/:id/merch-showcase")
+  getMerchShowcase(@Param("id") artistId: string) {
+    return this.artistStubs.getMerchShowcase(artistId);
+  }
+
+  // PUT /api/v1/works/artists/:id/merch-showcase – Merch-Showcase setzen (F-465)
+  @Put("artists/:id/merch-showcase")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setMerchShowcase(
+    @Param("id") artistId: string,
+    @Body("products") products: Array<{ name: string; imageUrl: string; price: string; url: string }>,
+  ) {
+    return this.artistStubs.setMerchShowcase(artistId, products);
+  }
+
+  // GET /api/v1/works/artists/:id/physical-shop – Vinyl/CD Shop (F-466)
+  @Get("artists/:id/physical-shop")
+  getPhysicalShopLink(@Param("id") artistId: string) {
+    return this.artistStubs.getPhysicalShopLink(artistId);
+  }
+
+  // PUT /api/v1/works/artists/:id/physical-shop – Vinyl/CD Shop setzen (F-466)
+  @Put("artists/:id/physical-shop")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setPhysicalShopLink(@Param("id") artistId: string, @Body("url") url: string) {
+    return this.artistStubs.setPhysicalShopLink(artistId, url);
+  }
+
+  // POST /api/v1/works/artists/:id/crowdfunding – Crowdfunding-Kampagne (F-467)
+  @Post("artists/:id/crowdfunding")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  createCrowdfundingCampaign(
+    @Param("id") artistId: string,
+    @Body("title") title: string,
+    @Body("goalCents") goalCents: number,
+    @Body("endsAt") endsAt: string,
+  ) {
+    return this.artistStubs.createCrowdfundingCampaign(artistId, title, goalCents, endsAt);
+  }
+
+  // GET /api/v1/works/artists/:id/crowdfunding – Crowdfunding-Kampagnen (F-467)
+  @Get("artists/:id/crowdfunding")
+  getCrowdfundingCampaigns(@Param("id") artistId: string) {
+    return this.artistStubs.getCrowdfundingCampaigns(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/top-supporters – Unterstützer-Leiste (F-468)
+  @Get("artists/:id/top-supporters")
+  getTopSupporters(@Param("id") artistId: string) {
+    return this.artistStubs.getTopSupporters(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/achievements – Achievements (F-470)
+  @Get("artists/:id/achievements")
+  @UseGuards(JwtAuthGuard)
+  getArtistAchievements(@Param("id") artistId: string) {
+    return this.artistStubs.getArtistAchievements(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/certificate – Zertifikat für 1.000 Leihen (F-471)
+  @Get("artists/:id/certificate")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getLoanCertificate(@Param("id") artistId: string) {
+    return this.artistStubs.getLoanCertificate(artistId);
+  }
+
+  // POST /api/v1/works/:id/feature-request – Feature-Anfrage (F-473)
+  @Post(":id/feature-request")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  sendFeatureRequest(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body("toArtistId") toArtistId: string,
+    @Body("message") message?: string,
+  ) {
+    return this.artistStubs.sendFeatureRequest(userId, toArtistId, workId, message);
+  }
+
+  // POST /api/v1/works/artists/:id/duet – Duett-Projekt anlegen (F-474)
+  @Post("artists/:id/duet")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  createDuetProject(
+    @Param("id") artistId1: string,
+    @Body("artistId2") artistId2: string,
+    @Body("title") title: string,
+  ) {
+    return this.artistStubs.createDuetProject(artistId1, artistId2, title);
+  }
+
+  // PUT /api/v1/works/:id/remix-rights – Remix-Rechte (F-475)
+  @Put(":id/remix-rights")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setRemixRights(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body("allowsRemixes") allowsRemixes: boolean,
+  ) {
+    return this.artistStubs.setRemixRights(userId, workId, allowsRemixes);
+  }
+
+  // GET /api/v1/works/:id/stems – Stem-Dateien (F-476)
+  @Get(":id/stems")
+  getStemDownloadConfig(@Param("id") workId: string) {
+    return this.artistStubs.getStemDownloadConfig(workId);
+  }
+
+  // POST /api/v1/works/:id/stems – Stem-Datei hinzufügen (F-476)
+  @Post(":id/stems")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  addStemFile(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body("trackName") trackName: string,
+    @Body("mediaKey") mediaKey: string,
+  ) {
+    return this.artistStubs.addStemFile(userId, workId, trackName, mediaKey);
+  }
+
+  // POST /api/v1/works/:id/sample-clearance – Sample-Clearance melden (F-477)
+  @Post(":id/sample-clearance")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  reportSampleUsage(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body("originalWorkTitle") originalWorkTitle: string,
+    @Body("originalArtist") originalArtist: string,
+  ) {
+    return this.artistStubs.reportSampleUsage(userId, workId, originalWorkTitle, originalArtist);
+  }
+
+  // GET /api/v1/works/artists/:id/commission-prices – Auftragspreisliste (F-479)
+  @Get("artists/:id/commission-prices")
+  getCommissionPriceList(@Param("id") artistId: string) {
+    return this.artistStubs.getCommissionPriceList(artistId);
+  }
+
+  // PUT /api/v1/works/artists/:id/commission-prices – Auftragspreisliste setzen (F-479)
+  @Put("artists/:id/commission-prices")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setCommissionPriceList(
+    @Param("id") artistId: string,
+    @Body("items") items: Array<{ type: string; priceCents: number; deliveryDays: number }>,
+  ) {
+    return this.artistStubs.setCommissionPriceList(artistId, items);
+  }
+
+  // POST /api/v1/works/artists/:id/inquiries – Projektanfrage senden (F-480)
+  @Post("artists/:id/inquiries")
+  @UseGuards(JwtAuthGuard)
+  sendProjectInquiry(
+    @CurrentUser() userId: string,
+    @Param("id") toArtistId: string,
+    @Body("subject") subject: string,
+    @Body("body") body: string,
+  ) {
+    return this.artistStubs.sendProjectInquiry(userId, toArtistId, subject, body);
+  }
+
+  // GET /api/v1/works/artists/:id/inquiries – Projektanfragen abrufen (F-480)
+  @Get("artists/:id/inquiries")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getProjectInquiries(@Param("id") artistId: string) {
+    return this.artistStubs.getProjectInquiries(artistId);
+  }
+
+  // GET /api/v1/works/artists/:id/availability – Verfügbarkeits-Kalender (F-481)
+  @Get("artists/:id/availability")
+  getAvailabilityCalendar(@Param("id") artistId: string) {
+    return this.artistStubs.getAvailabilityCalendar(artistId);
+  }
+
+  // PUT /api/v1/works/artists/:id/availability – Verfügbarkeit setzen (F-481)
+  @Put("artists/:id/availability")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  updateAvailability(
+    @Param("id") artistId: string,
+    @Body("available") available: Array<{ date: string; slots: string[] }>,
+  ) {
+    return this.artistStubs.updateAvailability(artistId, available);
+  }
+
+  // POST /api/v1/works/:id/playlist-pitch – Playlist-Pitch (F-482)
+  @Post(":id/playlist-pitch")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  submitPlaylistPitch(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body("playlistName") playlistName: string,
+    @Body("pitchNote") pitchNote: string,
+  ) {
+    return this.artistStubs.submitPlaylistPitch(userId, workId, playlistName, pitchNote);
+  }
+
+  // GET /api/v1/works/artists/:id/sponsoring-pitch – Podcast-Sponsoring Pitch Deck (F-483)
+  @Get("artists/:id/sponsoring-pitch")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  createSponsoringPitchDeck(@Param("id") artistId: string) {
+    return this.artistStubs.createSponsoringPitchDeck(artistId);
+  }
+
+  // GET /api/v1/works/distribution/partners – Distributionspartner (F-484)
+  @Get("distribution/partners")
+  getDistributionPartners() {
+    return this.artistStubs.getDistributionPartners();
+  }
+
+  // GET /api/v1/works/artists/:id/streaming-links – Streaming-Aggregator-Links (F-485)
+  @Get("artists/:id/streaming-links")
+  getStreamingLinks(@Param("id") artistId: string) {
+    return this.artistStubs.getStreamingLinks(artistId);
+  }
+
+  // PUT /api/v1/works/artists/:id/streaming-links – Streaming-Links setzen (F-485)
+  @Put("artists/:id/streaming-links")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setStreamingLinks(@Param("id") artistId: string, @Body() links: Record<string, string>) {
+    return this.artistStubs.setStreamingLinks(artistId, links);
+  }
+
+  // GET /api/v1/works/artists/:id/cross-promo – Cross-Promotion-Links (F-486)
+  @Get("artists/:id/cross-promo")
+  getCrossPromotionLinks(@Param("id") artistId: string) {
+    return this.artistStubs.getCrossPromotionLinks(artistId);
+  }
+
+  // PUT /api/v1/works/artists/:id/cross-promo – Cross-Promotion-Links setzen (F-486)
+  @Put("artists/:id/cross-promo")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setCrossPromotionLinks(@Param("id") artistId: string, @Body() links: Record<string, string>) {
+    return this.artistStubs.setCrossPromotionLinks(artistId, links);
+  }
+
+  // GET /api/v1/works/artists/:id/embed-analytics – Embed-Analytics (F-488)
+  @Get("artists/:id/embed-analytics")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getEmbedAnalytics(@Param("id") artistId: string) {
+    return this.artistStubs.getEmbedAnalytics(artistId);
+  }
+
+  // GET /api/v1/works/:id/qr-analytics – QR-Code-Analytics (F-489)
+  @Get(":id/qr-analytics")
+  getQrCodeAnalytics(@Param("id") workId: string) {
+    return this.artistStubs.getQrCodeAnalytics(workId);
+  }
+
+  // GET /api/v1/works/artists/:id/link-in-bio – Link-in-Bio Seite (F-490)
+  @Get("artists/:id/link-in-bio")
+  getLinkInBio(@Param("id") artistId: string) {
+    return this.artistStubs.getLinkInBio(artistId);
+  }
+
+  // PUT /api/v1/works/artists/:id/link-in-bio – Link-in-Bio setzen (F-490)
+  @Put("artists/:id/link-in-bio")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setLinkInBio(
+    @Param("id") artistId: string,
+    @Body("title") title: string,
+    @Body("links") links: Array<{ label: string; url: string }>,
+  ) {
+    return this.artistStubs.setLinkInBio(artistId, title, links);
+  }
+
+  // GET /api/v1/works/artists/:id/follower-notification – Follower-Benachrichtigung (F-494)
+  @Get("artists/:id/follower-notification")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getFollowerNotificationConfig(@Param("id") artistId: string) {
+    return this.artistStubs.getFollowerNotificationConfig(artistId);
+  }
+
+  // PUT /api/v1/works/artists/:id/follower-notification – Follower-Benachrichtigung setzen (F-494)
+  @Put("artists/:id/follower-notification")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setFollowerNotificationConfig(
+    @Param("id") artistId: string,
+    @Body("enabled") enabled: boolean,
+  ) {
+    return this.artistStubs.setFollowerNotificationConfig(artistId, enabled);
+  }
+
+  // GET /api/v1/works/artists/:id/report/pdf – Bericht als PDF (F-497)
+  @Get("artists/:id/report/pdf")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getPerformanceReportPdf(@Param("id") artistId: string, @Query("year") year?: string) {
+    return this.artistStubs.getPerformanceReportPdf(artistId, year ? Number(year) : undefined);
+  }
+
+  // GET /api/v1/works/config/analytics-api – Analytics-API Konfig (F-498)
+  @Get("config/analytics-api")
+  getAnalyticsApiConfig() {
+    return this.artistStubs.getAnalyticsApiConfig();
+  }
+
+  // GET /api/v1/works/artists/:id/webhook – Webhook-Konfig (F-499)
+  @Get("artists/:id/webhook")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  getWebhookConfig(@Param("id") artistId: string) {
+    return this.artistStubs.getWebhookConfig(artistId);
+  }
+
+  // PUT /api/v1/works/artists/:id/webhook – Webhook setzen (F-499)
+  @Put("artists/:id/webhook")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setWebhookConfig(
+    @Param("id") artistId: string,
+    @Body("url") url: string,
+    @Body("events") events: string[],
+  ) {
+    return this.artistStubs.setWebhookConfig(artistId, url, events);
+  }
+
+  // GET /api/v1/works/artists/:id/support-channel – Priority-Support (F-500)
+  @Get("artists/:id/support-channel")
+  @UseGuards(JwtAuthGuard)
+  getSupportChannelConfig(@Param("id") artistId: string) {
+    return this.artistStubs.getSupportChannelConfig(artistId);
   }
 }
