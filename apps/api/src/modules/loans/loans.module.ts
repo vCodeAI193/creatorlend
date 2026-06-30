@@ -8,10 +8,11 @@ import { DownloadService } from "./download.service";
 import { ReadingChallengeService } from "../engagement/reading-challenge.service";
 import { PlaybackPositionService } from "./playback.service";
 import { PlaybackController } from "./playback.controller";
+import { LoansStubsService } from "./loans-stubs.service";
 
 @Module({
   controllers: [LoansController, PlaybackController],
-  providers: [LoansService, LoansScheduler, LoanGiftsService, SingleLoanService, DownloadService, ReadingChallengeService, PlaybackPositionService],
-  exports: [LoansService, LoanGiftsService, SingleLoanService, DownloadService, ReadingChallengeService, PlaybackPositionService],
+  providers: [LoansService, LoansScheduler, LoanGiftsService, SingleLoanService, DownloadService, ReadingChallengeService, PlaybackPositionService, LoansStubsService],
+  exports: [LoansService, LoanGiftsService, SingleLoanService, DownloadService, ReadingChallengeService, PlaybackPositionService, LoansStubsService],
 })
 export class LoansModule {}
