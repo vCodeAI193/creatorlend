@@ -154,6 +154,12 @@ export class MobileController {
     return this.mobile.getMobileSharingConfig();
   }
 
+  // F-831: Hintergrund-Refresh
+  @Get('background-refresh')
+  backgroundRefresh() {
+    return this.mobile.getBackgroundRefreshConfig();
+  }
+
   // F-863–F-870: Advanced Player (Bluetooth, Car, Podcast, Sleep, etc.)
   @Get('player/advanced')
   advancedPlayerConfig() {

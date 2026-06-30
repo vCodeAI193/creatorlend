@@ -274,6 +274,17 @@ export class MobileService {
     };
   }
 
+  // F-831: Hintergrund-Refresh (neue Inhalte vorab laden)
+  getBackgroundRefreshConfig() {
+    return {
+      ios: { api: 'BGAppRefreshTask', minimumIntervalMinutes: 15, enabled: true },
+      android: { api: 'WorkManager', constraints: ['NETWORK_CONNECTED'], repeatIntervalHours: 1, enabled: true },
+      refreshContent: ['new_loans', 'recommendations', 'notifications'],
+      batterySaverOverride: true,
+      note: 'configure_background_task_in_native_app_AppDelegate_or_Application',
+    };
+  }
+
   // F-844–F-847: Battery, App Size, Performance
   getMobilePerformanceConfig() {
     return {
