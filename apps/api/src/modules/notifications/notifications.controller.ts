@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuard
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { NotificationsService } from "./notifications.service";
+import { NotificationsStubsService } from "./notifications-stubs.service";
 
 /** Öffentlicher Endpunkt: Abmelden via Token-Link aus E-Mail (B-125). */
 @Controller("notifications")
@@ -19,7 +20,10 @@ export class NotificationsPublicController {
 @Controller("notifications")
 @UseGuards(JwtAuthGuard)
 export class NotificationsController {
-  constructor(private readonly notifications: NotificationsService) {}
+  constructor(
+    private readonly notifications: NotificationsService,
+    private readonly stubs: NotificationsStubsService,
+  ) {}
 
   // GET /api/v1/notifications?unread=true&type=LOAN_EXPIRED
   @Get()
@@ -142,5 +146,196 @@ export class NotificationsController {
   @Delete("web-push/unsubscribe")
   unsubscribePush(@CurrentUser() userId: string, @Body("endpoint") endpoint: string) {
     return this.notifications.removePushSubscription(userId, endpoint);
+  }
+
+  // ─── F-646–649: External integrations ────────────────────────────────────
+
+  @Get("integrations/slack")
+  getSlackConfig(@CurrentUser() userId: string) {
+    return this.stubs.getSlackIntegrationConfig(userId);
+  }
+
+  @Put("integrations/slack")
+  setSlackConfig(@CurrentUser() userId: string, @Body("webhookUrl") webhookUrl: string, @Body("channel") channel: string) {
+    return this.stubs.setSlackIntegrationConfig(userId, webhookUrl, channel);
+  }
+
+  @Get("integrations/discord")
+  getDiscordConfig(@CurrentUser() userId: string) {
+    return this.stubs.getDiscordIntegrationConfig(userId);
+  }
+
+  @Put("integrations/discord")
+  setDiscordConfig(@CurrentUser() userId: string, @Body("webhookUrl") webhookUrl: string) {
+    return this.stubs.setDiscordIntegrationConfig(userId, webhookUrl);
+  }
+
+  @Get("integrations/telegram")
+  getTelegramConfig(@CurrentUser() userId: string) {
+    return this.stubs.getTelegramBotConfig(userId);
+  }
+
+  @Post("integrations/telegram/connect")
+  connectTelegram(@CurrentUser() userId: string, @Body("chatId") chatId: string) {
+    return this.stubs.connectTelegramBot(userId, chatId);
+  }
+
+  @Get("integrations/sms")
+  getSmsConfig(@CurrentUser() userId: string) {
+    return this.stubs.getSmsNotificationConfig(userId);
+  }
+
+  @Put("integrations/sms")
+  setSmsConfig(@CurrentUser() userId: string, @Body("phone") phone: string, @Body("types") types: string[]) {
+    return this.stubs.setSmsNotificationConfig(userId, phone, types);
+  }
+
+  // ─── F-651, F-665: Email config ───────────────────────────────────────────
+
+  @Get("email/templates")
+  getEmailTemplateConfig() {
+    return this.stubs.getEmailTemplateConfig();
+  }
+
+  @Get("email/dns-security")
+  getDnsSecurityConfig() {
+    return this.stubs.getDnsSecurityConfig();
+  }
+
+  // ─── F-666–669: Email analytics & sequences ──────────────────────────────
+
+  @Get("email/analytics")
+  getEmailAnalytics(@Query("period") period: string) {
+    return this.stubs.getEmailAnalytics(period);
+  }
+
+  @Get("email/ab-tests")
+  getEmailAbTests() {
+    return this.stubs.getEmailAbTests();
+  }
+
+  @Post("email/ab-tests")
+  createEmailAbTest(@Body("templateId") templateId: string, @Body("variants") variants: Array<{ subject: string; weight: number }>) {
+    return this.stubs.createEmailAbTest(templateId, variants);
+  }
+
+  @Get("email/sequences")
+  getEmailSequences() {
+    return this.stubs.getEmailSequences();
+  }
+
+  @Post("email/sequences/:sequenceId/enroll")
+  enrollInSequence(@CurrentUser() userId: string, @Param("sequenceId") sequenceId: string) {
+    return this.stubs.enrollUserInSequence(userId, sequenceId);
+  }
+
+  @Get("email/sequences/:sequenceId/status")
+  getSequenceStatus(@CurrentUser() userId: string, @Param("sequenceId") sequenceId: string) {
+    return this.stubs.getSequenceEnrollmentStatus(userId, sequenceId);
+  }
+
+  // ─── F-676–678: Push notification config ─────────────────────────────────
+
+  @Get("push/rich-config")
+  getRichPushConfig(@CurrentUser() userId: string) {
+    return this.stubs.getRichPushConfig(userId);
+  }
+
+  @Put("push/rich-config")
+  setRichPushConfig(@CurrentUser() userId: string, @Body() config: Record<string, unknown>) {
+    return this.stubs.setRichPushConfig(userId, config);
+  }
+
+  @Get("push/actionable-config")
+  getActionablePushConfig(@CurrentUser() userId: string) {
+    return this.stubs.getActionablePushConfig(userId);
+  }
+
+  @Put("push/actionable-config")
+  setActionablePushConfig(@CurrentUser() userId: string, @Body() config: Record<string, unknown>) {
+    return this.stubs.setActionablePushConfig(userId, config);
+  }
+
+  @Get("push/widget-config")
+  getNotificationWidgetConfig() {
+    return this.stubs.getNotificationWidgetConfig();
+  }
+
+  // ─── F-679–690: Notification type definitions ────────────────────────────
+
+  @Get("types")
+  getNotificationTypeDefinitions() {
+    return this.stubs.getNotificationTypeDefinitions();
+  }
+
+  @Post("types/trigger")
+  triggerNotificationType(
+    @CurrentUser() userId: string,
+    @Body("type") type: string,
+    @Body("data") data: Record<string, unknown>,
+  ) {
+    return this.stubs.triggerNotificationType(userId, type, data);
+  }
+
+  // ─── F-696–699: Status page & incidents ─────────────────────────────────
+
+  @Get("status")
+  getPlatformStatus() {
+    return this.stubs.getPlatformStatus();
+  }
+
+  @Get("maintenance")
+  getMaintenanceBanner() {
+    return this.stubs.getMaintenanceBanner();
+  }
+
+  @Put("maintenance")
+  setMaintenanceBanner(
+    @Body("enabled") enabled: boolean,
+    @Body("message") message: string,
+    @Body("eta") eta: string,
+  ) {
+    return this.stubs.setMaintenanceBanner(enabled, message, eta);
+  }
+
+  @Post("incidents")
+  createIncident(
+    @Body("title") title: string,
+    @Body("description") description: string,
+    @Body("affectedServices") affectedServices: string[],
+  ) {
+    return this.stubs.createIncident(title, description, affectedServices);
+  }
+
+  @Post("incidents/:incidentId/resolve")
+  resolveIncident(@Param("incidentId") incidentId: string, @Body("resolution") resolution: string) {
+    return this.stubs.resolveIncident(incidentId, resolution);
+  }
+
+  @Get("postmortems")
+  getPostmortems() {
+    return this.stubs.getPostmortems();
+  }
+
+  @Post("postmortems")
+  createPostmortem(
+    @Body("incidentId") incidentId: string,
+    @Body("title") title: string,
+    @Body("timeline") timeline: string,
+    @Body("rootCause") rootCause: string,
+    @Body("actionItems") actionItems: string[],
+  ) {
+    return this.stubs.createPostmortem(incidentId, title, timeline, rootCause, actionItems);
+  }
+
+  @Post("postmortems/:postmortemId/publish")
+  publishPostmortem(@Param("postmortemId") postmortemId: string) {
+    return this.stubs.publishPostmortem(postmortemId);
+  }
+
+  // F-667: Notification analytics
+  @Get("analytics")
+  getNotificationAnalytics() {
+    return this.stubs.getNotificationAnalytics();
   }
 }
