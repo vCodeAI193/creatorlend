@@ -418,8 +418,16 @@ export class WorksService {
   async clone(artistId: string, workId: string) {
     const work = await this.prisma.work.findUnique({ where: { id: workId } });
     if (!work || work.artistId !== artistId) throw new NotFoundException('work_not_found');
-    const { id, createdAt, updatedAt, borrowCount, publishAt, archivedAt, deletedAt, ...rest } = work;
-    return this.prisma.work.create({ data: { ...rest, title: `${work.title} (Kopie)`, status: 'DRAFT', borrowCount: 0 } });
+    const { id, createdAt, updatedAt, borrowCount, publishAt, archivedAt, deletedAt, revenueShares, ...rest } = work;
+    return this.prisma.work.create({
+      data: {
+        ...rest,
+        title: `${work.title} (Kopie)`,
+        status: 'DRAFT',
+        borrowCount: 0,
+        ...(revenueShares !== null ? { revenueShares: revenueShares as never } : {}),
+      },
+    });
   }
 
   /** Soft-delete a work (F-098). */
@@ -1185,6 +1193,40 @@ export class WorksService {
       platformMinCents: 50,
       platformMaxCents: 500,
     };
+  }
+
+  // ─── F-386/F-387: Multi-Artist Revenue Split ─────────────────────────────
+
+  /** Setzt die Einnahmenteilung für ein kollaboratives Werk. splits: [{artistId, pct}], Summe muss 100 sein. */
+  async setRevenueShares(artistId: string, workId: string, splits: { artistId: string; pct: number }[]) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId } });
+    if (!work) throw new NotFoundException('work_not_found');
+    if (work.artistId !== artistId) throw new ForbiddenException('not_your_work');
+    const total = splits.reduce((s, r) => s + r.pct, 0);
+    if (Math.abs(total - 100) > 0.01) throw new BadRequestException('splits_must_sum_to_100');
+    return this.prisma.work.update({
+      where: { id: workId },
+      data: { revenueShares: splits as never },
+      select: { id: true, revenueShares: true },
+    });
+  }
+
+  /** Gibt die konfigurierte Einnahmenteilung zurück. */
+  async getRevenueShares(workId: string) {
+    const work = await this.prisma.work.findUnique({ where: { id: workId }, select: { id: true, revenueShares: true } });
+    if (!work) throw new NotFoundException('work_not_found');
+    return work;
+  }
+
+  // ─── F-413/F-414: Multi-currency ─────────────────────────────────────────
+
+  /** Stub: gibt Betrag in Zielwährung zurück (Umrechnung via hartkodiertem Kurs). */
+  async convertCurrency(amountCents: number, from: string, to: string) {
+    const rates: Record<string, number> = { EUR: 1, USD: 1.08, GBP: 0.86 };
+    const fromRate = rates[from.toUpperCase()] ?? 1;
+    const toRate = rates[to.toUpperCase()] ?? 1;
+    const converted = Math.round(amountCents * (toRate / fromRate));
+    return { from, to, originalCents: amountCents, convertedCents: converted, rate: toRate / fromRate };
   }
 
   // ─── F-763: Revenue export als CSV ───────────────────────────────────────

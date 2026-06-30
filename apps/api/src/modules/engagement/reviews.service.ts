@@ -1,9 +1,14 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { NotificationType } from "../notifications/notification-types";
 
 @Injectable()
 export class ReviewsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /** Rezension anlegen oder aktualisieren (B-130). F-524: sets isVerifiedBuyer. */
   async upsert(userId: string, workId: string, body: string, rating?: number) {
@@ -23,7 +28,7 @@ export class ReviewsService {
     });
     const isVerifiedBuyer = !!verifiedLoan;
 
-    return this.prisma.review.upsert({
+    const review = await this.prisma.review.upsert({
       where: { userId_workId: { userId, workId } },
       create: { userId, workId, body, isVerifiedBuyer, ...(rating !== undefined ? { rating } : {}) },
       update: { body, isVerifiedBuyer, ...(rating !== undefined ? { rating } : {}) },
@@ -33,6 +38,19 @@ export class ReviewsService {
         createdAt: true, updatedAt: true,
       },
     });
+
+    // F-493: Notify artist of new review
+    if (work) {
+      this.notifications.create({
+        userId: work.artistId,
+        type: NotificationType.REVIEW_CREATED,
+        title: 'Neue Bewertung',
+        body: `Dein Werk hat eine neue Bewertung erhalten.`,
+        data: { reviewId: review.id, workId },
+      }).catch(() => { /* non-critical */ });
+    }
+
+    return review;
   }
 
   /** Eigene Rezension löschen. */

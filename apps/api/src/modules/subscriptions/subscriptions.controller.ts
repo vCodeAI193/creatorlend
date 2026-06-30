@@ -178,6 +178,12 @@ export class SubscriptionsController {
     return this.subscriptions.getPlans();
   }
 
+  // GET /api/v1/subscriptions/plans/annual – Jahres-Abo mit Gratis-Monat (F-417)
+  @Get("plans/annual")
+  getAnnualPlans() {
+    return this.subscriptions.getAnnualPlans();
+  }
+
   // DELETE /api/v1/subscriptions/me – Kündigung (F-502)
   // Note: existing DELETE /me calls cancel(), this aliases cancelSubscription()
   // POST /api/v1/subscriptions/me/cancel – Kündigung mit Bestätigung (F-502)

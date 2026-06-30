@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Res,
   UseGuards,
@@ -884,5 +885,34 @@ export class WorksController {
   @UseGuards(JwtAuthGuard)
   removeCategory(@Param("id") workId: string, @Param("categoryId") categoryId: string) {
     return this.categories.removeCategory(workId, categoryId);
+  }
+
+  // PUT /api/v1/works/:id/revenue-shares – Einnahmenteilung konfigurieren (F-386/F-387)
+  @Put(":id/revenue-shares")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ARTIST)
+  setRevenueShares(
+    @CurrentUser() userId: string,
+    @Param("id") workId: string,
+    @Body("splits") splits: { artistId: string; pct: number }[],
+  ) {
+    return this.works.setRevenueShares(userId, workId, splits);
+  }
+
+  // GET /api/v1/works/:id/revenue-shares – Einnahmenteilung abrufen (F-386)
+  @Get(":id/revenue-shares")
+  @UseGuards(JwtAuthGuard)
+  getRevenueShares(@Param("id") workId: string) {
+    return this.works.getRevenueShares(workId);
+  }
+
+  // GET /api/v1/works/currency-convert – Währungsumrechnung (F-413/F-414)
+  @Get("currency-convert")
+  convertCurrency(
+    @Query("amount") amount: string,
+    @Query("from") from: string,
+    @Query("to") to: string,
+  ) {
+    return this.works.convertCurrency(Number(amount), from ?? 'EUR', to ?? 'EUR');
   }
 }

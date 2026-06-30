@@ -236,4 +236,10 @@ export class LoansController {
   setPrivateMode(@CurrentUser() userId: string, @Body("enabled") enabled: boolean) {
     return this.loans.setPrivateListeningMode(userId, enabled);
   }
+
+  // GET /api/v1/loans/stats/share – teilbare Jahresstatistiken (F-552/F-553)
+  @Get("stats/share")
+  getShareableStats(@CurrentUser() userId: string, @Query("year") year?: string) {
+    return this.loans.getShareableStats(userId, year ? Number(year) : undefined);
+  }
 }

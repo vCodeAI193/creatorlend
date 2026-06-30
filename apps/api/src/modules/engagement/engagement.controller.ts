@@ -21,6 +21,7 @@ import { RatingsService } from "./ratings.service";
 import { ReviewsService } from "./reviews.service";
 import { BookmarksService } from "./bookmarks.service";
 import { FaqsService } from "./faqs.service";
+import { ContentFeedbackService } from "./content-feedback.service";
 import { FavoriteDto } from "./dto/favorite.dto";
 import { FollowDto } from "./dto/follow.dto";
 
@@ -37,6 +38,7 @@ export class EngagementController {
     private readonly reviews: ReviewsService,
     private readonly bookmarks: BookmarksService,
     private readonly faqs: FaqsService,
+    private readonly contentFeedback: ContentFeedbackService,
   ) {}
 
   // POST /api/v1/favorites
@@ -232,5 +234,76 @@ export class EngagementController {
   @Post("faqs/reorder")
   reorderFaqs(@CurrentUser() userId: string, @Body("orderedIds") orderedIds: string[]) {
     return this.faqs.reorder(userId, orderedIds);
+  }
+
+  // ─── F-536/F-537/F-538: Content Feedback ────────────────────────────────
+
+  // POST /api/v1/content-feedback/not-interested – Werk nicht interessiert markieren (F-536)
+  @Post("content-feedback/not-interested")
+  notInterested(@CurrentUser() userId: string, @Body("workId") workId: string) {
+    return this.contentFeedback.notInterested(userId, workId);
+  }
+
+  // DELETE /api/v1/content-feedback/not-interested/:workId – Markierung aufheben (F-536)
+  @Delete("content-feedback/not-interested/:workId")
+  removeNotInterested(@CurrentUser() userId: string, @Param("workId") workId: string) {
+    return this.contentFeedback.removeNotInterested(userId, workId);
+  }
+
+  // POST /api/v1/content-feedback/more-like-this – Mehr davon (F-537)
+  @Post("content-feedback/more-like-this")
+  moreLikeThis(@CurrentUser() userId: string, @Body("workId") workId: string) {
+    return this.contentFeedback.moreLikeThis(userId, workId);
+  }
+
+  // POST /api/v1/content-feedback/mood-vote – Stimmungs-Votum nach dem Hören (F-538)
+  @Post("content-feedback/mood-vote")
+  moodVote(
+    @CurrentUser() userId: string,
+    @Body("loanId") loanId: string,
+    @Body("mood") mood: 'UP' | 'DOWN',
+  ) {
+    return this.contentFeedback.voteMood(userId, loanId, mood);
+  }
+
+  // GET /api/v1/content-feedback – eigene Feedbacks (F-536/F-537/F-538)
+  @Get("content-feedback")
+  getMyFeedback(@CurrentUser() userId: string) {
+    return this.contentFeedback.getFeedback(userId);
+  }
+
+  // ─── F-571-F-576: Social / Activity Feed ────────────────────────────────
+
+  // GET /api/v1/follows/public-feed – öffentlicher Aktivitäts-Feed (F-571)
+  @Get("follows/public-feed")
+  publicActivityFeed(@CurrentUser() userId: string, @Query("limit") limit?: string) {
+    return this.follows.publicActivityFeed(userId, limit ? Number(limit) : 20);
+  }
+
+  // GET /api/v1/follows/:artistId/followers – Follower-Liste eines Künstlers (F-575)
+  @Get("follows/:artistId/followers")
+  listFollowers(
+    @CurrentUser() userId: string,
+    @Param("artistId") artistId: string,
+  ) {
+    return this.follows.listFollowersWithMutual(artistId, userId);
+  }
+
+  // GET /api/v1/follows/:artistId/followers/search – Follower suchen (F-576)
+  @Get("follows/:artistId/followers/search")
+  searchFollowers(@Param("artistId") artistId: string, @Query("q") q: string) {
+    return this.follows.searchFollowers(artistId, q ?? '');
+  }
+
+  // PATCH /api/v1/follows/privacy/activity-feed – Feed-Sichtbarkeit (F-572)
+  @Patch("follows/privacy/activity-feed")
+  setActivityFeedPublic(@CurrentUser() userId: string, @Body("public") isPublic: boolean) {
+    return this.follows.setActivityFeedPublic(userId, isPublic);
+  }
+
+  // PATCH /api/v1/follows/privacy/follower-list – Follower-Listen-Sichtbarkeit (F-575)
+  @Patch("follows/privacy/follower-list")
+  setFollowerListPublic(@CurrentUser() userId: string, @Body("public") isPublic: boolean) {
+    return this.follows.setFollowerListPublic(userId, isPublic);
   }
 }

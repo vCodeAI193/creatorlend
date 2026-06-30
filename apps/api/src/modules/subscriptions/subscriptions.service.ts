@@ -331,9 +331,39 @@ export class SubscriptionsService {
   /** F-501: Return available subscription plan definitions. */
   getPlans() {
     return [
-      { id: "BASIC", name: "Basic", loanQuota: 5, priceCents: 499 },
-      { id: "STANDARD", name: "Standard", loanQuota: 10, priceCents: 999 },
-      { id: "PREMIUM", name: "Premium", loanQuota: 30, priceCents: 1499 },
+      { id: "BASIC", name: "Basic", loanQuota: 5, priceCents: 499, monthlyPriceCents: 499, annualPriceCents: 4990 },
+      { id: "STANDARD", name: "Standard", loanQuota: 10, priceCents: 999, monthlyPriceCents: 999, annualPriceCents: 9990 },
+      { id: "PREMIUM", name: "Premium", loanQuota: 30, priceCents: 1499, monthlyPriceCents: 1499, annualPriceCents: 14990 },
+    ];
+  }
+
+  // F-417: Jahres-Abo mit 1 Gratis-Monat (10 statt 12 Monate berechnet)
+  getAnnualPlans() {
+    return [
+      {
+        id: "BASIC_ANNUAL", name: "Basic Jährlich", loanQuota: 5,
+        monthlyEquivalentCents: 415, // 4990 / 12
+        annualPriceCents: 4990, // effectively 10 months price
+        savingsCents: 998, // 2 months free = 499 * 2 (actually 1 month free here)
+        freeMonths: 1,
+        description: '10 Monate Preis für 12 Monate – 1 Monat gratis!',
+      },
+      {
+        id: "STANDARD_ANNUAL", name: "Standard Jährlich", loanQuota: 10,
+        monthlyEquivalentCents: 832,
+        annualPriceCents: 9990,
+        savingsCents: 1998,
+        freeMonths: 1,
+        description: '10 Monate Preis für 12 Monate – 1 Monat gratis!',
+      },
+      {
+        id: "PREMIUM_ANNUAL", name: "Premium Jährlich", loanQuota: 30,
+        monthlyEquivalentCents: 1249,
+        annualPriceCents: 14990,
+        savingsCents: 2998,
+        freeMonths: 1,
+        description: '10 Monate Preis für 12 Monate – 1 Monat gratis!',
+      },
     ];
   }
 

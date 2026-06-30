@@ -113,15 +113,30 @@ export class LoansService {
         },
       });
 
-      // F-372: Revenue share – artist gets (1 - platformFeePct) of loanPriceCents
-      await tx.payoutItem.create({
-        data: {
-          artistId: work.artistId,
-          loanId: created.id,
-          amountCents: Math.round(work.loanPriceCents * (1 - this.platformFeePct)),
-          status: "PENDING",
-        },
-      });
+      // F-372/F-386: Revenue share – split across contributors if configured
+      const netCents = Math.round(work.loanPriceCents * (1 - this.platformFeePct));
+      const splits = Array.isArray(work.revenueShares) ? work.revenueShares as { artistId: string; pct: number }[] : null;
+      if (splits && splits.length > 0) {
+        for (const s of splits) {
+          await tx.payoutItem.create({
+            data: {
+              artistId: s.artistId,
+              loanId: created.id,
+              amountCents: Math.round(netCents * s.pct / 100),
+              status: "PENDING",
+            },
+          });
+        }
+      } else {
+        await tx.payoutItem.create({
+          data: {
+            artistId: work.artistId,
+            loanId: created.id,
+            amountCents: netCents,
+            status: "PENDING",
+          },
+        });
+      }
 
       if (!isFreeTrialEligible) {
         await tx.subscription.update({
@@ -732,5 +747,38 @@ export class LoansService {
       reminded += 1;
     }
     return { reminded };
+  }
+
+  /**
+   * F-552/F-553: Teilbare Jahresstatistiken des Nutzers.
+   * Gibt aggregierte Hördaten für das angegebene Jahr zurück,
+   * damit ein Share-Poster generiert werden kann.
+   */
+  async getShareableStats(userId: string, year?: number) {
+    const targetYear = year ?? new Date().getFullYear();
+    const start = new Date(targetYear, 0, 1);
+    const end = new Date(targetYear + 1, 0, 1);
+    const loans = await this.prisma.loan.findMany({
+      where: { userId, createdAt: { gte: start, lt: end } },
+      include: { work: { select: { type: true, title: true, artist: { select: { displayName: true } } } } },
+    });
+    const byType: Record<string, number> = {};
+    const byArtist: Record<string, number> = {};
+    for (const l of loans) {
+      byType[l.work.type] = (byType[l.work.type] ?? 0) + 1;
+      const name = l.work.artist.displayName;
+      byArtist[name] = (byArtist[name] ?? 0) + 1;
+    }
+    const topArtist = Object.entries(byArtist).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    const topType = Object.entries(byType).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    return {
+      year: targetYear,
+      totalLoans: loans.length,
+      byType,
+      byArtist,
+      topArtist,
+      topType,
+      shareToken: Buffer.from(`${userId}:${targetYear}`).toString('base64url'),
+    };
   }
 }
